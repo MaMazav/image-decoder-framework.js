@@ -115,14 +115,14 @@ WorkerProxyImageDecoder.prototype.getDefaultNumQualityLayers = function getDefau
     return numLayers;
 };
 
-WorkerProxyImageDecoder.prototype.createMovableRequestHandle = function createMovableRequestHandle(
+WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
     createdCallback) {
     
     var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
-        createdCallback, 'ImageDecoder_createMovableRequestHandleCallback');
+        createdCallback, 'ImageDecoder_createChannelCallback');
     
     var args = [callbackWrapper];
-    this._workerHelper.callFunction('createMovableRequestHandle', args);
+    this._workerHelper.callFunction('createChannel', args);
 };
 
 WorkerProxyImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
@@ -142,7 +142,7 @@ WorkerProxyImageDecoder.prototype.requestPixelsProgressive = function requestPix
     callback,
     terminatedCallback,
     imagePartParamsNotNeeded,
-    movableRequestHandleToChange) {
+    channelHandle) {
     
     var transferables;
     
@@ -170,7 +170,7 @@ WorkerProxyImageDecoder.prototype.requestPixelsProgressive = function requestPix
         internalCallbackWrapper,
         internalTerminatedCallbackWrapper,
         imagePartParamsNotNeeded,
-        movableRequestHandleToChange];
+        channelHandle];
     
     this._workerHelper.callFunction('requestPixelsProgressive', args);
         

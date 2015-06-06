@@ -70,7 +70,7 @@ DecodeJob.prototype.unregisterListener = function unregisterListener(unregisterH
     }
     
     if (this._listenersLinkedList.getCount() === 0) {
-        this._fetchManager.manualAbortNonMovableRequest(
+        this._fetchManager.manualAbortRequest(
             this._requestId);
         
         this._isAborted = true;

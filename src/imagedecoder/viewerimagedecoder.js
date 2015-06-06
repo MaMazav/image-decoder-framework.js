@@ -31,7 +31,7 @@ function ViewerImageDecoder(canvasUpdatedCallback, options) {
     this._targetCanvas = null;
     
     this._callPendingCallbacksBound = this._callPendingCallbacks.bind(this);
-    this._createdRequestHandleBound = this._createdRequestHandle.bind(this);
+    this._createdChannelBound = this._createdChannel.bind(this);
     
     this._pendingCallbacksIntervalHandle = 0;
     this._pendingCallbackCalls = [];
@@ -135,13 +135,13 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
 
     this._dynamicFetchParams = alignedParams;
     
-    var startMovableRequestOnTerminated = false;
-    var moveExistingRequest = !this._allowMultipleChannelsInSession;
+    var allowAdditionalChannel = false;
+    var moveExistingChannel = !this._allowMultipleChannelsInSession;
     this._fetch(
         REGION_DYNAMIC,
         alignedParams,
-        startMovableRequestOnTerminated,
-        moveExistingRequest);
+        allowAdditionalChannel,
+        moveExistingChannel);
 };
 
 ViewerImageDecoder.prototype._isImagePartsEqual = function isImagePartsEqual(first, second) {
@@ -159,8 +159,8 @@ ViewerImageDecoder.prototype._isImagePartsEqual = function isImagePartsEqual(fir
 ViewerImageDecoder.prototype._fetch = function fetch(
     regionId,
     fetchParams,
-    startMovableRequestOnTerminated,
-    moveExistingRequest) {
+    allowAdditionalChannel,
+    moveExistingChannel) {
     
     var requestIndex = ++this._lastRequestIndex;
     
@@ -213,15 +213,14 @@ ViewerImageDecoder.prototype._fetch = function fetch(
     
     var self = this;
     
-    var movableRequest = moveExistingRequest ?
-        this._movableRequestHandle: undefined;
+    var channelHandle = moveExistingChannel ? this._channelHandle: undefined;
 
     this._image.requestPixelsProgressive(
         fetchParams.imagePartParams,
         callback,
         terminatedCallback,
         fetchParamsNotNeeded,
-        movableRequest);
+        channelHandle);
     
     function callback(decoded) {
         self._tilesDecodedCallback(
@@ -250,12 +249,12 @@ ViewerImageDecoder.prototype._fetch = function fetch(
             regionId,
             fetchParams.imagePartParams.requestPriorityData,
             isAborted,
-            startMovableRequestOnTerminated);
+            allowAdditionalChannel);
     }
 };
 
 ViewerImageDecoder.prototype._fetchTerminatedCallback = function fetchTerminatedCallback(
-    regionId, priorityData, isAborted, startMovableRequestOnTerminated) {
+    regionId, priorityData, isAborted, allowAdditionalChannel) {
     
     var region = this._regions[regionId];
     if (region === undefined) {
@@ -270,14 +269,14 @@ ViewerImageDecoder.prototype._fetchTerminatedCallback = function fetchTerminated
     
     region.isDone = !isAborted && this._isReady;
     
-    if (startMovableRequestOnTerminated) {
-        this._image.createMovableRequestHandle(
-            this._createdRequestHandleBound);
+    if (allowAdditionalChannel) {
+        this._image.createChannel(
+            this._createdChannelBound);
     }
 };
 
-ViewerImageDecoder.prototype._createdRequestHandle = function createdRequestHandle(requestHandle) {
-    this._movableRequestHandle = requestHandle;
+ViewerImageDecoder.prototype._createdChannel = function createdChannel(channelHandle) {
+    this._channelHandle = channelHandle;
     this._startShowingDynamicRegion();
 };
 
@@ -586,13 +585,13 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
     overviewAlignedParams.imagePartParams.requestPriorityData.overrideHighestPriority = true;
     overviewAlignedParams.imagePartParams.maxNumQualityLayers = 1;
     
-    var startMovableRequestOnTerminated =
+    var allowAdditionalChannel =
         !this._allowMultipleChannelsInSession;
         
     this._fetch(
         REGION_OVERVIEW,
         overviewAlignedParams,
-        startMovableRequestOnTerminated);
+        allowAdditionalChannel);
     
     if (this._allowMultipleChannelsInSession) {
         this._startShowingDynamicRegion();

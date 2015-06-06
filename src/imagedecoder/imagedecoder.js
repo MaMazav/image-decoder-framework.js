@@ -25,7 +25,7 @@ function ImageDecoder(imageImplementationClassName, options) {
 
     this._sizesParams = null;
     this._sizesCalculator = null;
-    this._requestHandles = [];
+    this._channelStates = [];
     this._decoders = [];
     this._imageImplementationClassName = imageImplementationClassName;
     this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
@@ -41,14 +41,14 @@ function ImageDecoder(imageImplementationClassName, options) {
     
     this._decodePrioritizer = decodeScheduler.prioritizer;
 
-    this._nonMovableRequestsDecodeJobsPool = new DecodeJobsPool(
+    this._requestsDecodeJobsPool = new DecodeJobsPool(
         this._fetchManager,
         decodeScheduler.scheduler,
         this._tileWidth,
         this._tileHeight,
         /*onlyWaitForDataAndDecode=*/false);
         
-    this._movableRequestsDecodeJobsPool = new DecodeJobsPool(
+    this._channelsDecodeJobsPool = new DecodeJobsPool(
         this._fetchManager,
         decodeScheduler.scheduler,
         this._tileWidth,
@@ -137,23 +137,23 @@ ImageDecoder.prototype.getDefaultNumQualityLayers = function getDefaultNumQualit
     return numLayers;
 };
 
-ImageDecoder.prototype.createMovableRequestHandle = function createMovableRequestHandle(
+ImageDecoder.prototype.createChannel = function createChannel(
     createdCallback) {
     
     validateSizesCalculator(this);
     
     var self = this;
     
-    function requestHandleCreated(requestHandle) {
-        self._requestHandles[requestHandle] = {
+    function channelCreated(channelHandle) {
+        self._channelStates[channelHandle] = {
             decodeJobsListenerHandle: null
         };
         
-        createdCallback(requestHandle);
+        createdCallback(channelHandle);
     }
     
-    this._fetchManager.createMovableRequestHandle(
-        requestHandleCreated);
+    this._fetchManager.createChannel(
+        channelCreated);
 };
 
 ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
@@ -174,7 +174,7 @@ ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
         resolve = resolve_;
         reject = reject_;
         
-        self._nonMovableRequestsDecodeJobsPool.forkDecodeJobs(
+        self._requestsDecodeJobsPool.forkDecodeJobs(
             imagePartParams,
             internalCallback,
             internalTerminatedCallback,
@@ -201,7 +201,7 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     callback,
     terminatedCallback,
     imagePartParamsNotNeeded,
-    movableRequestHandleToChange) {
+    channelHandle) {
     
     validateSizesCalculator(this);
     
@@ -209,22 +209,20 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
     var levelHeight = this._sizesCalculator.getLevelHeight(level);
     
-    var requestHandleVars = null;
+    var channelState = null;
     var decodeJobsPool;
-    if (movableRequestHandleToChange === undefined) {
-        decodeJobsPool = this._nonMovableRequestsDecodeJobsPool;
+    if (channelHandle === undefined) {
+        decodeJobsPool = this._requestsDecodeJobsPool;
     } else {
-        decodeJobsPool = this._movableRequestsDecodeJobsPool;
+        decodeJobsPool = this._channelsDecodeJobsPool;
         
-        requestHandleVars = this._requestHandles[
-            movableRequestHandleToChange];
+        channelState = this._channelStates[channelHandle];
         
-        if (requestHandleVars === undefined) {
-            throw 'Request handle does not exist';
+        if (channelState === undefined) {
+            throw 'Channel handle does not exist';
         }
         
-        this._fetchManager.moveRequest(
-            movableRequestHandleToChange, imagePartParams);
+        this._fetchManager.moveChannel(channelHandle, imagePartParams);
     }
     
     var listenerHandle = decodeJobsPool.forkDecodeJobs(
@@ -236,16 +234,16 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
         /*isProgressive=*/true,
         imagePartParamsNotNeeded);
         
-    if (movableRequestHandleToChange !== undefined &&
-        requestHandleVars.decodeJobsListenerHandle !== null) {
+    if (channelHandle !== undefined &&
+        channelState.decodeJobsListenerHandle !== null) {
         
         // Unregister after forked new jobs, so no termination occurs meanwhile
         decodeJobsPool.unregisterForkedJobs(
-            requestHandleVars.decodeJobsListenerHandle);
+            channelState.decodeJobsListenerHandle);
     }
     
-    if (requestHandleVars !== null) {
-        requestHandleVars.decodeJobsListenerHandle = listenerHandle;
+    if (channelState !== null) {
+        channelState.decodeJobsListenerHandle = listenerHandle;
     }
 };
 

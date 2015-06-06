@@ -59,22 +59,22 @@ WorkerProxyFetchManager.prototype.close = function close(closedCallback) {
     }
 };
 
-WorkerProxyFetchManager.prototype.createMovableRequestHandle = function createMovableRequestHandle(
+WorkerProxyFetchManager.prototype.createChannel = function createChannel(
     createdCallback) {
     
     var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
         createdCallback,
-        'FetchManager_createMovableRequestHandleCallback');
+        'FetchManager_createChannelCallback');
     
     var args = [callbackWrapper];
-    this._workerHelper.callFunction('createMovableRequestHandle', args);
+    this._workerHelper.callFunction('createChannel', args);
 };
 
-WorkerProxyFetchManager.prototype.moveRequest = function moveRequest(
-    movableRequestHandle, imagePartParams) {
+WorkerProxyFetchManager.prototype.moveChannel = function moveChannel(
+    channelHandle, imagePartParams) {
     
-    var args = [movableRequestHandle, imagePartParams];
-    this._workerHelper.callFunction('moveRequest', args);
+    var args = [channelHandle, imagePartParams];
+    this._workerHelper.callFunction('moveChannel', args);
 };
 
 WorkerProxyFetchManager.prototype.createRequest = function createRequest(
@@ -125,12 +125,12 @@ WorkerProxyFetchManager.prototype.createRequest = function createRequest(
     }
 };
 
-WorkerProxyFetchManager.prototype.manualAbortNonMovableRequest = function manualAbortNonMovableRequest(
+WorkerProxyFetchManager.prototype.manualAbortRequest = function manualAbortRequest(
     requestId) {
     
     var args = [requestId];
     this._workerHelper.callFunction(
-        'manualAbortNonMovableRequest', args);
+        'manualAbortRequest', args);
 };
 
 WorkerProxyFetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(

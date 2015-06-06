@@ -3,7 +3,7 @@
 module.exports = FetchManager;
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
-var ScheduledRequestManager = require('scheduledrequestmanager.js');
+var FetchJob = require('fetchjob.js');
 
 /* global console: false */
 
@@ -11,7 +11,7 @@ function FetchManager(imageImplementationClassName, options) {
     var serverRequestsLimit = options.serverRequestsLimit || 5;
     
     this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
-    this._fetcher = this._imageImplementation.createFetcher();
+    this._fetchClient = this._imageImplementation.createFetchClient();
     this._showLog = options.showLog;
     this._sizesCalculator = null;
     
@@ -29,48 +29,63 @@ function FetchManager(imageImplementationClassName, options) {
     
     this._serverRequestPrioritizer = serverRequestScheduler.prioritizer;
     
-    this._requestManager = new ScheduledRequestManager(
-        this._fetcher, serverRequestScheduler.scheduler);
+    this._scheduler = serverRequestScheduler.scheduler;
+    this._channelHandleCounter = 0;
+    this._channelHandles = [];
+    this._requestById = [];
 }
 
 FetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    this._fetcher.setStatusCallback(statusCallback);
+    this._fetchClient.setStatusCallback(statusCallback);
 };
 
 FetchManager.prototype.open = function open(url) {
-    this._fetcher.open(url);
+    this._fetchClient.open(url);
 };
 
 FetchManager.prototype.close = function close(closedCallback) {
-    this._fetcher.close(closedCallback);
+    this._fetchClient.close(closedCallback);
 };
 
 FetchManager.prototype.getSizesParams = function getSizesParams() {
-    var sizesParams = this._fetcher.getSizesParams();
+    var sizesParams = this._fetchClient.getSizesParams();
     return sizesParams;
 };
 
 FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
     requestId, isProgressive) {
     
-    var contextVars = this._requestManager.getContextVars(requestId);
-    if (contextVars !== null) {
-        contextVars.isProgressive = isProgressive;
+    var scheduledRequest = this._requestById[requestId];
+    if (scheduledRequest === undefined) {
+        // This situation might occur if request has been terminated,
+        // but user's terminatedCallback has not been called yet. It
+        // happens on WorkerProxyFetchManager due to thread
+        // message delay.
+        
+        return null;
     }
+    
+    return scheduledRequest.getContextVars();
 };
 
-FetchManager.prototype.createMovableRequestHandle = function createMovableRequestHandle(
+FetchManager.prototype.createChannel = function createChannel(
     createdCallback) {
     
-    var requestHandle = this._requestManager.createMovableRequestHandle();
-    createdCallback(requestHandle);
+    var channelHandle = ++this._channelHandleCounter;
+    this._channelHandles[channelHandle] = new FetchJob(
+        this._fetchClient,
+        this._scheduler,
+        FetchJob.FETCH_TYPE_CHANNEL,
+        /*contextVars=*/null);
+
+    createdCallback(channelHandle);
 };
 
-FetchManager.prototype.moveRequest = function moveRequest(
-    movableRequestHandle, imagePartParams) {
+FetchManager.prototype.moveChannel = function moveChannel(
+    channelHandle, imagePartParams) {
     
-    this._requestManager.moveRequest(
-        movableRequestHandle, imagePartParams);
+    var channel = this._channelHandles[channelHandle];
+    channel.fetch(imagePartParams);
 };
 
 FetchManager.prototype.createRequest = function createRequest(
@@ -87,26 +102,49 @@ FetchManager.prototype.createRequest = function createRequest(
         isLastCallbackCalledWithoutLowQualityLayerLimit: false,
         callbackThis: callbackThis,
         callback: callback,
-        terminatedCallback: terminatedCallback
+        terminatedCallback: terminatedCallback,
+        requestId: requestId,
+        self: this
     };
     
-    this._requestManager.createRequest(
-        fetchParams,
-        contextVars,
-        internalCallback,
-        internalTerminatedCallback,
-        isOnlyWaitForData,
-        requestId);
+    var fetchType = isOnlyWaitForData ?
+        FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : FetchJob.FETCH_TYPE_REQUEST;
+    
+    var scheduledRequest = new FetchJob(
+        this._fetchClient, this._scheduler, fetchType, contextVars);
+    
+    if (this._requestById[requestId] !== undefined) {
+        throw 'Duplication of requestId ' + requestId;
+    } else if (requestId !== undefined) {
+        this._requestById[requestId] = scheduledRequest;
+    }
+    
+    scheduledRequest.on('data', internalCallback);
+    scheduledRequest.on('terminated', internalTerminatedCallback);
+    
+    scheduledRequest.fetch(fetchParams);
 };
 
-FetchManager.prototype.manualAbortNonMovableRequest = function manualAbortNonMovableRequest(
+FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
     requestId) {
     
-    this._requestManager.manualAbortNonMovableRequest(requestId);
+    var scheduledRequest = this._requestById[requestId];
+    
+    if (scheduledRequest === undefined) {
+        // This situation might occur if request has been terminated,
+        // but user's terminatedCallback has not been called yet. It
+        // happens on WorkerProxyFetchManager due to web worker
+        // message delay.
+        
+        return;
+    }
+    
+    scheduledRequest.manualAbortRequest();
+    delete this._requestById[requestId];
 };
 
 FetchManager.prototype.reconnect = function reconnect() {
-    this._fetcher.reconnect();
+    this._fetchClient.reconnect();
 };
 
 FetchManager.prototype.setServerRequestPrioritizerData =
@@ -156,7 +194,7 @@ FetchManager.prototype._validateSizesCalculator = function validateSizesCalculat
         this._imageParams);
 };
 
-function internalCallback(contextVars, requestContext) {
+function internalCallback(contextVars, fetchContext) {
     var isLimitToLowQualityLayer = 
         contextVars.progressiveStagesDone === 0;
     
@@ -175,10 +213,10 @@ function internalCallback(contextVars, requestContext) {
     ++contextVars.progressiveStagesDone;
     
     extractDataAndCallCallback(
-        contextVars, requestContext, maxNumQualityLayers);
+        contextVars, fetchContext, maxNumQualityLayers);
 }
 
-function internalTerminatedCallback(contextVars, requestContext, isAborted) {
+function internalTerminatedCallback(contextVars, fetchContext, isAborted) {
     if (!contextVars.isLastCallbackCalledWithoutLowQualityLayerLimit) {
         // This condition come to check if another decoding should be done.
         // One situation it may happen is when the request is not
@@ -187,17 +225,19 @@ function internalTerminatedCallback(contextVars, requestContext, isAborted) {
         // thus the callback was called with only the first quality layer
         // (for performance reasons). Thus another decoding should be done.
         
-        extractDataAndCallCallback(contextVars, requestContext);
+        extractDataAndCallCallback(contextVars, fetchContext);
     }
     
     contextVars.terminatedCallback.call(
         contextVars.callbackThis, isAborted);
+    
+    delete contextVars.self._requestById[contextVars.requestId];
 }
 
 function extractDataAndCallCallback(
-    contextVars, requestContext, maxNumQualityLayers) {
+    contextVars, fetchContext, maxNumQualityLayers) {
     
-    var dataForDecode = requestContext.getDataForDecode(maxNumQualityLayers);
+    var dataForDecode = fetchContext.getFetchedData(maxNumQualityLayers);
     
     contextVars.callback.call(
         contextVars.callbackThis, dataForDecode);
@@ -206,5 +246,3 @@ function extractDataAndCallCallback(
 function createServerRequestDummyResource() {
     return {};
 }
-
-return FetchManager;
