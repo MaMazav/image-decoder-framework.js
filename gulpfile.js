@@ -26,9 +26,10 @@ var sources = [
     './src/imagedecoder/imagedecoderworkers/workerproxyfetchmanager.js',
     './src/imagedecoder/imagedecoderworkers/workerproxyimagedecoder.js',
     './src/imagedecoder/imagedecoderworkers/workerproxypixelsdecoder.js',
-    './src/imagedecoder/statelessfetchcontext.js',
-    './src/imagedecoder/statelessfetcher.js',
-    './src/imagedecoder/statelessfetchclient.js',
+    './src/imagedecoder/datapublisher.js',
+    './src/imagedecoder/simplefetchcontext.js',
+    './src/imagedecoder/simplefetcher.js',
+    './src/imagedecoder/fetchclientbase.js',
     './src/imagedecoder/imagedecoder.js',
     './src/imagedecoder/viewerimagedecoder.js',
 
