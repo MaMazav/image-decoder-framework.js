@@ -1,12 +1,3 @@
-var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
-return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
-1:++e[g])}f=b}f=null;null!==c&&(f=q(a,c),--a.j);if(a.e){b=c="";void 0!==a.c&&(c=a.c+"'s ",b=a.c+"'s ");c+="Jobs list:";for(m=0;m<e.length;++m)void 0!==e[m]&&(c+=e[m]+" jobs of priority "+m+";");console.log(c);null!==f&&console.log(b+(" dequeued new job of priority "+d))}k(a);return f}function g(a,h,c){++a.j;var d=a.a.C();a.a.add(h,d);t(a);a.e&&(h="",void 0!==a.c&&(h=a.c+"'s "),console.log(h+(" enqueued job of priority "+c)));a.a.h<=a.u||(c=a.a.L(),c=q(a,c),l(a,c));k(a)}function l(a,h){var c=a.k.getPriority(h.f);
-0>c?(--a.j,h.s(h.f)):(void 0===a.b[c]&&(a.b[c]=[]),a.b[c].push(h))}function v(a,h){++a.d;var c=a.d<=a.H?a.I:0;--a.d;c=e(a,c);if(null!==c)k(a),r(a,c,h);else if(a.j>a.a.h)a.l.push(h),++a.d;else{for(var d,b=a.b.length-1;0<=b;--b){var f=a.b[b];if(void 0!==f&&0!==f.length){for(var g=f.length-1;0<=g;--g){c=f[g];d=a.k.getPriority(c.f);if(d>=b){f.length=g;break}else 0>d?(--a.j,c.s(c.f)):(void 0===a.b[d]&&(a.b[d]=[]),a.b[d].push(c));c=null}if(null!==c)break;f.length=0}}null===c?(a.l.push(h),++a.d):(a.e&&(b=
-"",void 0!==a.c&&(b=a.c+"'s "),console.log(b+(" dequeued old job of priority "+d))),--a.j,k(a),r(a,c,h))}k(a)}function r(a,h,c){++a.A;if(a.A>=a.J){a.A=0;var d=a.b,b=a.a;if(0!==d.length){a.b=[];a.a=new p;for(var f=0;f<d.length;++f)if(void 0!==d[f])for(var e=0;e<d[f].length;++e)l(a,d[f][e]);for(f=b.C();null!==f;)d=b.D(f),l(a,d),f=b.r(f);b="";void 0!==a.c&&(b=a.c+"'s ");b+="rerank: ";for(f=a.b.length-1;0<=f;--f)if(d=a.b[f],void 0!==d){for(a.e&&(b+=d.length+" jobs in priority "+f+";");0<d.length&&a.a.h<
-a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
-a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
-if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
-
 var n=function(){function d(a,c,b,f){var k=this;f=f||{};var e=l.toString(),g=m.g(),e=e.replace("SCRIPT_PLACEHOLDER",g),e=URL.createObjectURL(new Blob(["(",e,")()"],{type:"application/javascript"}));this.f=[];this.d=[];this.m=[];this.n=[];this.j=new Worker(e);this.j.onmessage=function(a){h(k,a)};this.o=null;this.h=0;this.r=f.functionsBufferSize||5;this.k=[];this.j.postMessage({p:"ctor",Q:a,I:c,b:b,a:++q,v:!1,N:d.u()})}function l(){importScripts("SCRIPT_PLACEHOLDER");m.C()}function h(a,c){var b=c.data.a;
 switch(c.data.type){case "functionCalled":--a.h;p(a);break;case "promiseResult":var f=a.d[b];delete a.d[b];f.resolve(c.data.result);break;case "promiseFailure":f=a.d[b];delete a.d[b];f.reject(c.data.reason);break;case "userData":null!==a.o&&a.o(c.data.W);break;case "callback":b=a.f[c.data.a];if(void 0===b)throw"Unexpected message from SlaveWorker of callback ID: "+c.data.a+". Maybe should indicate isMultipleTimesCallback = true on creation?";b.q||a.t(a.f[c.data.a]);null!==b.s&&b.s.apply(null,c.data.b);
 break;case "subWorkerCtor":var b=new Worker(c.data.P),e=c.data.c;a.m[e]=b;a.n.push(b);b.onmessage=function(b){k(a,b.ports,!1,{p:"subWorkerOnMessage",c:e,data:b.data})};break;case "subWorkerPostMessage":b=a.m[c.data.c];b.postMessage(c.data.data);break;case "subWorkerTerminate":b=a.m[c.data.c];b.terminate();break;default:throw"Unknown message from AsyncProxySlave of type: "+c.data.type;}}function k(a,c,b,f){a.h>=a.r?a.k.push({V:c,L:b,message:f}):e(a,c,b,f)}function e(a,c,b,f){b&&++a.h;a.j.postMessage(f,
@@ -20,6 +11,15 @@ W:a})};e.B=function(a,c,b){c.then(function(c){var d=l(b,c);self.postMessage({typ
 };return d}();self.AsyncProxy={};self.AsyncProxy.AsyncProxySlave=m;self.AsyncProxy.AsyncProxyMaster=n;self.AsyncProxy.ScriptsToImportPool=u;t.prototype.postMessage=t.prototype.postMessage;t.prototype.terminate=t.prototype.terminate;m.setSlaveSideCreator=m.T;m.setBeforeOperationListener=m.S;m.sendUserDataToMaster=m.R;m.wrapPromiseFromSlaveSide=m.B;m.wrapCallbackFromSlaveSide=m.A;n.prototype.setUserDataHandler=n.prototype.U;n.prototype.terminate=n.prototype.terminate;n.prototype.callFunction=n.prototype.G;
 n.prototype.wrapCallback=n.prototype.X;n.prototype.freeCallback=n.prototype.t;n.getEntryUrl=n.u;u.prototype.addScriptFromErrorWithStackTrace=u.prototype.F;u.prototype.getScriptsForWorkerImport=u.prototype.J;
 
+var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
+return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
+1:++e[g])}f=b}f=null;null!==c&&(f=q(a,c),--a.j);if(a.e){b=c="";void 0!==a.c&&(c=a.c+"'s ",b=a.c+"'s ");c+="Jobs list:";for(m=0;m<e.length;++m)void 0!==e[m]&&(c+=e[m]+" jobs of priority "+m+";");console.log(c);null!==f&&console.log(b+(" dequeued new job of priority "+d))}k(a);return f}function g(a,h,c){++a.j;var d=a.a.C();a.a.add(h,d);t(a);a.e&&(h="",void 0!==a.c&&(h=a.c+"'s "),console.log(h+(" enqueued job of priority "+c)));a.a.h<=a.u||(c=a.a.L(),c=q(a,c),l(a,c));k(a)}function l(a,h){var c=a.k.getPriority(h.f);
+0>c?(--a.j,h.s(h.f)):(void 0===a.b[c]&&(a.b[c]=[]),a.b[c].push(h))}function v(a,h){++a.d;var c=a.d<=a.H?a.I:0;--a.d;c=e(a,c);if(null!==c)k(a),r(a,c,h);else if(a.j>a.a.h)a.l.push(h),++a.d;else{for(var d,b=a.b.length-1;0<=b;--b){var f=a.b[b];if(void 0!==f&&0!==f.length){for(var g=f.length-1;0<=g;--g){c=f[g];d=a.k.getPriority(c.f);if(d>=b){f.length=g;break}else 0>d?(--a.j,c.s(c.f)):(void 0===a.b[d]&&(a.b[d]=[]),a.b[d].push(c));c=null}if(null!==c)break;f.length=0}}null===c?(a.l.push(h),++a.d):(a.e&&(b=
+"",void 0!==a.c&&(b=a.c+"'s "),console.log(b+(" dequeued old job of priority "+d))),--a.j,k(a),r(a,c,h))}k(a)}function r(a,h,c){++a.A;if(a.A>=a.J){a.A=0;var d=a.b,b=a.a;if(0!==d.length){a.b=[];a.a=new p;for(var f=0;f<d.length;++f)if(void 0!==d[f])for(var e=0;e<d[f].length;++e)l(a,d[f][e]);for(f=b.C();null!==f;)d=b.D(f),l(a,d),f=b.r(f);b="";void 0!==a.c&&(b=a.c+"'s ");b+="rerank: ";for(f=a.b.length-1;0<=f;--f)if(d=a.b[f],void 0!==d){for(a.e&&(b+=d.length+" jobs in priority "+f+";");0<d.length&&a.a.h<
+a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
+a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
+if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
+
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.imageDecoder = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
@@ -29,7 +29,7 @@ module.exports.FetchClientBase = require('fetchclientbase.js');
 module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
 module.exports.CesiumImageDecoderLayerManager = require('_cesiumimagedecoderlayermanager.js');
 module.exports.ImageDecoderRegionLayer = require('imagedecoderregionlayer.js');
-},{"_cesiumimagedecoderlayermanager.js":3,"fetchclientbase.js":18,"imagedecoder.js":6,"imagedecoderimageryprovider.js":5,"imagedecoderregionlayer.js":22,"viewerimagedecoder.js":21}],2:[function(require,module,exports){
+},{"_cesiumimagedecoderlayermanager.js":3,"fetchclientbase.js":7,"imagedecoder.js":10,"imagedecoderimageryprovider.js":5,"imagedecoderregionlayer.js":22,"viewerimagedecoder.js":21}],2:[function(require,module,exports){
 'use strict';
 
 module.exports = calculateFrustum;
@@ -113,7 +113,7 @@ function transformAndAddPoint(x, y, cesiumWidget, points) {
     points.push(cartesian);
     return 1;
 }
-},{"imagehelperfunctions.js":11}],3:[function(require,module,exports){
+},{"imagehelperfunctions.js":15}],3:[function(require,module,exports){
 'use strict';
 
 module.exports = CesiumImageDecoderLayerManager;
@@ -1143,7 +1143,310 @@ function createTilingScheme(params) {
     
     return tilingScheme;
 }
-},{"_cesiumfrustumcalculator.js":2,"imagehelperfunctions.js":11,"workerproxyimagedecoder.js":15}],6:[function(require,module,exports){
+},{"_cesiumfrustumcalculator.js":2,"imagehelperfunctions.js":15,"workerproxyimagedecoder.js":19}],6:[function(require,module,exports){
+'use strict';
+
+module.exports = DataPublisher;
+
+var LinkedList = require('linkedlist.js');
+
+function DataPublisher() {
+    this._subscribersByKey = {};
+}
+
+DataPublisher.prototype.publish = function publish(key, data) {
+    var subscribers = this._subscribersByKey[key];
+    if (!subscribers) {
+        return;
+    }
+    
+    var iterator = subscribers.getFirstIterator();
+    while (iterator !== null) {
+        var subscriber = subscribers.getValue(iterator);
+        subscriber(key, data);
+        
+        iterator = subscribers.getNextIterator(iterator);
+    }
+};
+
+DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
+    var subscribers = this._subscribersByKey[key];
+    if (!subscribers) {
+        subscribers = new LinkedList();
+        this._subscribersByKey[key] = subscribers;
+    }
+    
+    var iterator = subscribers.add(subscriber);
+    return {
+        _iterator: iterator,
+        _key: key
+    };
+};
+
+DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
+    var subscribers = this._subscribersByKey[handle._key];
+    if (!subscribers) {
+        throw 'DataPublisher error: subscriber was not registered';
+    }
+    
+    subscribers.remove(handle._iterator);
+};
+},{"linkedlist.js":16}],7:[function(require,module,exports){
+'use strict';
+
+module.exports = FetchClientBase;
+
+var SimpleFetchContext = require('simplefetchcontext.js');
+var SimpleFetcher = require('simplefetcher.js');
+var DataPublisher = require('datapublisher.js');
+
+function FetchClientBase(options) {
+    this._statusCallback = null;
+    this._url = null;
+    this._options = options;
+    this._isReady = false;
+    this._dataPublisher = this.createDataPublisherInternal();
+}
+
+// Methods for implementor
+
+FetchClientBase.prototype.getSizesParamsInternal = function getSizesParamsInternal() {
+    throw 'FetchClientBase error: getSizesParamsInternal is not implemented';
+};
+
+FetchClientBase.prototype.fetchInternal = function fetch(dataKey) {
+    throw 'FetchClientBase error: fetchInternal is not implemented';
+};
+
+FetchClientBase.prototype.getDataKeysInternal = function getDataKeysInternal(imagePartParams) {
+    throw 'FetchClientBase error: getDataKeysInternal is not implemented';
+};
+
+FetchClientBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
+    return new DataPublisher();
+};
+
+FetchClientBase.prototype.getUrlInternal = function getUrlInternal() {
+    return this._url;
+};
+
+// FetchClient implementation
+
+FetchClientBase.prototype.setStatusCallback = function setStatusCallback(
+    statusCallback) {
+    
+    this._statusCallback = statusCallback;
+};
+
+FetchClientBase.prototype.open = function open(url) {
+    if (this._url || this._isReady) {
+        throw 'FetchClientBase error: Cannot open twice';
+    }
+    
+    if (!url) {
+        throw 'FetchClientBase error: no URL provided';
+    }
+    
+    this._url = url;
+    this._isReady = true;
+    
+    if (this._statusCallback) {
+        this._statusCallback({
+            isReady: true,
+            exception: null
+        });
+    }
+};
+
+FetchClientBase.prototype.createFetchContext = function createFetchContext(
+    imagePartParams, contextVars) {
+    
+    var dataKeys = this.getDataKeysInternal(imagePartParams);
+    return new SimpleFetchContext(contextVars, dataKeys, this._dataPublisher);
+};
+
+FetchClientBase.prototype.createRequestFetcher = function createRequestFetcher() {
+    return new SimpleFetcher(this, /*isChannel=*/false, this._dataPublisher, this._options);
+};
+
+FetchClientBase.prototype.createChannelFetcher = function createChannelFetcher() {
+    return new SimpleFetcher(this, /*isChannel=*/true, this._dataPublisher, this._options);
+};
+
+FetchClientBase.prototype.close = function close(closedCallback) {
+    this._ensureReady();
+    
+    this._isReady = false;
+    
+    if (this._statusCallback) {
+        this._statusCallback({
+            isReady: true,
+            exception: null
+        });
+    }
+    
+    if (closedCallback) {
+        closedCallback();
+    }
+};
+
+FetchClientBase.prototype.getSizesParams = function getSizesParams(closedCallback) {
+    this._ensureReady();
+    return this.getSizesParamsInternal();
+};
+
+FetchClientBase.prototype.reconnect = function reconnect() {
+    // Do nothing
+};
+
+FetchClientBase.prototype._ensureReady = function ensureReady() {
+    if (!this._isReady) {
+        throw 'FetchClientBase error: fetch client is not opened';
+    }
+};
+},{"datapublisher.js":6,"simplefetchcontext.js":8,"simplefetcher.js":9}],8:[function(require,module,exports){
+'use strict';
+
+function SimpleFetchContext(contextVars, dataKeys, dataPublisher) {
+    this._contextVars = contextVars;
+    this._dataByKey = {};
+    this._dataKeysFetchedCount = 0;
+    this._dataListeners = [];
+    this._dataKeys = dataKeys;
+    this._dataPublisher = dataPublisher;
+    
+    this._subscribeHandles = [];
+    
+    var dataFetchedBound = this._dataFetched.bind(this);
+    for (var i = 0; i < dataKeys.length; ++i) {
+        var subscribeHandle = this._dataPublisher.subscribe(
+            dataKeys[i], dataFetchedBound);
+        
+        this._subscribeHandles.push(subscribeHandle);
+    }
+}
+
+SimpleFetchContext.prototype.getDataKeys = function getDataKeys() {
+    return this._dataKeys;
+};
+
+SimpleFetchContext.prototype.hasData = function hasData() {
+    return this.isDone();
+};
+
+SimpleFetchContext.prototype.getFetchedData = function getFetchedData() {
+    if (!this.hasData()) {
+        throw 'SimpleFetchContext error: cannot call getFetchedData before hasData = true';
+    }
+    
+    return this._dataByKey;
+};
+
+SimpleFetchContext.prototype.on = function on(event, listener) {
+    if (event !== 'data') {
+        throw 'SimpleFetchContext error: Unexpected event ' + event;
+    }
+    
+    this._dataListeners.push(listener);
+};
+
+SimpleFetchContext.prototype.isDone = function isDone() {
+    return this._dataKeysFetchedCount === this._dataKeys.length;
+};
+
+SimpleFetchContext.prototype.release = function release() {
+    for (var i = 0; i < this._subscribeHandles.length; ++i) {
+        this._dataPublisher.unsubscribe(this._subscribeHandles[i]);
+    }
+    
+    this._subscribeHandles = [];
+};
+
+SimpleFetchContext.prototype._dataFetched = function dataFetched(key, data) {
+    if (!this._dataByKey[key]) {
+        ++this._dataKeysFetchedCount;
+    }
+    
+    this._dataByKey[key] = data;
+    
+    if (this.hasData()) {
+        for (var i = 0; i < this._dataListeners.length; ++i) {
+            this._dataListeners[i](this, this._contextVars);
+        }
+    }
+};
+},{}],9:[function(require,module,exports){
+'use strict';
+
+function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
+    this._fetchClient = fetchClient;
+    this._dataPublisher = dataPublisher;
+    this._isChannel = isChannel;
+    this._stopListeners = [];
+    this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
+    this._remainingKeysToFetch = null;
+    this._activeFetches = {};
+    this._activeFetchesCount = 0;
+    
+    this._fetchSucceededBound = this._fetchSucceeded.bind(this);
+    this._fetchFailedBound = this._fetchFailed.bind(this);
+}
+
+SimpleFetcher.prototype.fetch = function fetch(fetchContext) {
+    if (!this._isChannel && this._remainingKeysToFetch !== null) {
+        throw 'SimpleFetcher error: Cannot fetch while another fetch in progress';
+    }
+    
+    this._remainingKeysToFetch = fetchContext.getDataKeys();
+    while (this._activeFetchesCount < this._fetchLimit) {
+        if (!this._fetchSingleKey()) {
+            break;
+        }
+    }
+};
+
+SimpleFetcher.prototype.on = function on(event, listener) {
+    if (event !== 'stop') {
+        throw 'SimpleFetcher error: Unexpected event ' + event;
+    }
+    
+    this.stopListeners.push(listener);
+};
+
+SimpleFetcher.prototype.abortAsync = function abortAsync() {
+    if (this._isChannel) {
+        throw 'SimpleFetcher error: cannot abort channel fetcher';
+    }
+    
+    // Do nothing
+};
+
+SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
+    if (this._remainingKeysToFetch.length === 0) {
+        return false;
+    }
+    
+    var self = this;
+    var key = this._remainingKeysToFetch.pop();
+    this._activeFetches.push(key);
+    
+    this._fetchClient.fetchInternal(key)
+        .then(function resolved(result) {
+            self._dataPublisher.publish(key, result);
+            self.fetchedEnded(null, key, result);
+        }).catch(function failed(reason) {
+            // NOTE: Should create an API in ImageDecoderFramework to update on error
+            self.fetchEnded(reason, key);
+        });
+    
+    return true;
+};
+
+SimpleFetcher.prototype._fetchEnded = function fetchEnded(error, key, result) {
+    delete this._activeFetches.key;
+    this._fetchSingleKey();
+};
+},{}],10:[function(require,module,exports){
 'use strict';
 
 module.exports = ImageDecoder;
@@ -1473,7 +1776,7 @@ function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
         targetOffset += targetStride;
     }
 }
-},{"decodejobspool.js":8,"imageHelperFunctions.js":10,"workerproxyfetchmanager.js":14,"workerproxypixelsdecoder.js":16}],7:[function(require,module,exports){
+},{"decodejobspool.js":12,"imageHelperFunctions.js":14,"workerproxyfetchmanager.js":18,"workerproxypixelsdecoder.js":20}],11:[function(require,module,exports){
 'use strict';
 
 module.exports = DecodeJob;
@@ -1819,7 +2122,7 @@ function checkIfAllTerminated(self) {
         iterator = linkedList.getNextIterator(iterator);
     }
 }
-},{"linkedlist.js":12}],8:[function(require,module,exports){
+},{"linkedlist.js":16}],12:[function(require,module,exports){
 'use strict';
 
 module.exports = DecodeJobsPool;
@@ -1995,7 +2298,7 @@ function getOrAddValue(parentArray, index, defaultValue) {
     
     return subArray;
 }
-},{"decodejob.js":7}],9:[function(require,module,exports){
+},{"decodejob.js":11}],13:[function(require,module,exports){
 'use strict';
 
 module.exports = FrustumRequestsPrioritizer;
@@ -2172,7 +2475,7 @@ FrustumRequestsPrioritizer.prototype._pixelToCartographicY = function tileToCart
     var yProjected = imageRectangle.north - relativeY * rectangleHeight;
     return yProjected;
 };
-},{}],10:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 'use strict';
 
 var FrustumRequestsPrioritizer = require('frustumrequestsprioritizer.js');
@@ -2384,9 +2687,9 @@ function getScriptsForWorkerImport(imageImplementation, options) {
     return scriptsForWorkerToImport.concat(
         imageImplementation.getScriptsToImport());
 }
-},{"frustumrequestsprioritizer.js":9}],11:[function(require,module,exports){
-arguments[4][10][0].apply(exports,arguments)
-},{"dup":10,"frustumrequestsprioritizer.js":9}],12:[function(require,module,exports){
+},{"frustumrequestsprioritizer.js":13}],15:[function(require,module,exports){
+arguments[4][14][0].apply(exports,arguments)
+},{"dup":14,"frustumrequestsprioritizer.js":13}],16:[function(require,module,exports){
 'use strict';
 
 var LinkedList = (function LinkedListClosure() {
@@ -2481,7 +2784,7 @@ var LinkedList = (function LinkedListClosure() {
     
     return LinkedList;
 })();
-},{}],13:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 'use strict';
 
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
@@ -2520,7 +2823,7 @@ function slaveScriptContent() {
         AsyncProxy.AsyncProxySlave.sendUserDataToMaster(sizes);
     }
 }
-},{}],14:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 'use strict';
 
 module.exports = WorkerProxyFetchManager;
@@ -2687,7 +2990,7 @@ WorkerProxyFetchManager.prototype.getSizesParams = function getSizesParams() {
 WorkerProxyFetchManager.prototype._userDataHandler = function userDataHandler(sizesParams) {
     this._sizesParams = sizesParams;
 };
-},{"imagehelperfunctions.js":11,"sendimageparameterstomaster.js":13}],15:[function(require,module,exports){
+},{"imagehelperfunctions.js":15,"sendimageparameterstomaster.js":17}],19:[function(require,module,exports){
 'use strict';
 
 module.exports = WorkerProxyImageDecoder;
@@ -2918,7 +3221,7 @@ WorkerProxyImageDecoder.prototype._userDataHandler = function userDataHandler(si
     this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
         sizesParams.imageParams);
 };
-},{"imagehelperfunctions.js":11,"sendimageparameterstomaster.js":13}],16:[function(require,module,exports){
+},{"imagehelperfunctions.js":15,"sendimageparameterstomaster.js":17}],20:[function(require,module,exports){
 'use strict';
 
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
@@ -2975,310 +3278,7 @@ function decoderSlaveScriptBody() {
         return imageImplementation.createDecoder();
     }
 }
-},{"imagehelperfunctions.js":11}],17:[function(require,module,exports){
-'use strict';
-
-module.exports = DataPublisher;
-
-var LinkedList = require('linkedlist.js');
-
-function DataPublisher() {
-    this._subscribersByKey = {};
-}
-
-DataPublisher.prototype.publish = function publish(key, data) {
-    var subscribers = this._subscribersByKey[key];
-    if (!subscribers) {
-        return;
-    }
-    
-    var iterator = subscribers.getFirstIterator();
-    while (iterator !== null) {
-        var subscriber = subscribers.getValue(iterator);
-        subscriber(key, data);
-        
-        iterator = subscribers.getNextIterator(iterator);
-    }
-};
-
-DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
-    var subscribers = this._subscribersByKey[key];
-    if (!subscribers) {
-        subscribers = new LinkedList();
-        this._subscribersByKey[key] = subscribers;
-    }
-    
-    var iterator = subscribers.add(subscriber);
-    return {
-        _iterator: iterator,
-        _key: key
-    };
-};
-
-DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
-    var subscribers = this._subscribersByKey[handle._key];
-    if (!subscribers) {
-        throw 'DataPublisher error: subscriber was not registered';
-    }
-    
-    subscribers.remove(handle._iterator);
-};
-},{"linkedlist.js":12}],18:[function(require,module,exports){
-'use strict';
-
-module.exports = FetchClientBase;
-
-var SimpleFetchContext = require('simplefetchcontext.js');
-var SimpleFetcher = require('simplefetcher.js');
-var DataPublisher = require('datapublisher.js');
-
-function FetchClientBase(options) {
-    this._statusCallback = null;
-    this._url = null;
-    this._options = options;
-    this._isReady = false;
-    this._dataPublisher = this.createDataPublisherInternal();
-}
-
-// Methods for implementor
-
-FetchClientBase.prototype.getSizesParamsInternal = function getSizesParamsInternal() {
-    throw 'FetchClientBase error: getSizesParamsInternal is not implemented';
-};
-
-FetchClientBase.prototype.fetchInternal = function fetch(dataKey) {
-    throw 'FetchClientBase error: fetchInternal is not implemented';
-};
-
-FetchClientBase.prototype.getDataKeysInternal = function getDataKeysInternal(imagePartParams) {
-    throw 'FetchClientBase error: getDataKeysInternal is not implemented';
-};
-
-FetchClientBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
-    return new DataPublisher();
-};
-
-FetchClientBase.prototype.getUrlInternal = function getUrlInternal() {
-    return this._url;
-};
-
-// FetchClient implementation
-
-FetchClientBase.prototype.setStatusCallback = function setStatusCallback(
-    statusCallback) {
-    
-    this._statusCallback = statusCallback;
-};
-
-FetchClientBase.prototype.open = function open(url) {
-    if (this._url || this._isReady) {
-        throw 'FetchClientBase error: Cannot open twice';
-    }
-    
-    if (!url) {
-        throw 'FetchClientBase error: no URL provided';
-    }
-    
-    this._url = url;
-    this._isReady = true;
-    
-    if (this._statusCallback) {
-        this._statusCallback({
-            isReady: true,
-            exception: null
-        });
-    }
-};
-
-FetchClientBase.prototype.createFetchContext = function createFetchContext(
-    imagePartParams, contextVars) {
-    
-    var dataKeys = this.getDataKeysInternal(imagePartParams);
-    return new SimpleFetchContext(contextVars, dataKeys, this._dataPublisher);
-};
-
-FetchClientBase.prototype.createRequestFetcher = function createRequestFetcher() {
-    return new SimpleFetcher(this, /*isChannel=*/false, this._dataPublisher, this._options);
-};
-
-FetchClientBase.prototype.createChannelFetcher = function createChannelFetcher() {
-    return new SimpleFetcher(this, /*isChannel=*/true, this._dataPublisher, this._options);
-};
-
-FetchClientBase.prototype.close = function close(closedCallback) {
-    this._ensureReady();
-    
-    this._isReady = false;
-    
-    if (this._statusCallback) {
-        this._statusCallback({
-            isReady: true,
-            exception: null
-        });
-    }
-    
-    if (closedCallback) {
-        closedCallback();
-    }
-};
-
-FetchClientBase.prototype.getSizesParams = function getSizesParams(closedCallback) {
-    this._ensureReady();
-    return this.getSizesParamsInternal();
-};
-
-FetchClientBase.prototype.reconnect = function reconnect() {
-    // Do nothing
-};
-
-FetchClientBase.prototype._ensureReady = function ensureReady() {
-    if (!this._isReady) {
-        throw 'FetchClientBase error: fetch client is not opened';
-    }
-};
-},{"datapublisher.js":17,"simplefetchcontext.js":19,"simplefetcher.js":20}],19:[function(require,module,exports){
-'use strict';
-
-function SimpleFetchContext(contextVars, dataKeys, dataPublisher) {
-    this._contextVars = contextVars;
-    this._dataByKey = {};
-    this._dataKeysFetchedCount = 0;
-    this._dataListeners = [];
-    this._dataKeys = dataKeys;
-    this._dataPublisher = dataPublisher;
-    
-    this._subscribeHandles = [];
-    
-    var dataFetchedBound = this._dataFetched.bind(this);
-    for (var i = 0; i < dataKeys.length; ++i) {
-        var subscribeHandle = this._dataPublisher.subscribe(
-            dataKeys[i], dataFetchedBound);
-        
-        this._subscribeHandles.push(subscribeHandle);
-    }
-}
-
-SimpleFetchContext.prototype.getDataKeys = function getDataKeys() {
-    return this._dataKeys;
-};
-
-SimpleFetchContext.prototype.hasData = function hasData() {
-    return this.isDone();
-};
-
-SimpleFetchContext.prototype.getFetchedData = function getFetchedData() {
-    if (!this.hasData()) {
-        throw 'SimpleFetchContext error: cannot call getFetchedData before hasData = true';
-    }
-    
-    return this._dataByKey;
-};
-
-SimpleFetchContext.prototype.on = function on(event, listener) {
-    if (event !== 'data') {
-        throw 'SimpleFetchContext error: Unexpected event ' + event;
-    }
-    
-    this._dataListeners.push(listener);
-};
-
-SimpleFetchContext.prototype.isDone = function isDone() {
-    return this._dataKeysFetchedCount === this._dataKeys.length;
-};
-
-SimpleFetchContext.prototype.release = function release() {
-    for (var i = 0; i < this._subscribeHandles.length; ++i) {
-        this._dataPublisher.unsubscribe(this._subscribeHandles[i]);
-    }
-    
-    this._subscribeHandles = [];
-};
-
-SimpleFetchContext.prototype._dataFetched = function dataFetched(key, data) {
-    if (!this._dataByKey[key]) {
-        ++this._dataKeysFetchedCount;
-    }
-    
-    this._dataByKey[key] = data;
-    
-    if (this.hasData()) {
-        for (var i = 0; i < this._dataListeners.length; ++i) {
-            this._dataListeners[i](this, this._contextVars);
-        }
-    }
-};
-},{}],20:[function(require,module,exports){
-'use strict';
-
-function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
-    this._fetchClient = fetchClient;
-    this._dataPublisher = dataPublisher;
-    this._isChannel = isChannel;
-    this._stopListeners = [];
-    this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
-    this._remainingKeysToFetch = null;
-    this._activeFetches = {};
-    this._activeFetchesCount = 0;
-    
-    this._fetchSucceededBound = this._fetchSucceeded.bind(this);
-    this._fetchFailedBound = this._fetchFailed.bind(this);
-}
-
-SimpleFetcher.prototype.fetch = function fetch(fetchContext) {
-    if (!this._isChannel && this._remainingKeysToFetch !== null) {
-        throw 'SimpleFetcher error: Cannot fetch while another fetch in progress';
-    }
-    
-    this._remainingKeysToFetch = fetchContext.getDataKeys();
-    while (this._activeFetchesCount < this._fetchLimit) {
-        if (!this._fetchSingleKey()) {
-            break;
-        }
-    }
-};
-
-SimpleFetcher.prototype.on = function on(event, listener) {
-    if (event !== 'stop') {
-        throw 'SimpleFetcher error: Unexpected event ' + event;
-    }
-    
-    this.stopListeners.push(listener);
-};
-
-SimpleFetcher.prototype.abortAsync = function abortAsync() {
-    if (this._isChannel) {
-        throw 'SimpleFetcher error: cannot abort channel fetcher';
-    }
-    
-    // Do nothing
-};
-
-SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
-    if (this._remainingKeysToFetch.length === 0) {
-        return false;
-    }
-    
-    var self = this;
-    var key = this._remainingKeysToFetch.pop();
-    this._activeFetches.push(key);
-    
-    this._fetchClient.fetchInternal(key)
-        .then(function resolved(result) {
-            self._dataPublisher.publish(key, result);
-            self.fetchedEnded(null, key, result);
-        }).catch(function failed(reason) {
-            // NOTE: Should create an API in ImageDecoderFramework to update on error
-            self.fetchEnded(reason, key);
-        });
-    
-    return true;
-};
-
-SimpleFetcher.prototype._fetchEnded = function fetchEnded(error, key, result) {
-    delete this._activeFetches.key;
-    this._fetchSingleKey();
-};
-},{}],21:[function(require,module,exports){
+},{"imagehelperfunctions.js":15}],21:[function(require,module,exports){
 'use strict';
 
 module.exports = ViewerImageDecoder;
@@ -3878,7 +3878,7 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         this._startShowingDynamicRegion();
     }
 };
-},{"imagedecoder.js":6,"imagehelperfunctions.js":11,"workerproxyimagedecoder.js":15}],22:[function(require,module,exports){
+},{"imagedecoder.js":10,"imagehelperfunctions.js":15,"workerproxyimagedecoder.js":19}],22:[function(require,module,exports){
 'use strict';
 
 var ViewerImageDecoder = require('viewerimagedecoder.js');
@@ -4056,6 +4056,6 @@ module.exports = function calculateFrustum(leafletMap) {
 
     return frustumData;
 };
-},{"imagehelperfunctions.js":11}]},{},[1])(1)
+},{"imagehelperfunctions.js":15}]},{},[1])(1)
 });
 

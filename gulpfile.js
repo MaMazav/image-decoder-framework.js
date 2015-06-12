@@ -26,10 +26,10 @@ var sources = [
     './src/imagedecoder/imagedecoderworkers/workerproxyfetchmanager.js',
     './src/imagedecoder/imagedecoderworkers/workerproxyimagedecoder.js',
     './src/imagedecoder/imagedecoderworkers/workerproxypixelsdecoder.js',
-    './src/imagedecoder/datapublisher.js',
-    './src/imagedecoder/simplefetchcontext.js',
-    './src/imagedecoder/simplefetcher.js',
-    './src/imagedecoder/fetchclientbase.js',
+    './src/imagedecoder/fetchclientbase/datapublisher.js',
+    './src/imagedecoder/fetchclientbase/simplefetchcontext.js',
+    './src/imagedecoder/fetchclientbase/simplefetcher.js',
+    './src/imagedecoder/fetchclientbase/fetchclientbase.js',
     './src/imagedecoder/imagedecoder.js',
     './src/imagedecoder/viewerimagedecoder.js',
 
@@ -57,7 +57,7 @@ gulp.task('default', function () {
             './src/imagedecoder',
             './src/imagedecoder/imagedecoderhelpers',
             './src/imagedecoder/imagedecoderworkers',
-            './src/imagedecoder/statelessfetchclient',
+            './src/imagedecoder/fetchclientbase',
             './src/cesiumimagedecoder',
             './src/leafletimagedecoder'
         ],
