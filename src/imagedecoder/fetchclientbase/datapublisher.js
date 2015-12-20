@@ -14,27 +14,39 @@ DataPublisher.prototype.publish = function publish(key, data) {
         return;
     }
     
-    var iterator = subscribers.getFirstIterator();
+    var iterator = subscribers.subscribersList.getFirstIterator();
     while (iterator !== null) {
-        var subscriber = subscribers.getValue(iterator);
+        var subscriber = subscribers.subscribersList.getValue(iterator);
         subscriber(key, data);
         
-        iterator = subscribers.getNextIterator(iterator);
+        iterator = subscribers.subscribersList.getNextIterator(iterator);
     }
+    
+    
 };
 
 DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
     var subscribers = this._subscribersByKey[key];
     if (!subscribers) {
-        subscribers = new LinkedList();
+        subscribers = {
+            subscribersList: new LinkedList(),
+            subscribersNeverGotResultCount: 0
+        };
         this._subscribersByKey[key] = subscribers;
     }
     
-    var iterator = subscribers.add(subscriber);
-    return {
+    ++subscribers.subscribersNeverGotResultCount;
+    
+    var iterator = subscribers.subscribersList.add({
+        subscriber: subscriber,
+        isGotResult: false
+    });
+    
+    var handle = {
         _iterator: iterator,
         _key: key
     };
+    return handle;
 };
 
 DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
@@ -43,5 +55,16 @@ DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
         throw 'DataPublisher error: subscriber was not registered';
     }
     
-    subscribers.remove(handle._iterator);
+    var subscriber = subscribers.subscribersList.getValue(handle._iterator);
+    subscribers.subscribersList.remove(handle._iterator);
+    if (subscribers.subscribersList.getCount() === 0) {
+        delete this._subscribersByKey[handle._key];
+    } else if (!subscriber.isGotResult) {
+        --subscribers.subscribersNeverGotResultCount;
+    }
+};
+
+DataPublisher.prototype.isKeyNeedFetch = function isKeyNeedFetch(key) {
+    var subscribers = this._subscribersByKey[key];
+    return (!!subscribers) && (subscribers.subscribersNeverGotResultCount > 0);
 };

@@ -1,7 +1,7 @@
 'use strict';
 
 var ViewerImageDecoder = require('viewerimagedecoder.js');
-var LeafletFrustumCalculator = require('leafletfrustumcalculator.js');
+var calculateLeafletFrustum = require('leafletfrustumcalculator.js');
 
 /* global L: false */
 
@@ -35,6 +35,7 @@ module.exports = L.Class.extend({
     _createImage: function createImage() {
         if (this._image === null) {
             this._image = new ViewerImageDecoder(
+                this._options.imageImplementationClassName,
                 this._canvasUpdatedCallbackBound,
                 this._options);
             
@@ -98,7 +99,7 @@ module.exports = L.Class.extend({
     _moved: function () {
         this._moveCanvases();
 
-        var frustumData = LeafletFrustumCalculator.calculateFrustum(this._map);
+        var frustumData = calculateLeafletFrustum(this._map);
         
         this._image.updateViewArea(frustumData);
     },

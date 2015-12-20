@@ -31,8 +31,8 @@ WorkerProxyFetchManager.prototype.setStatusCallback = function setStatusCallback
         this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
     }
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
-        statusCallback, 'statusCallback', /*isMultipleTimeCallback=*/true);
+    var callbackWrapper = this._workerHelper.wrapCallback(
+        statusCallback, 'statusCallback', { isMultipleTimeCallback: true });
     
     this._currentStatusCallbackWrapper = callbackWrapper;
     this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
@@ -45,7 +45,7 @@ WorkerProxyFetchManager.prototype.open = function open(url) {
 WorkerProxyFetchManager.prototype.close = function close(closedCallback) {
     var self = this;
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
+    var callbackWrapper = this._workerHelper.wrapCallback(
         internalClosedCallback, 'closedCallback');
         
     this._workerHelper.callFunction('close', [callbackWrapper]);
@@ -62,7 +62,7 @@ WorkerProxyFetchManager.prototype.close = function close(closedCallback) {
 WorkerProxyFetchManager.prototype.createChannel = function createChannel(
     createdCallback) {
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
+    var callbackWrapper = this._workerHelper.wrapCallback(
         createdCallback,
         'FetchManager_createChannelCallback');
     
@@ -95,17 +95,19 @@ WorkerProxyFetchManager.prototype.createRequest = function createRequest(
     var transferablePaths = this._imageImplementation.getTransferablePathsOfRequestCallback();
     
     var internalCallbackWrapper =
-        this._workerHelper.wrapCallbackFromMasterSide(
-            callback.bind(callbackThis),
-            'requestTilesProgressiveCallback',
-            /*isMultipleTimeCallback=*/true,
-            transferablePaths);
+        this._workerHelper.wrapCallback(
+            callback.bind(callbackThis), 'requestTilesProgressiveCallback', {
+                isMultipleTimeCallback: true,
+                pathsToTransferables: transferablePaths
+            }
+        );
     
     var internalTerminatedCallbackWrapper =
-        this._workerHelper.wrapCallbackFromMasterSide(
-            internalTerminatedCallback,
-            'requestTilesProgressiveTerminatedCallback',
-            /*isMultipleTimeCallback=*/false);
+        this._workerHelper.wrapCallback(
+            internalTerminatedCallback, 'requestTilesProgressiveTerminatedCallback', {
+                isMultipleTimeCallback: false
+            }
+        );
             
     var args = [
         fetchParams,

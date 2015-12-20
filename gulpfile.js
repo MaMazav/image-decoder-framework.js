@@ -43,14 +43,20 @@ var sources = [
     './src/leafletimagedecoder/leafletfrustumcalculator.js'
 ];
 
-var vendors = [
-    './vendor/asyncproxy.js',
-    './vendor/resourcescheduler.js'
+var vendorsProd = [
+    //'./vendor/asyncproxy.js',
+    //'./vendor/resourcescheduler.js'
 ];
 
-var scripts = vendors.concat(sources);
+var vendorsDebug = [
+    './vendor/asyncproxy.debug.js',
+    './vendor/resourcescheduler.debug.js'
+];
 
-gulp.task('default', function () {
+var scriptsDebug = vendorsDebug.concat(sources);
+var scriptsProd = vendorsProd.concat(sources);
+
+function build(isDebug) {
     var browserified = browserify({
         entries: ['./src/imagedecoderexports.js'],
         paths: [
@@ -61,10 +67,12 @@ gulp.task('default', function () {
             './src/cesiumimagedecoder',
             './src/leafletimagedecoder'
         ],
-        standalone: 'image-decoder',
-        debug: true
+        standalone: 'image-decoder-framework',
+        debug: isDebug
     });
     
+    var scripts = isDebug ? scriptsDebug : scriptsProd;
+    var vendors = isDebug ? vendorsDebug : vendorsProd;
     var jshintStream = gulp.src(scripts)
         .pipe(buffer())
         .pipe(jshint())
@@ -78,14 +86,22 @@ gulp.task('default', function () {
             // NOTE: Add it in production
             //// Add transformation tasks to the pipeline here.
             //.pipe(uglify(/* { compress: { unused: false } } */))
-            //.on('error', gutil.log)
-        .pipe(addsrc('./vendor/asyncproxy.js'))
+            //.on('error', gutil.log);
+    for (var i = 0; i < vendors.length; ++i) {
+        browserifyStream = browserifyStream.pipe(addsrc(vendors[i]));
+    }
+    
+    browserifyStream = browserifyStream
         .pipe(addsrc('./vendor/resourcescheduler.js'))
         .pipe(concat('imagedecoderframework-src.js'))
         .pipe(rename('imagedecoderframework-debug.js'))
         .pipe(sourcemaps.write('./'))
         .pipe(gulp.dest('./'));
 
-    return jshintStream;
+    //return jshintStream;
     return mergeStream(jshintStream, browserifyStream);
+}
+
+gulp.task('default', function () {
+    return build(/*isDebug=*/true);
 });

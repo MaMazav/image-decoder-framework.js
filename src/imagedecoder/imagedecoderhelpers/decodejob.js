@@ -238,9 +238,7 @@ DecodeJob.prototype._pixelsDecodedCallback = function pixelsDecodedCallback(
             xInOriginalRequest: offsetX,
             yInOriginalRequest: offsetY,
             
-            width: decodeResult.width,
-            height: decodeResult.height,
-            pixels: decodeResult.pixels,
+            imageData: decodeResult,
             
             allRelevantBytesLoaded: listenerHandle.allRelevantBytesLoaded
         };

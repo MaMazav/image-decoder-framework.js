@@ -1,15 +1,30 @@
-var n=function(){function d(a,c,b,f){var k=this;f=f||{};var e=l.toString(),g=m.g(),e=e.replace("SCRIPT_PLACEHOLDER",g),e=URL.createObjectURL(new Blob(["(",e,")()"],{type:"application/javascript"}));this.f=[];this.d=[];this.m=[];this.n=[];this.j=new Worker(e);this.j.onmessage=function(a){h(k,a)};this.o=null;this.h=0;this.r=f.functionsBufferSize||5;this.k=[];this.j.postMessage({p:"ctor",Q:a,I:c,b:b,a:++q,v:!1,N:d.u()})}function l(){importScripts("SCRIPT_PLACEHOLDER");m.C()}function h(a,c){var b=c.data.a;
-switch(c.data.type){case "functionCalled":--a.h;p(a);break;case "promiseResult":var f=a.d[b];delete a.d[b];f.resolve(c.data.result);break;case "promiseFailure":f=a.d[b];delete a.d[b];f.reject(c.data.reason);break;case "userData":null!==a.o&&a.o(c.data.W);break;case "callback":b=a.f[c.data.a];if(void 0===b)throw"Unexpected message from SlaveWorker of callback ID: "+c.data.a+". Maybe should indicate isMultipleTimesCallback = true on creation?";b.q||a.t(a.f[c.data.a]);null!==b.s&&b.s.apply(null,c.data.b);
-break;case "subWorkerCtor":var b=new Worker(c.data.P),e=c.data.c;a.m[e]=b;a.n.push(b);b.onmessage=function(b){k(a,b.ports,!1,{p:"subWorkerOnMessage",c:e,data:b.data})};break;case "subWorkerPostMessage":b=a.m[c.data.c];b.postMessage(c.data.data);break;case "subWorkerTerminate":b=a.m[c.data.c];b.terminate();break;default:throw"Unknown message from AsyncProxySlave of type: "+c.data.type;}}function k(a,c,b,f){a.h>=a.r?a.k.push({V:c,L:b,message:f}):e(a,c,b,f)}function e(a,c,b,f){b&&++a.h;a.j.postMessage(f,
-c)}function p(a){for(;a.h<a.r&&0<a.k.length;){var c=a.k.shift();e(a,c.V,c.L,c.message)}}var q=0,v=!1,r=function(){var a=location.href,c=a.lastIndexOf("/");0<=c&&(a=a.substring(0,c));return a}();d.prototype.U=function(a){this.o=a};d.prototype.terminate=function(){this.j.terminate();for(var a=0;a<this.n.length;++a)this.n[a].terminate()};d.prototype.G=function(a,c,b){b=b||{};var f=!!b.isReturnPromise,d=b.transferables,l=b.pathsToTransferablesInPromiseResult,g=++q,h=null,r=this;f&&(h=new Promise(function(a,
-b){r.d[g]={resolve:a,reject:b}}));(b.isSendImmediately?e:k)(this,d,!0,{p:a,b:c||[],a:g,v:f,O:l});if(f)return h};d.prototype.X=function(a,c,b){b=b||{};var f=++q;c={M:!0,q:!!b.isMultipleTimeCallback,a:f,H:c,w:b.pathsToTransferables};this.f[f]={q:!!b.isMultipleTimeCallback,a:f,s:a,w:b.pathsToTransferables};return c};d.prototype.t=function(a){delete this.f[a.a]};d.u=function(){v=!0;return r};d.D=function(a){if(r!==a&&v)throw"Previous values returned from getMasterEntryUrl is wrong. Avoid calling it within the slave c`tor";
-r=a};return d}();var t=function(){function d(d){if(null===h)throw"AsyncProxy internal error: SubWorkerEmulationForChrome not initialized";this.i=++l;h[this.i]=this;self.postMessage({type:"subWorkerCtor",c:this.i,P:d})}var l=0,h=null;d.K=function(d){h=d};d.prototype.postMessage=function(d,e){self.postMessage({type:"subWorkerPostMessage",c:this.i,data:d},e)};d.prototype.terminate=function(d,e){self.postMessage({type:"subWorkerTerminate",c:this.i},e)};return d}(),m=function(){function d(){var a=self[r],c=[null].concat(k(arguments));
-return new (Function.prototype.bind.apply(a,c))}function l(a,c){if(void 0!==a){for(var b=Array(a.length),f=0;f<a.length;++f){for(var d=a[f],e=c,g=0;g<d.length;++g)e=e[d[g]];b[f]=e}return b}}function h(a){var c=a.data.p,b=a.data.b,f=a.data.a,l=a.data.v,k=a.data.O;switch(c){case "ctor":n.D(a.data.N);f=a.data.Q;r=a.data.I;for(var g=0;g<f.length;++g)importScripts(f[g]);q=d.apply(null,b);return;case "subWorkerOnMessage":v[a.data.c].onmessage({data:a.data.data});return}b=Array(a.data.b.length);for(g=0;g<
-a.data.b.length;++g){var h=a.data.b[g];void 0!==h&&null!==h&&h.M&&(h=e.A(h));b[g]=h}for(var g=q,p;g&&!(p=q[c]);)g=g.__proto__;if(!p)throw"AsyncProxy error: could not find function "+p;b=p.apply(q,b);l&&e.B(f,b,k);self.postMessage({type:"functionCalled",a:a.data.a,result:null})}function k(a){for(var c=Array(a.length),b=0;b<a.length;++b)c[b]=a[b];return c}var e={},p=null,q,v={},r;e.C=function(){self.onmessage=h};e.T=function(a){d=a};e.S=function(a){p=a};e.R=function(a){self.postMessage({type:"userData",
-W:a})};e.B=function(a,c,b){c.then(function(c){var d=l(b,c);self.postMessage({type:"promiseResult",a:a,result:c},d)})["catch"](function(b){self.postMessage({type:"promiseFailure",a:a,reason:b})})};e.A=function(a){var c=!1;return function(){if(c)throw"Callback is called twice but isMultipleTimeCallback = false";var b=k(arguments);null!==p&&p.call(q,"callback",a.H,b);var d=l(a.w,b);self.postMessage({type:"callback",a:a.a,b:b},d);a.q||(c=!0)}};e.g=function(){return u.g(Error())};void 0===self.Worker&&
-(t.K(v),self.Worker=t);return e}();var u=function(){function d(){this.l={};this.e=null}d.prototype.F=function(l){l=d.g(l);this.l[l]||(this.l[l]=!0,this.e=null)};d.prototype.J=function(){if(null===this.e){this.e=[];for(var d in this.l)this.e.push(d)}return this.e};d.g=function(d){var h=d.stack.trim(),k=/at (|[^ ]+ \()([^ ]+):\d+:\d+/.exec(h);if(k&&""!==k[2])return k[2];if((k=(new RegExp(/.+\/(.*?):\d+(:\d+)*$/)).exec(h))&&""!==k[1])return k[1];if(void 0!=d.fileName)return d.fileName;throw"ImageDecoderFramework.js: Could not get current script URL";
-};return d}();self.AsyncProxy={};self.AsyncProxy.AsyncProxySlave=m;self.AsyncProxy.AsyncProxyMaster=n;self.AsyncProxy.ScriptsToImportPool=u;t.prototype.postMessage=t.prototype.postMessage;t.prototype.terminate=t.prototype.terminate;m.setSlaveSideCreator=m.T;m.setBeforeOperationListener=m.S;m.sendUserDataToMaster=m.R;m.wrapPromiseFromSlaveSide=m.B;m.wrapCallbackFromSlaveSide=m.A;n.prototype.setUserDataHandler=n.prototype.U;n.prototype.terminate=n.prototype.terminate;n.prototype.callFunction=n.prototype.G;
-n.prototype.wrapCallback=n.prototype.X;n.prototype.freeCallback=n.prototype.t;n.getEntryUrl=n.u;u.prototype.addScriptFromErrorWithStackTrace=u.prototype.F;u.prototype.getScriptsForWorkerImport=u.prototype.J;
+var AsyncProxyMaster=function AsyncProxyMasterClosure(){var callId=0;var isGetMasterEntryUrlCalled=false;var masterEntryUrl=getBaseUrlFromEntryScript();function AsyncProxyMaster(scriptsToImport,ctorName,ctorArgs,options){var self=this;options=options||{};var slaveScriptContentString=mainSlaveScriptContent.toString();var scriptUrl=AsyncProxySlave._getScriptName();slaveScriptContentString=slaveScriptContentString.replace("SCRIPT_PLACEHOLDER",scriptUrl);var slaveScriptContentBlob=new Blob(["(",slaveScriptContentString,
+")()"],{type:"application/javascript"});var slaveScriptUrl=URL.createObjectURL(slaveScriptContentBlob);this._callbacks=[];this._pendingPromiseCalls=[];this._subWorkerById=[];this._subWorkers=[];this._worker=new Worker(slaveScriptUrl);this._worker.onmessage=onWorkerMessageInternal;this._userDataHandler=null;this._notReturnedFunctions=0;this._functionsBufferSize=options["functionsBufferSize"]||5;this._pendingMessages=[];this._worker.postMessage({functionToCall:"ctor",scriptsToImport:scriptsToImport,
+ctorName:ctorName,args:ctorArgs,callId:++callId,isPromise:false,masterEntryUrl:AsyncProxyMaster.getEntryUrl()});function onWorkerMessageInternal(workerEvent){onWorkerMessage(self,workerEvent)}}AsyncProxyMaster.prototype.setUserDataHandler=function setUserDataHandler(userDataHandler){this._userDataHandler=userDataHandler};AsyncProxyMaster.prototype.terminate=function terminate(){this._worker.terminate();for(var i=0;i<this._subWorkers.length;++i)this._subWorkers[i].terminate()};AsyncProxyMaster.prototype.callFunction=
+function callFunction(functionToCall,args,options){options=options||{};var isReturnPromise=!!options["isReturnPromise"];var transferables=options["transferables"];var pathsToTransferables=options["pathsToTransferablesInPromiseResult"];var localCallId=++callId;var promiseOnMasterSide=null;var self=this;if(isReturnPromise)promiseOnMasterSide=new Promise(function promiseFunc(resolve,reject){self._pendingPromiseCalls[localCallId]={resolve:resolve,reject:reject}});var sendMessageFunction=options["isSendImmediately"]?
+sendMessageToSlave:enqueueMessageToSlave;sendMessageFunction(this,transferables,true,{functionToCall:functionToCall,args:args||[],callId:localCallId,isPromise:isReturnPromise,pathsToTransferablesInPromiseResult:pathsToTransferables});if(isReturnPromise)return promiseOnMasterSide};AsyncProxyMaster.prototype.wrapCallback=function wrapCallback(callback,callbackName,options){options=options||{};var localCallId=++callId;var callbackHandle={isWorkerHelperCallback:true,isMultipleTimeCallback:!!options["isMultipleTimeCallback"],
+callId:localCallId,callbackName:callbackName,pathsToTransferables:options["pathsToTransferables"]};var internalCallbackHandle={isMultipleTimeCallback:!!options["isMultipleTimeCallback"],callId:localCallId,callback:callback,pathsToTransferables:options["pathsToTransferables"]};this._callbacks[localCallId]=internalCallbackHandle;return callbackHandle};AsyncProxyMaster.prototype.freeCallback=function freeCallback(callbackHandle){delete this._callbacks[callbackHandle.callId]};AsyncProxyMaster.getEntryUrl=
+function getEntryUrl(){isGetMasterEntryUrlCalled=true;return masterEntryUrl};AsyncProxyMaster._setEntryUrl=function setEntryUrl(newUrl){if(masterEntryUrl!==newUrl&&isGetMasterEntryUrlCalled)throw"Previous values returned from getMasterEntryUrl "+"is wrong. Avoid calling it within the slave c`tor";masterEntryUrl=newUrl};function mainSlaveScriptContent(){importScripts("SCRIPT_PLACEHOLDER");AsyncProxySlave._initializeSlave()}function onWorkerMessage(self,workerEvent){var callId=workerEvent.data.callId;
+switch(workerEvent.data.type){case "functionCalled":--self._notReturnedFunctions;trySendPendingMessages(self);break;case "promiseResult":var promiseData=self._pendingPromiseCalls[callId];delete self._pendingPromiseCalls[callId];var result=workerEvent.data.result;promiseData.resolve(result);break;case "promiseFailure":var promiseData=self._pendingPromiseCalls[callId];delete self._pendingPromiseCalls[callId];var reason=workerEvent.data.reason;promiseData.reject(reason);break;case "userData":if(self._userDataHandler!==
+null)self._userDataHandler(workerEvent.data.userData);break;case "callback":var callbackHandle=self._callbacks[workerEvent.data.callId];if(callbackHandle===undefined)throw"Unexpected message from SlaveWorker of callback ID: "+workerEvent.data.callId+". Maybe should indicate "+"isMultipleTimesCallback = true on creation?";if(!callbackHandle.isMultipleTimeCallback)self.freeCallback(self._callbacks[workerEvent.data.callId]);if(callbackHandle.callback!==null)callbackHandle.callback.apply(null,workerEvent.data.args);
+break;case "subWorkerCtor":var subWorker=new Worker(workerEvent.data.scriptUrl);var id=workerEvent.data.subWorkerId;self._subWorkerById[id]=subWorker;self._subWorkers.push(subWorker);subWorker.onmessage=function onSubWorkerMessage(subWorkerEvent){enqueueMessageToSlave(self,subWorkerEvent.ports,false,{functionToCall:"subWorkerOnMessage",subWorkerId:id,data:subWorkerEvent.data})};break;case "subWorkerPostMessage":var subWorker=self._subWorkerById[workerEvent.data.subWorkerId];subWorker.postMessage(workerEvent.data.data);
+break;case "subWorkerTerminate":var subWorker=self._subWorkerById[workerEvent.data.subWorkerId];subWorker.terminate();break;default:throw"Unknown message from AsyncProxySlave of type: "+workerEvent.data.type;}}function enqueueMessageToSlave(self,transferables,isFunctionCall,message){if(self._notReturnedFunctions>=self._functionsBufferSize){self._pendingMessages.push({transferables:transferables,isFunctionCall:isFunctionCall,message:message});return}sendMessageToSlave(self,transferables,isFunctionCall,
+message)}function sendMessageToSlave(self,transferables,isFunctionCall,message){if(isFunctionCall)++self._notReturnedFunctions;self._worker.postMessage(message,transferables)}function trySendPendingMessages(self){while(self._notReturnedFunctions<self._functionsBufferSize&&self._pendingMessages.length>0){var message=self._pendingMessages.shift();sendMessageToSlave(self,message.transferables,message.isFunctionCall,message.message)}}function getBaseUrlFromEntryScript(){var baseUrl=location.href;var endOfPath=
+baseUrl.lastIndexOf("/");if(endOfPath>=0)baseUrl=baseUrl.substring(0,endOfPath);return baseUrl}return AsyncProxyMaster}();var SubWorkerEmulationForChrome=function SubWorkerEmulationForChromeClosure(){var subWorkerId=0;var subWorkerIdToSubWorker=null;function SubWorkerEmulationForChrome(scriptUrl){if(subWorkerIdToSubWorker===null)throw"AsyncProxy internal error: SubWorkerEmulationForChrome "+"not initialized";this._subWorkerId=++subWorkerId;subWorkerIdToSubWorker[this._subWorkerId]=this;self.postMessage({type:"subWorkerCtor",subWorkerId:this._subWorkerId,scriptUrl:scriptUrl})}SubWorkerEmulationForChrome.initialize=function initialize(subWorkerIdToSubWorker_){subWorkerIdToSubWorker=
+subWorkerIdToSubWorker_};SubWorkerEmulationForChrome.prototype.postMessage=function postMessage(data,transferables){self.postMessage({type:"subWorkerPostMessage",subWorkerId:this._subWorkerId,data:data},transferables)};SubWorkerEmulationForChrome.prototype.terminate=function terminate(data,transferables){self.postMessage({type:"subWorkerTerminate",subWorkerId:this._subWorkerId},transferables)};return SubWorkerEmulationForChrome}();
+var AsyncProxySlave=function AsyncProxySlaveClosure(){var slaveHelperSingleton={};var beforeOperationListener=null;var slaveSideMainInstance;var slaveSideInstanceCreator=defaultInstanceCreator;var subWorkerIdToSubWorker={};var ctorName;slaveHelperSingleton._initializeSlave=function initializeSlave(){self.onmessage=onMessage};slaveHelperSingleton.setSlaveSideCreator=function setSlaveSideCreator(creator){slaveSideInstanceCreator=creator};slaveHelperSingleton.setBeforeOperationListener=function setBeforeOperationListener(listener){beforeOperationListener=
+listener};slaveHelperSingleton.sendUserDataToMaster=function sendUserDataToMaster(userData){self.postMessage({type:"userData",userData:userData})};slaveHelperSingleton.wrapPromiseFromSlaveSide=function wrapPromiseFromSlaveSide(callId,promise,pathsToTransferables){var promiseThen=promise.then(function sendPromiseToMaster(result){var transferables=extractTransferables(pathsToTransferables,result);self.postMessage({type:"promiseResult",callId:callId,result:result},transferables)});promiseThen["catch"](function sendFailureToMaster(reason){self.postMessage({type:"promiseFailure",
+callId:callId,reason:reason})})};slaveHelperSingleton.wrapCallbackFromSlaveSide=function wrapCallbackFromSlaveSide(callbackHandle){var isAlreadyCalled=false;function callbackWrapperFromSlaveSide(){if(isAlreadyCalled)throw"Callback is called twice but isMultipleTimeCallback "+"= false";var argumentsAsArray=getArgumentsAsArray(arguments);if(beforeOperationListener!==null)beforeOperationListener.call(slaveSideMainInstance,"callback",callbackHandle.callbackName,argumentsAsArray);var transferables=extractTransferables(callbackHandle.pathsToTransferables,
+argumentsAsArray);self.postMessage({type:"callback",callId:callbackHandle.callId,args:argumentsAsArray},transferables);if(!callbackHandle.isMultipleTimeCallback)isAlreadyCalled=true}return callbackWrapperFromSlaveSide};slaveHelperSingleton._getScriptName=function _getScriptName(){var error=new Error;var scriptName=ScriptsToImportPool._getScriptName(error);return scriptName};function extractTransferables(pathsToTransferables,pathsBase){if(pathsToTransferables===undefined)return undefined;var transferables=
+new Array(pathsToTransferables.length);for(var i=0;i<pathsToTransferables.length;++i){var path=pathsToTransferables[i];var transferable=pathsBase;for(var j=0;j<path.length;++j){var member=path[j];transferable=transferable[member]}transferables[i]=transferable}return transferables}function onMessage(event){var functionNameToCall=event.data.functionToCall;var args=event.data.args;var callId=event.data.callId;var isPromise=event.data.isPromise;var pathsToTransferablesInPromiseResult=event.data.pathsToTransferablesInPromiseResult;
+var result=null;switch(functionNameToCall){case "ctor":AsyncProxyMaster._setEntryUrl(event.data.masterEntryUrl);var scriptsToImport=event.data.scriptsToImport;ctorName=event.data.ctorName;for(var i=0;i<scriptsToImport.length;++i)importScripts(scriptsToImport[i]);slaveSideMainInstance=slaveSideInstanceCreator.apply(null,args);return;case "subWorkerOnMessage":var subWorker=subWorkerIdToSubWorker[event.data.subWorkerId];var workerEvent={data:event.data.data};subWorker.onmessage(workerEvent);return}args=
+new Array(event.data.args.length);for(var i=0;i<event.data.args.length;++i){var arg=event.data.args[i];if(arg!==undefined&&arg!==null&&arg.isWorkerHelperCallback)arg=slaveHelperSingleton.wrapCallbackFromSlaveSide(arg);args[i]=arg}var functionContainer=slaveSideMainInstance;var functionToCall;while(functionContainer){functionToCall=slaveSideMainInstance[functionNameToCall];if(functionToCall)break;functionContainer=functionContainer.__proto__}if(!functionToCall)throw"AsyncProxy error: could not find function "+
+functionToCall;var promise=functionToCall.apply(slaveSideMainInstance,args);if(isPromise)slaveHelperSingleton.wrapPromiseFromSlaveSide(callId,promise,pathsToTransferablesInPromiseResult);self.postMessage({type:"functionCalled",callId:event.data.callId,result:result})}function defaultInstanceCreator(){var TypeCtor=self[ctorName];var bindArgs=[null].concat(getArgumentsAsArray(arguments));var instance=new (Function.prototype.bind.apply(TypeCtor,bindArgs));return instance}function getArgumentsAsArray(args){var argumentsAsArray=
+new Array(args.length);for(var i=0;i<args.length;++i)argumentsAsArray[i]=args[i];return argumentsAsArray}if(self["Worker"]===undefined){SubWorkerEmulationForChrome.initialize(subWorkerIdToSubWorker);self["Worker"]=SubWorkerEmulationForChrome}return slaveHelperSingleton}();var ScriptsToImportPool=function ScriptsToImportPoolClosure(){function ScriptsToImportPool(){this._scriptsByName={};this._scriptsArray=null}ScriptsToImportPool.prototype.addScriptFromErrorWithStackTrace=function addScriptForWorkerImport(errorWithStackTrace){var fileName=ScriptsToImportPool._getScriptName(errorWithStackTrace);if(!this._scriptsByName[fileName]){this._scriptsByName[fileName]=true;this._scriptsArray=null}};ScriptsToImportPool.prototype.getScriptsForWorkerImport=function getScriptsForWorkerImport(){if(this._scriptsArray===
+null){this._scriptsArray=[];for(var fileName in this._scriptsByName)this._scriptsArray.push(fileName)}return this._scriptsArray};ScriptsToImportPool._getScriptName=function getScriptName(errorWithStackTrace){var stack=errorWithStackTrace.stack.trim();var currentStackFrameRegex=/at (|[^ ]+ \()([^ ]+):\d+:\d+/;var source=currentStackFrameRegex.exec(stack);if(source&&source[2]!=="")return source[2];var lastStackFrameRegex=new RegExp(/.+\/(.*?):\d+(:\d+)*$/);source=lastStackFrameRegex.exec(stack);if(source&&
+source[1]!=="")return source[1];if(errorWithStackTrace.fileName!=undefined)return errorWithStackTrace.fileName;throw"ImageDecoderFramework.js: Could not get current script URL";};return ScriptsToImportPool}();self["AsyncProxy"]={};self["AsyncProxy"]["AsyncProxySlave"]=AsyncProxySlave;self["AsyncProxy"]["AsyncProxyMaster"]=AsyncProxyMaster;self["AsyncProxy"]["ScriptsToImportPool"]=ScriptsToImportPool;SubWorkerEmulationForChrome.prototype["postMessage"]=SubWorkerEmulationForChrome.prototype.postMessage;SubWorkerEmulationForChrome.prototype["terminate"]=SubWorkerEmulationForChrome.prototype.terminate;AsyncProxySlave["setSlaveSideCreator"]=AsyncProxySlave.setSlaveSideCreator;
+AsyncProxySlave["setBeforeOperationListener"]=AsyncProxySlave.setBeforeOperationListener;AsyncProxySlave["sendUserDataToMaster"]=AsyncProxySlave.sendUserDataToMaster;AsyncProxySlave["wrapPromiseFromSlaveSide"]=AsyncProxySlave.wrapPromiseFromSlaveSide;AsyncProxySlave["wrapCallbackFromSlaveSide"]=AsyncProxySlave.wrapCallbackFromSlaveSide;AsyncProxyMaster.prototype["setUserDataHandler"]=AsyncProxyMaster.prototype.setUserDataHandler;AsyncProxyMaster.prototype["terminate"]=AsyncProxyMaster.prototype.terminate;
+AsyncProxyMaster.prototype["callFunction"]=AsyncProxyMaster.prototype.callFunction;AsyncProxyMaster.prototype["wrapCallback"]=AsyncProxyMaster.prototype.wrapCallback;AsyncProxyMaster.prototype["freeCallback"]=AsyncProxyMaster.prototype.freeCallback;AsyncProxyMaster["getEntryUrl"]=AsyncProxyMaster.getEntryUrl;ScriptsToImportPool.prototype["addScriptFromErrorWithStackTrace"]=ScriptsToImportPool.prototype.addScriptFromErrorWithStackTrace;ScriptsToImportPool.prototype["getScriptsForWorkerImport"]=ScriptsToImportPool.prototype.getScriptsForWorkerImport;
 
 var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
 return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
@@ -20,7 +35,32 @@ a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&co
 a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
 if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
 
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.imageDecoder = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
+jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
+newNode;return newNode};LinkedList.prototype.remove=function remove(iterator){this._validateIteratorOfThis(iterator);--this._count;iterator._prev._next=iterator._next;iterator._next._prev=iterator._prev;iterator._parent=null};LinkedList.prototype.getValue=function getValue(iterator){this._validateIteratorOfThis(iterator);return iterator._value};LinkedList.prototype.getFirstIterator=function getFirstIterator(){var iterator=this.getNextIterator(this._first);return iterator};LinkedList.prototype.getLastIterator=
+function getFirstIterator(){var iterator=this.getPrevIterator(this._last);return iterator};LinkedList.prototype.getNextIterator=function getNextIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._next===this._last)return null;return iterator._next};LinkedList.prototype.getPrevIterator=function getPrevIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._prev===this._first)return null;return iterator._prev};LinkedList.prototype.getCount=function getCount(){return this._count};
+LinkedList.prototype._validateIteratorOfThis=function validateIteratorOfThis(iterator){if(iterator._parent!==this)throw"iterator must be of the current LinkedList";};return LinkedList}();var PriorityScheduler=function PrioritySchedulerClosure(){function PriorityScheduler(createResource,jobsLimit,prioritizer,options){options=options||{};this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._prioritizer=prioritizer;this._showLog=options["showLog"];this._schedulerName=options["schedulerName"];this._numNewJobs=options["numNewJobs"]||20;this._numJobsBeforeRerankOldPriorities=options["numJobsBeforeRerankOldPriorities"]||20;this._freeResourcesCount=this._jobsLimit;this._freeResources=
+new Array(this._jobsLimit);this._resourcesGuaranteedForHighPriority=options["resourcesGuaranteedForHighPriority"]||0;this._highPriorityToGuaranteeResource=options["highPriorityToGuaranteeResource"]||0;this._pendingJobsCount=0;this._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(this);this._schedulesCounter=0}PriorityScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext,jobAbortedFunc){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);
+return}var job={jobFunc:jobFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};var minPriority=getMinimalPriorityToSchedule(self);var resource=null;if(priority>=minPriority)resource=tryGetFreeResource(this);if(resource!==null){schedule(this,job,resource);return}enqueueNewJob(this,job,priority);ensurePendingJobsCount(self)},jobDone:function jobDone(resource,jobContext){if(this._showLog){var message="";if(this._schedulerName!==undefined)message=this._schedulerName+"'s ";var priority=this._prioritizer["getPriority"](jobContext);
+message+=" job done of priority "+priority;console.log(message)}resourceFreed(this,resource);ensurePendingJobsCount(self)},tryYield:function tryYield(jobContinueFunc,jobContext,jobAbortedFunc,jobYieldedFunc,resource){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);resourceFreed(this,resource);return true}var higherPriorityJob=tryDequeueNewJobWithHigherPriority(this,priority);ensurePendingJobsCount(self);if(higherPriorityJob===null)return false;jobYieldedFunc(jobContext);
+var job={jobFunc:jobContinueFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};enqueueNewJob(this,job,priority);ensurePendingJobsCount(self);schedule(this,higherPriorityJob,resource);ensurePendingJobsCount(self);return true}};function tryDequeueNewJobWithHigherPriority(self,lowPriority){var jobToScheduleNode=null;var highestPriorityFound=lowPriority;var countedPriorities=[];var currentNode=self._newPendingJobsLinkedList.getFirstIterator();while(currentNode!==null){var nextNode=self._newPendingJobsLinkedList.getNextIterator(currentNode);
+var job=self._newPendingJobsLinkedList.getValue(currentNode);var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){extractJobFromLinkedList(self,currentNode);--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);currentNode=nextNode;continue}if(highestPriorityFound===undefined||priority>highestPriorityFound){highestPriorityFound=priority;jobToScheduleNode=currentNode}if(!self._showLog){currentNode=nextNode;continue}if(countedPriorities[priority]===undefined)countedPriorities[priority]=
+1;else++countedPriorities[priority];currentNode=nextNode}var jobToSchedule=null;if(jobToScheduleNode!==null){jobToSchedule=extractJobFromLinkedList(self,jobToScheduleNode);--self._pendingJobsCount}if(self._showLog){var jobsListMessage="";var jobDequeuedMessage="";if(self._schedulerName!==undefined){jobsListMessage=self._schedulerName+"'s ";jobDequeuedMessage=self._schedulerName+"'s "}jobsListMessage+="Jobs list:";for(var i=0;i<countedPriorities.length;++i)if(countedPriorities[i]!==undefined)jobsListMessage+=
+countedPriorities[i]+" jobs of priority "+i+";";console.log(jobsListMessage);if(jobToSchedule!==null){jobDequeuedMessage+=" dequeued new job of priority "+highestPriorityFound;console.log(jobDequeuedMessage)}}ensurePendingJobsCount(self);return jobToSchedule}function tryGetFreeResource(self){if(self._freeResourcesCount===0)return null;--self._freeResourcesCount;var resource=self._freeResources.pop();if(resource===undefined)resource=self._resourceCreator();ensurePendingJobsCount(self);return resource}
+function enqueueNewJob(self,job,priority){++self._pendingJobsCount;var firstIterator=self._newPendingJobsLinkedList.getFirstIterator();addJobToLinkedList(self,job,firstIterator);if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" enqueued job of priority "+priority;console.log(message)}if(self._newPendingJobsLinkedList.getCount()<=self._numNewJobs){ensurePendingJobsCount(self);return}var lastIterator=self._newPendingJobsLinkedList.getLastIterator();
+var oldJob=extractJobFromLinkedList(self,lastIterator);enqueueOldJob(self,oldJob);ensurePendingJobsCount(self)}function enqueueOldJob(self,job){var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);return}if(self._oldPendingJobsByPriority[priority]===undefined)self._oldPendingJobsByPriority[priority]=[];self._oldPendingJobsByPriority[priority].push(job)}function rerankPriorities(self){var originalOldsArray=self._oldPendingJobsByPriority;
+var originalNewsList=self._newPendingJobsLinkedList;if(originalOldsArray.length===0)return;self._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(self);for(var i=0;i<originalOldsArray.length;++i){if(originalOldsArray[i]===undefined)continue;for(var j=0;j<originalOldsArray[i].length;++j)enqueueOldJob(self,originalOldsArray[i][j])}var iterator=originalNewsList.getFirstIterator();while(iterator!==null){var value=originalNewsList.getValue(iterator);enqueueOldJob(self,value);iterator=originalNewsList.getNextIterator(iterator)}var message=
+"";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+="rerank: ";for(var i=self._oldPendingJobsByPriority.length-1;i>=0;--i){var highPriorityJobs=self._oldPendingJobsByPriority[i];if(highPriorityJobs===undefined)continue;if(self._showLog)message+=highPriorityJobs.length+" jobs in priority "+i+";";while(highPriorityJobs.length>0&&self._newPendingJobsLinkedList.getCount()<self._numNewJobs){var job=highPriorityJobs.pop();addJobToLinkedList(self,job)}if(self._newPendingJobsLinkedList.getCount()>=
+self._numNewJobs&&!self._showLog)break}if(self._showLog)console.log(message);ensurePendingJobsCount(self)}function resourceFreed(self,resource){++self._freeResourcesCount;var minPriority=getMinimalPriorityToSchedule(self);--self._freeResourcesCount;var job=tryDequeueNewJobWithHigherPriority(self,minPriority);if(job!==null){ensurePendingJobsCount(self);schedule(self,job,resource);ensurePendingJobsCount(self);return}var hasOldJobs=self._pendingJobsCount>self._newPendingJobsLinkedList.getCount();if(hasOldJobs){self._freeResources.push(resource);
+++self._freeResourcesCount;ensurePendingJobsCount(self);return}var numPriorities=self._oldPendingJobsByPriority.length;var jobPriority;for(var priority=numPriorities-1;priority>=0;--priority){var jobs=self._oldPendingJobsByPriority[priority];if(jobs===undefined||jobs.length===0)continue;for(var i=jobs.length-1;i>=0;--i){job=jobs[i];jobPriority=self._prioritizer["getPriority"](job.jobContext);if(jobPriority>=priority){jobs.length=i;break}else if(jobPriority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext)}else{if(self._oldPendingJobsByPriority[jobPriority]===
+undefined)self._oldPendingJobsByPriority[jobPriority]=[];self._oldPendingJobsByPriority[jobPriority].push(job)}job=null}if(job!==null)break;jobs.length=0}if(job===null){self._freeResources.push(resource);++self._freeResourcesCount;ensurePendingJobsCount(self);return}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" dequeued old job of priority "+jobPriority;console.log(message)}--self._pendingJobsCount;ensurePendingJobsCount(self);schedule(self,
+job,resource);ensurePendingJobsCount(self)}function schedule(self,job,resource){++self._schedulesCounter;if(self._schedulesCounter>=self._numJobsBeforeRerankOldPriorities){self._schedulesCounter=0;rerankPriorities(self)}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";var priority=self._prioritizer["getPriority"](job.jobContext);message+=" scheduled job of priority "+priority;console.log(message)}job.jobFunc(resource,job.jobContext)}function initializeNewPendingJobsLinkedList(self){self._newPendingJobsLinkedList=
+new LinkedList}function addJobToLinkedList(self,job,addBefore){self._newPendingJobsLinkedList.add(job,addBefore);ensureNumberOfNodes(self)}function extractJobFromLinkedList(self,iterator){var value=self._newPendingJobsLinkedList.getValue(iterator);self._newPendingJobsLinkedList.remove(iterator);ensureNumberOfNodes(self);return value}function ensureNumberOfNodes(self){if(!self._showLog)return;var iterator=self._newPendingJobsLinkedList.getIterator();var expectedCount=0;while(iterator!==null){++expectedCount;
+iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCount!==self._newPendingJobsLinkedList.getCount())throw"Unexpected count of new jobs";}function ensurePendingJobsCount(self){if(!self._showLog)return;var oldJobsCount=0;for(var i=0;i<self._oldPendingJobsByPriority.length;++i){var jobs=self._oldPendingJobsByPriority[i];if(jobs!==undefined)oldJobsCount+=jobs.length}var expectedCount=oldJobsCount+self._newPendingJobsLinkedList.getCount();if(expectedCount!==self._pendingJobsCount)throw"Unexpected count of jobs";
+}function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
+LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
+
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.imageDecoderFramework = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
 module.exports.ViewerImageDecoder = require('viewerimagedecoder.js');
@@ -1160,27 +1200,39 @@ DataPublisher.prototype.publish = function publish(key, data) {
         return;
     }
     
-    var iterator = subscribers.getFirstIterator();
+    var iterator = subscribers.subscribersList.getFirstIterator();
     while (iterator !== null) {
-        var subscriber = subscribers.getValue(iterator);
+        var subscriber = subscribers.subscribersList.getValue(iterator);
         subscriber(key, data);
         
-        iterator = subscribers.getNextIterator(iterator);
+        iterator = subscribers.subscribersList.getNextIterator(iterator);
     }
+    
+    
 };
 
 DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
     var subscribers = this._subscribersByKey[key];
     if (!subscribers) {
-        subscribers = new LinkedList();
+        subscribers = {
+            subscribersList: new LinkedList(),
+            subscribersNeverGotResultCount: 0
+        };
         this._subscribersByKey[key] = subscribers;
     }
     
-    var iterator = subscribers.add(subscriber);
-    return {
+    ++subscribers.subscribersNeverGotResultCount;
+    
+    var iterator = subscribers.subscribersList.add({
+        subscriber: subscriber,
+        isGotResult: false
+    });
+    
+    var handle = {
         _iterator: iterator,
         _key: key
     };
+    return handle;
 };
 
 DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
@@ -1189,7 +1241,18 @@ DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
         throw 'DataPublisher error: subscriber was not registered';
     }
     
-    subscribers.remove(handle._iterator);
+    var subscriber = subscribers.subscribersList.getValue(handle._iterator);
+    subscribers.subscribersList.remove(handle._iterator);
+    if (subscribers.subscribersList.getCount() === 0) {
+        delete this._subscribersByKey[handle._key];
+    } else if (!subscriber.isGotResult) {
+        --subscribers.subscribersNeverGotResultCount;
+    }
+};
+
+DataPublisher.prototype.isKeyNeedFetch = function isKeyNeedFetch(key) {
+    var subscribers = this._subscribersByKey[key];
+    return (!!subscribers) && (subscribers.subscribersNeverGotResultCount > 0);
 };
 },{"linkedlist.js":16}],7:[function(require,module,exports){
 'use strict';
@@ -1205,13 +1268,14 @@ function FetchClientBase(options) {
     this._url = null;
     this._options = options;
     this._isReady = false;
+    this._sizesParams = null;
     this._dataPublisher = this.createDataPublisherInternal();
 }
 
 // Methods for implementor
 
-FetchClientBase.prototype.getSizesParamsInternal = function getSizesParamsInternal() {
-    throw 'FetchClientBase error: getSizesParamsInternal is not implemented';
+FetchClientBase.prototype.openInternal = function openInternal(url) {
+    throw 'FetchClientBase error: openInternal is not implemented';
 };
 
 FetchClientBase.prototype.fetchInternal = function fetch(dataKey) {
@@ -1224,10 +1288,6 @@ FetchClientBase.prototype.getDataKeysInternal = function getDataKeysInternal(ima
 
 FetchClientBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
     return new DataPublisher();
-};
-
-FetchClientBase.prototype.getUrlInternal = function getUrlInternal() {
-    return this._url;
 };
 
 // FetchClient implementation
@@ -1248,14 +1308,9 @@ FetchClientBase.prototype.open = function open(url) {
     }
     
     this._url = url;
-    this._isReady = true;
-    
-    if (this._statusCallback) {
-        this._statusCallback({
-            isReady: true,
-            exception: null
-        });
-    }
+    this.openInternal(url)
+        .then(this._opened.bind(this))
+        .catch(this._onError.bind(this));
 };
 
 FetchClientBase.prototype.createFetchContext = function createFetchContext(
@@ -1292,17 +1347,33 @@ FetchClientBase.prototype.close = function close(closedCallback) {
 
 FetchClientBase.prototype.getSizesParams = function getSizesParams(closedCallback) {
     this._ensureReady();
-    return this.getSizesParamsInternal();
+    return this._sizesParams;
 };
 
 FetchClientBase.prototype.reconnect = function reconnect() {
-    // Do nothing
+    return this.reconnectInternal();
 };
 
 FetchClientBase.prototype._ensureReady = function ensureReady() {
     if (!this._isReady) {
         throw 'FetchClientBase error: fetch client is not opened';
     }
+};
+
+FetchClientBase.prototype._opened = function opened(sizesParams) {
+    this._isReady = true;
+    this._sizesParams = sizesParams;
+    
+    if (this._statusCallback) {
+        this._statusCallback({
+            isReady: true,
+            exception: null
+        });
+    }
+};
+
+FetchClientBase.prototype._onError = function onError(error) {
+    // NOTE: Should define API between ImageDecoderFramework and FetchClient for error notifications
 };
 },{"datapublisher.js":6,"simplefetchcontext.js":8,"simplefetcher.js":9}],8:[function(require,module,exports){
 'use strict';
@@ -1387,6 +1458,8 @@ function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
     this._remainingKeysToFetch = null;
     this._activeFetches = {};
     this._activeFetchesCount = 0;
+    this._isAborted = false;
+    this._isStoppedCalled = false;
     
     this._fetchSucceededBound = this._fetchSucceeded.bind(this);
     this._fetchFailedBound = this._fetchFailed.bind(this);
@@ -1394,7 +1467,7 @@ function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
 
 SimpleFetcher.prototype.fetch = function fetch(fetchContext) {
     if (!this._isChannel && this._remainingKeysToFetch !== null) {
-        throw 'SimpleFetcher error: Cannot fetch while another fetch in progress';
+        throw 'SimpleFetcher error: Request fetcher can fetch only one region';
     }
     
     this._remainingKeysToFetch = fetchContext.getDataKeys();
@@ -1403,6 +1476,8 @@ SimpleFetcher.prototype.fetch = function fetch(fetchContext) {
             break;
         }
     }
+    
+    this._onStopped();
 };
 
 SimpleFetcher.prototype.on = function on(event, listener) {
@@ -1410,7 +1485,7 @@ SimpleFetcher.prototype.on = function on(event, listener) {
         throw 'SimpleFetcher error: Unexpected event ' + event;
     }
     
-    this.stopListeners.push(listener);
+    this._stopListeners.push(listener);
 };
 
 SimpleFetcher.prototype.abortAsync = function abortAsync() {
@@ -1418,33 +1493,52 @@ SimpleFetcher.prototype.abortAsync = function abortAsync() {
         throw 'SimpleFetcher error: cannot abort channel fetcher';
     }
     
-    // Do nothing
+    if (this._remainingKeysToFetch.length > 0) {
+        this._isAborted = true;
+    }
+    this._onStopped();
 };
 
 SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
-    if (this._remainingKeysToFetch.length === 0) {
-        return false;
-    }
+    var key;
+    do {
+        if (this._remainingKeysToFetch.length === 0) {
+            return false;
+        }
+        key = this._remainingKeysToFetch.pop();
+    } while (this._dataPublisher.isKeyNeedFetch(key));
     
     var self = this;
-    var key = this._remainingKeysToFetch.pop();
-    this._activeFetches.push(key);
+    this._activeFetches[key] = true;
+    ++this._activeFetchesCount;
     
     this._fetchClient.fetchInternal(key)
         .then(function resolved(result) {
             self._dataPublisher.publish(key, result);
-            self.fetchedEnded(null, key, result);
+            self._fetchedEnded(null, key, result);
         }).catch(function failed(reason) {
-            // NOTE: Should create an API in ImageDecoderFramework to update on error
-            self.fetchEnded(reason, key);
+            self._fetchClient._onError(reason);
+            self._fetchEnded(reason, key);
         });
     
     return true;
 };
 
 SimpleFetcher.prototype._fetchEnded = function fetchEnded(error, key, result) {
-    delete this._activeFetches.key;
+    delete this._activeFetches[key];
+    --this._activeFetchesCount;
+    
     this._fetchSingleKey();
+    this._onStopped();
+};
+
+SimpleFetcher.prototype._onStopped = function onStopped() {
+    if (this._activeFetchesCount === 0 && !this._isStoppedCalled) {
+        this._isStoppedCalled = true;
+        for (var i = 0; i < this._stopListeners.length; ++i) {
+            this._stopListeners[i]();
+        }
+    }
 };
 },{}],10:[function(require,module,exports){
 'use strict';
@@ -2017,9 +2111,7 @@ DecodeJob.prototype._pixelsDecodedCallback = function pixelsDecodedCallback(
             xInOriginalRequest: offsetX,
             yInOriginalRequest: offsetY,
             
-            width: decodeResult.width,
-            height: decodeResult.height,
-            pixels: decodeResult.pixels,
+            imageData: decodeResult,
             
             allRelevantBytesLoaded: listenerHandle.allRelevantBytesLoaded
         };
@@ -2857,8 +2949,8 @@ WorkerProxyFetchManager.prototype.setStatusCallback = function setStatusCallback
         this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
     }
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
-        statusCallback, 'statusCallback', /*isMultipleTimeCallback=*/true);
+    var callbackWrapper = this._workerHelper.wrapCallback(
+        statusCallback, 'statusCallback', { isMultipleTimeCallback: true });
     
     this._currentStatusCallbackWrapper = callbackWrapper;
     this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
@@ -2871,7 +2963,7 @@ WorkerProxyFetchManager.prototype.open = function open(url) {
 WorkerProxyFetchManager.prototype.close = function close(closedCallback) {
     var self = this;
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
+    var callbackWrapper = this._workerHelper.wrapCallback(
         internalClosedCallback, 'closedCallback');
         
     this._workerHelper.callFunction('close', [callbackWrapper]);
@@ -2888,7 +2980,7 @@ WorkerProxyFetchManager.prototype.close = function close(closedCallback) {
 WorkerProxyFetchManager.prototype.createChannel = function createChannel(
     createdCallback) {
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
+    var callbackWrapper = this._workerHelper.wrapCallback(
         createdCallback,
         'FetchManager_createChannelCallback');
     
@@ -2921,17 +3013,19 @@ WorkerProxyFetchManager.prototype.createRequest = function createRequest(
     var transferablePaths = this._imageImplementation.getTransferablePathsOfRequestCallback();
     
     var internalCallbackWrapper =
-        this._workerHelper.wrapCallbackFromMasterSide(
-            callback.bind(callbackThis),
-            'requestTilesProgressiveCallback',
-            /*isMultipleTimeCallback=*/true,
-            transferablePaths);
+        this._workerHelper.wrapCallback(
+            callback.bind(callbackThis), 'requestTilesProgressiveCallback', {
+                isMultipleTimeCallback: true,
+                pathsToTransferables: transferablePaths
+            }
+        );
     
     var internalTerminatedCallbackWrapper =
-        this._workerHelper.wrapCallbackFromMasterSide(
-            internalTerminatedCallback,
-            'requestTilesProgressiveTerminatedCallback',
-            /*isMultipleTimeCallback=*/false);
+        this._workerHelper.wrapCallback(
+            internalTerminatedCallback, 'requestTilesProgressiveTerminatedCallback', {
+                isMultipleTimeCallback: false
+            }
+        );
             
     var args = [
         fetchParams,
@@ -3026,8 +3120,8 @@ WorkerProxyImageDecoder.prototype.setStatusCallback = function setStatusCallback
         this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
     }
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
-        statusCallback, 'statusCallback', /*isMultipleTimeCallback=*/true);
+    var callbackWrapper = this._workerHelper.wrapCallback(
+        statusCallback, 'statusCallback', { isMultipleTimeCallback: true });
     
     this._currentStatusCallbackWrapper = callbackWrapper;
     this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
@@ -3040,7 +3134,7 @@ WorkerProxyImageDecoder.prototype.open = function open(url) {
 WorkerProxyImageDecoder.prototype.close = function close(closedCallback) {
     var self = this;
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
+    var callbackWrapper = this._workerHelper.wrapCallback(
         internalClosedCallback, 'closedCallback');
         
     this._workerHelper.callFunction('close', [callbackWrapper]);
@@ -3111,7 +3205,7 @@ WorkerProxyImageDecoder.prototype.getDefaultNumQualityLayers = function getDefau
 WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
     createdCallback) {
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
+    var callbackWrapper = this._workerHelper.wrapCallback(
         createdCallback, 'ImageDecoder_createChannelCallback');
     
     var args = [callbackWrapper];
@@ -3146,17 +3240,19 @@ WorkerProxyImageDecoder.prototype.requestPixelsProgressive = function requestPix
     //transferables = [pathToPixelsArray];
     
     var internalCallbackWrapper =
-        this._workerHelper.wrapCallbackFromMasterSide(
-            callback,
-            'requestPixelsProgressiveCallback',
-            /*isMultipleTimeCallback=*/true,
-            transferables);
+        this._workerHelper.wrapCallback(
+            callback, 'requestPixelsProgressiveCallback', {
+                isMultipleTimeCallback: true,
+                pathsToTransferables: transferables
+            }
+        );
     
     var internalTerminatedCallbackWrapper =
-        this._workerHelper.wrapCallbackFromMasterSide(
-            internalTerminatedCallback,
-            'requestPixelsProgressiveTerminatedCallback',
-            /*isMultipleTimeCallback=*/false);
+        this._workerHelper.wrapCallback(
+            internalTerminatedCallback, 'requestPixelsProgressiveTerminatedCallback', {
+                isMultipleTimeCallback: false
+            }
+        );
             
     var args = [
         imagePartParams,
@@ -3293,7 +3389,8 @@ var PENDING_CALL_TYPE_REPOSITION = 2;
 var REGION_OVERVIEW = 0;
 var REGION_DYNAMIC = 1;
 
-function ViewerImageDecoder(canvasUpdatedCallback, options) {
+function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback, options) {
+    this._imageImplementationClassName = imageImplementationClassName;
     this._canvasUpdatedCallback = canvasUpdatedCallback;
     
     this._adaptProportions = options.adaptProportions;
@@ -3335,7 +3432,7 @@ function ViewerImageDecoder(canvasUpdatedCallback, options) {
     var ImageType = this._isMainImageOnUi ?
         ImageDecoder: WorkerProxyImageDecoder;
         
-    this._image = new ImageType({
+    this._image = new ImageType(imageImplementationClassName, {
         serverRequestPrioritizer: 'frustumOnly',
         decodePrioritizer: 'frustumOnly',
         showLog: this._showLog
@@ -3727,7 +3824,7 @@ ViewerImageDecoder.prototype._callPendingCallbacks = function callPendingCallbac
 ViewerImageDecoder.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdatedArgs) {
     var region = pixelsUpdatedArgs.region;
     var decoded = pixelsUpdatedArgs.decoded;
-    if (decoded.width === 0 || decoded.height === 0) {
+    if (decoded.imageData.width === 0 || decoded.imageData.height === 0) {
         return;
     }
     
@@ -3735,10 +3832,10 @@ ViewerImageDecoder.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdat
     var y = decoded.yInOriginalRequest;
     
     var context = region.canvas.getContext('2d');
-    var imageData = context.createImageData(decoded.width, decoded.height);
-    imageData.data.set(decoded.pixels);
+    //var imageData = context.createImageData(decoded.width, decoded.height);
+    //imageData.data.set(decoded.pixels);
     
-    context.putImageData(imageData, x, y);
+    context.putImageData(decoded.imageData, x, y);
 };
 
 ViewerImageDecoder.prototype._repositionCanvas = function repositionCanvas(repositionArgs) {
@@ -3882,7 +3979,7 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
 'use strict';
 
 var ViewerImageDecoder = require('viewerimagedecoder.js');
-var LeafletFrustumCalculator = require('leafletfrustumcalculator.js');
+var calculateLeafletFrustum = require('leafletfrustumcalculator.js');
 
 /* global L: false */
 
@@ -3916,6 +4013,7 @@ module.exports = L.Class.extend({
     _createImage: function createImage() {
         if (this._image === null) {
             this._image = new ViewerImageDecoder(
+                this._options.imageImplementationClassName,
                 this._canvasUpdatedCallbackBound,
                 this._options);
             
@@ -3979,7 +4077,7 @@ module.exports = L.Class.extend({
     _moved: function () {
         this._moveCanvases();
 
-        var frustumData = LeafletFrustumCalculator.calculateFrustum(this._map);
+        var frustumData = calculateLeafletFrustum(this._map);
         
         this._image.updateViewArea(frustumData);
     },
@@ -4040,7 +4138,7 @@ module.exports = L.Class.extend({
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 
-module.exports = function calculateFrustum(leafletMap) {
+module.exports = function calculateLeafletFrustum(leafletMap) {
     var screenSize = leafletMap.getSize();
     var bounds = leafletMap.getBounds();
 

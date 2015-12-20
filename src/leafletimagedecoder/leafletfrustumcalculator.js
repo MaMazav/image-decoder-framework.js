@@ -2,7 +2,7 @@
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 
-module.exports = function calculateFrustum(leafletMap) {
+module.exports = function calculateLeafletFrustum(leafletMap) {
     var screenSize = leafletMap.getSize();
     var bounds = leafletMap.getBounds();
 

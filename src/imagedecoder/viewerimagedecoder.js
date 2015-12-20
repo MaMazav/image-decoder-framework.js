@@ -12,7 +12,8 @@ var PENDING_CALL_TYPE_REPOSITION = 2;
 var REGION_OVERVIEW = 0;
 var REGION_DYNAMIC = 1;
 
-function ViewerImageDecoder(canvasUpdatedCallback, options) {
+function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback, options) {
+    this._imageImplementationClassName = imageImplementationClassName;
     this._canvasUpdatedCallback = canvasUpdatedCallback;
     
     this._adaptProportions = options.adaptProportions;
@@ -54,7 +55,7 @@ function ViewerImageDecoder(canvasUpdatedCallback, options) {
     var ImageType = this._isMainImageOnUi ?
         ImageDecoder: WorkerProxyImageDecoder;
         
-    this._image = new ImageType({
+    this._image = new ImageType(imageImplementationClassName, {
         serverRequestPrioritizer: 'frustumOnly',
         decodePrioritizer: 'frustumOnly',
         showLog: this._showLog
@@ -446,7 +447,7 @@ ViewerImageDecoder.prototype._callPendingCallbacks = function callPendingCallbac
 ViewerImageDecoder.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdatedArgs) {
     var region = pixelsUpdatedArgs.region;
     var decoded = pixelsUpdatedArgs.decoded;
-    if (decoded.width === 0 || decoded.height === 0) {
+    if (decoded.imageData.width === 0 || decoded.imageData.height === 0) {
         return;
     }
     
@@ -454,10 +455,10 @@ ViewerImageDecoder.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdat
     var y = decoded.yInOriginalRequest;
     
     var context = region.canvas.getContext('2d');
-    var imageData = context.createImageData(decoded.width, decoded.height);
-    imageData.data.set(decoded.pixels);
+    //var imageData = context.createImageData(decoded.width, decoded.height);
+    //imageData.data.set(decoded.pixels);
     
-    context.putImageData(imageData, x, y);
+    context.putImageData(decoded.imageData, x, y);
 };
 
 ViewerImageDecoder.prototype._repositionCanvas = function repositionCanvas(repositionArgs) {

@@ -11,13 +11,14 @@ function FetchClientBase(options) {
     this._url = null;
     this._options = options;
     this._isReady = false;
+    this._sizesParams = null;
     this._dataPublisher = this.createDataPublisherInternal();
 }
 
 // Methods for implementor
 
-FetchClientBase.prototype.getSizesParamsInternal = function getSizesParamsInternal() {
-    throw 'FetchClientBase error: getSizesParamsInternal is not implemented';
+FetchClientBase.prototype.openInternal = function openInternal(url) {
+    throw 'FetchClientBase error: openInternal is not implemented';
 };
 
 FetchClientBase.prototype.fetchInternal = function fetch(dataKey) {
@@ -30,10 +31,6 @@ FetchClientBase.prototype.getDataKeysInternal = function getDataKeysInternal(ima
 
 FetchClientBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
     return new DataPublisher();
-};
-
-FetchClientBase.prototype.getUrlInternal = function getUrlInternal() {
-    return this._url;
 };
 
 // FetchClient implementation
@@ -54,14 +51,9 @@ FetchClientBase.prototype.open = function open(url) {
     }
     
     this._url = url;
-    this._isReady = true;
-    
-    if (this._statusCallback) {
-        this._statusCallback({
-            isReady: true,
-            exception: null
-        });
-    }
+    this.openInternal(url)
+        .then(this._opened.bind(this))
+        .catch(this._onError.bind(this));
 };
 
 FetchClientBase.prototype.createFetchContext = function createFetchContext(
@@ -98,15 +90,31 @@ FetchClientBase.prototype.close = function close(closedCallback) {
 
 FetchClientBase.prototype.getSizesParams = function getSizesParams(closedCallback) {
     this._ensureReady();
-    return this.getSizesParamsInternal();
+    return this._sizesParams;
 };
 
 FetchClientBase.prototype.reconnect = function reconnect() {
-    // Do nothing
+    return this.reconnectInternal();
 };
 
 FetchClientBase.prototype._ensureReady = function ensureReady() {
     if (!this._isReady) {
         throw 'FetchClientBase error: fetch client is not opened';
     }
+};
+
+FetchClientBase.prototype._opened = function opened(sizesParams) {
+    this._isReady = true;
+    this._sizesParams = sizesParams;
+    
+    if (this._statusCallback) {
+        this._statusCallback({
+            isReady: true,
+            exception: null
+        });
+    }
+};
+
+FetchClientBase.prototype._onError = function onError(error) {
+    // NOTE: Should define API between ImageDecoderFramework and FetchClient for error notifications
 };

@@ -9,6 +9,8 @@ function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
     this._remainingKeysToFetch = null;
     this._activeFetches = {};
     this._activeFetchesCount = 0;
+    this._isAborted = false;
+    this._isStoppedCalled = false;
     
     this._fetchSucceededBound = this._fetchSucceeded.bind(this);
     this._fetchFailedBound = this._fetchFailed.bind(this);
@@ -16,7 +18,7 @@ function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
 
 SimpleFetcher.prototype.fetch = function fetch(fetchContext) {
     if (!this._isChannel && this._remainingKeysToFetch !== null) {
-        throw 'SimpleFetcher error: Cannot fetch while another fetch in progress';
+        throw 'SimpleFetcher error: Request fetcher can fetch only one region';
     }
     
     this._remainingKeysToFetch = fetchContext.getDataKeys();
@@ -25,6 +27,8 @@ SimpleFetcher.prototype.fetch = function fetch(fetchContext) {
             break;
         }
     }
+    
+    this._onStopped();
 };
 
 SimpleFetcher.prototype.on = function on(event, listener) {
@@ -32,7 +36,7 @@ SimpleFetcher.prototype.on = function on(event, listener) {
         throw 'SimpleFetcher error: Unexpected event ' + event;
     }
     
-    this.stopListeners.push(listener);
+    this._stopListeners.push(listener);
 };
 
 SimpleFetcher.prototype.abortAsync = function abortAsync() {
@@ -40,31 +44,50 @@ SimpleFetcher.prototype.abortAsync = function abortAsync() {
         throw 'SimpleFetcher error: cannot abort channel fetcher';
     }
     
-    // Do nothing
+    if (this._remainingKeysToFetch.length > 0) {
+        this._isAborted = true;
+    }
+    this._onStopped();
 };
 
 SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
-    if (this._remainingKeysToFetch.length === 0) {
-        return false;
-    }
+    var key;
+    do {
+        if (this._remainingKeysToFetch.length === 0) {
+            return false;
+        }
+        key = this._remainingKeysToFetch.pop();
+    } while (this._dataPublisher.isKeyNeedFetch(key));
     
     var self = this;
-    var key = this._remainingKeysToFetch.pop();
-    this._activeFetches.push(key);
+    this._activeFetches[key] = true;
+    ++this._activeFetchesCount;
     
     this._fetchClient.fetchInternal(key)
         .then(function resolved(result) {
             self._dataPublisher.publish(key, result);
-            self.fetchedEnded(null, key, result);
+            self._fetchedEnded(null, key, result);
         }).catch(function failed(reason) {
-            // NOTE: Should create an API in ImageDecoderFramework to update on error
-            self.fetchEnded(reason, key);
+            self._fetchClient._onError(reason);
+            self._fetchEnded(reason, key);
         });
     
     return true;
 };
 
 SimpleFetcher.prototype._fetchEnded = function fetchEnded(error, key, result) {
-    delete this._activeFetches.key;
+    delete this._activeFetches[key];
+    --this._activeFetchesCount;
+    
     this._fetchSingleKey();
+    this._onStopped();
+};
+
+SimpleFetcher.prototype._onStopped = function onStopped() {
+    if (this._activeFetchesCount === 0 && !this._isStoppedCalled) {
+        this._isStoppedCalled = true;
+        for (var i = 0; i < this._stopListeners.length; ++i) {
+            this._stopListeners[i]();
+        }
+    }
 };

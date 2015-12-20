@@ -33,8 +33,8 @@ WorkerProxyImageDecoder.prototype.setStatusCallback = function setStatusCallback
         this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
     }
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
-        statusCallback, 'statusCallback', /*isMultipleTimeCallback=*/true);
+    var callbackWrapper = this._workerHelper.wrapCallback(
+        statusCallback, 'statusCallback', { isMultipleTimeCallback: true });
     
     this._currentStatusCallbackWrapper = callbackWrapper;
     this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
@@ -47,7 +47,7 @@ WorkerProxyImageDecoder.prototype.open = function open(url) {
 WorkerProxyImageDecoder.prototype.close = function close(closedCallback) {
     var self = this;
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
+    var callbackWrapper = this._workerHelper.wrapCallback(
         internalClosedCallback, 'closedCallback');
         
     this._workerHelper.callFunction('close', [callbackWrapper]);
@@ -118,7 +118,7 @@ WorkerProxyImageDecoder.prototype.getDefaultNumQualityLayers = function getDefau
 WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
     createdCallback) {
     
-    var callbackWrapper = this._workerHelper.wrapCallbackFromMasterSide(
+    var callbackWrapper = this._workerHelper.wrapCallback(
         createdCallback, 'ImageDecoder_createChannelCallback');
     
     var args = [callbackWrapper];
@@ -153,17 +153,19 @@ WorkerProxyImageDecoder.prototype.requestPixelsProgressive = function requestPix
     //transferables = [pathToPixelsArray];
     
     var internalCallbackWrapper =
-        this._workerHelper.wrapCallbackFromMasterSide(
-            callback,
-            'requestPixelsProgressiveCallback',
-            /*isMultipleTimeCallback=*/true,
-            transferables);
+        this._workerHelper.wrapCallback(
+            callback, 'requestPixelsProgressiveCallback', {
+                isMultipleTimeCallback: true,
+                pathsToTransferables: transferables
+            }
+        );
     
     var internalTerminatedCallbackWrapper =
-        this._workerHelper.wrapCallbackFromMasterSide(
-            internalTerminatedCallback,
-            'requestPixelsProgressiveTerminatedCallback',
-            /*isMultipleTimeCallback=*/false);
+        this._workerHelper.wrapCallback(
+            internalTerminatedCallback, 'requestPixelsProgressiveTerminatedCallback', {
+                isMultipleTimeCallback: false
+            }
+        );
             
     var args = [
         imagePartParams,
