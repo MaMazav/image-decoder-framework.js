@@ -11,17 +11,17 @@ var WorkerProxyPixelsDecoder = require('workerproxypixelsdecoder.js');
 /* global Promise: false */
 
 function ImageDecoder(imageImplementationClassName, options) {
-    options = options || {};
-    var decodeWorkersLimit = options.workersLimit || 5;
+    this._options = options || {};
+    var decodeWorkersLimit = this._options.workersLimit || 5;
     
-    this._tileWidth = options.tileWidth || 256;
-    this._tileHeight = options.tileHeight || 256;
-    this._showLog = !!options.showLog;
+    this._tileWidth = this._options.tileWidth || 256;
+    this._tileHeight = this._options.tileHeight || 256;
+    this._showLog = !!this._options.showLog;
     
-    if (this._showLog) {
+    /*if (this._showLog) {
         // Old IE
         throw 'showLog is not supported on this browser';
-    }
+    }*/
 
     this._sizesParams = null;
     this._sizesCalculator = null;
@@ -29,12 +29,13 @@ function ImageDecoder(imageImplementationClassName, options) {
     this._decoders = [];
     this._imageImplementationClassName = imageImplementationClassName;
     this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
-    this._fetchManager = new WorkerProxyFetchManager(
-        imageImplementationClassName, options);
+
+	var optionsFetchManager = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
+    this._fetchManager = new WorkerProxyFetchManager(optionsFetchManager);
     
     var decodeScheduler = imageHelperFunctions.createScheduler(
         this._showLog,
-        options.decodePrioritizer,
+        this._options.decodePrioritizer,
         'decode',
         this._createDecoder.bind(this),
         decodeWorkersLimit);
@@ -270,7 +271,7 @@ ImageDecoder.prototype._getSizesParams = function getSizesParams() {
 };
 
 ImageDecoder.prototype._createDecoder = function createDecoder() {
-    var decoder = new WorkerProxyPixelsDecoder(this._imageImplementationClassName, this._options);
+    var decoder = new WorkerProxyPixelsDecoder(this._options);
     this._decoders.push(decoder);
     
     return decoder;

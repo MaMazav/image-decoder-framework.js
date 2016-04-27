@@ -4,6 +4,7 @@ module.exports = WorkerProxyImageDecoder;
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
+var createImageDecoderSlaveSide = require('createimagedecoderonslaveside.js');
 
 function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._imageWidth = null;
@@ -12,17 +13,21 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._tileWidth = 0;
     this._tileHeight = 0;
     this._currentStatusCallbackWrapper = null;
+	this._sizesCalculator = null;
     
-    var ctorArgs = [imageImplementationClassName, options];
+	var optionsInternal = imageHelperFunctions.createInternalOptions(imageImplementationClassName, options);
+    var ctorArgs = [imageImplementationClassName, optionsInternal];
 
     this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
     
     var scriptsToImport = imageHelperFunctions.getScriptsForWorkerImport(
         this._imageImplementation, options);
-    scriptsToImport = scriptsToImport.concat([sendImageParametersToMaster.getScriptUrl()]);
+    scriptsToImport = scriptsToImport.concat([
+        sendImageParametersToMaster.getScriptUrl(),
+        createImageDecoderSlaveSide.getScriptUrl()]);
 
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
-        scriptsToImport, 'ImageDecoder', ctorArgs);
+        scriptsToImport, 'imageDecoderFramework.ImageDecoder', ctorArgs);
     
     var boundUserDataHandler = this._userDataHandler.bind(this);
     this._workerHelper.setUserDataHandler(boundUserDataHandler);
@@ -126,7 +131,7 @@ WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
 };
 
 WorkerProxyImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
-    var pathToPixelsArray = ['pixels', 'buffer'];
+    var pathToPixelsArray = ['data', 'buffer'];
     var transferables = [pathToPixelsArray];
     
     var args = [imagePartParams];

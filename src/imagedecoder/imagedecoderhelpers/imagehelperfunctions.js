@@ -8,14 +8,13 @@ module.exports = {
     fixBounds: fixBounds,
     alignParamsToTilesAndLevel: alignParamsToTilesAndLevel,
     getImageImplementation: getImageImplementation,
-    getScriptsForWorkerImport: getScriptsForWorkerImport
+    getScriptsForWorkerImport: getScriptsForWorkerImport,
+	createInternalOptions: createInternalOptions
 };
-
-// Avoid strict mode error
-var globals;
 
 // Avoid jshint error
 /* global self: false */
+/* global globals: false */
     
 var log2 = Math.log(2);
 
@@ -200,12 +199,38 @@ function alignParamsToTilesAndLevel(
 }
 
 function getImageImplementation(imageImplementationClassName) {
-    return  (window && window[imageImplementationClassName]) ||
-            (globals && globals[imageImplementationClassName]) ||
-            (self && self[imageImplementationClassName]);
+	try {
+		return window && window[imageImplementationClassName];
+	} catch(e) { }
+
+	try {
+		return globals && globals[imageImplementationClassName];
+	} catch(e) { }
+
+	try {
+		return self && self[imageImplementationClassName];
+	} catch(e) { }
 }
 
 function getScriptsForWorkerImport(imageImplementation, options) {
     return scriptsForWorkerToImport.concat(
         imageImplementation.getScriptsToImport());
+}
+
+function createInternalOptions(imageImplementationClassName, options) {
+	options = options || {};
+	
+	if (options.imageImplementationClassName &&
+		options.scriptsToImport) {
+			
+		return options;
+	}
+	
+	var imageImplementation = getImageImplementation(imageImplementationClassName);
+	
+	var optionsInternal = JSON.parse(JSON.stringify(options));
+	optionsInternal.imageImplementationClassName = options.imageImplementationClassName || imageImplementationClassName;
+	optionsInternal.scriptsToImport = options.scriptsToImport || getScriptsForWorkerImport(imageImplementation, options);
+	
+	return optionsInternal;
 }

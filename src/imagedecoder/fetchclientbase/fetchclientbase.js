@@ -2,7 +2,7 @@
 
 module.exports = FetchClientBase;
 
-var SimpleFetchContext = require('simplefetchcontext.js');
+var SimpleImageDataContext = require('simpleimagedatacontext.js');
 var SimpleFetcher = require('simplefetcher.js');
 var DataPublisher = require('datapublisher.js');
 
@@ -12,7 +12,7 @@ function FetchClientBase(options) {
     this._options = options;
     this._isReady = false;
     this._sizesParams = null;
-    this._dataPublisher = this.createDataPublisherInternal();
+    this._dataPublisher = this.createDataPublisherInternal(this);
 }
 
 // Methods for implementor
@@ -30,7 +30,15 @@ FetchClientBase.prototype.getDataKeysInternal = function getDataKeysInternal(ima
 };
 
 FetchClientBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
-    return new DataPublisher();
+    return new DataPublisher(this);
+};
+
+FetchClientBase.prototype.getHashCode = function getHashCode(tileKey) {
+	throw 'FetchClientBase error: getHashCode is not implemented';
+};
+
+FetchClientBase.prototype.isEqual = function getHashCode(key1, key2) {
+	throw 'FetchClientBase error: isEqual is not implemented';
 };
 
 // FetchClient implementation
@@ -56,11 +64,11 @@ FetchClientBase.prototype.open = function open(url) {
         .catch(this._onError.bind(this));
 };
 
-FetchClientBase.prototype.createFetchContext = function createFetchContext(
+FetchClientBase.prototype.createImageDataContext = function createImageDataContext(
     imagePartParams, contextVars) {
     
     var dataKeys = this.getDataKeysInternal(imagePartParams);
-    return new SimpleFetchContext(contextVars, dataKeys, this._dataPublisher);
+    return new SimpleImageDataContext(contextVars, dataKeys, imagePartParams, this._dataPublisher, this);
 };
 
 FetchClientBase.prototype.createRequestFetcher = function createRequestFetcher() {

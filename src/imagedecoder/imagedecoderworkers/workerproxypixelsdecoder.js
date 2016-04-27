@@ -14,15 +14,13 @@ var decoderSlaveScriptBlob = new Blob(
     { type: 'application/javascript' });
 var decoderSlaveScriptUrl = URL.createObjectURL(decoderSlaveScriptBlob);
 
-function WorkerProxyPixelsDecoder(imageImplementationClassName) {
+function WorkerProxyPixelsDecoder(options) {
+    this._options = options || {};
     this._imageImplementation = imageHelperFunctions.getImageImplementation(
-        imageImplementationClassName);
+        options.imageImplementationClassName);
     
-    var scriptsToImport = imageHelperFunctions.getScriptsForWorkerImport(
-        this._imageImplementation);
-    scriptsToImport = scriptsToImport.concat([decoderSlaveScriptUrl]);
-    
-    var args = [imageImplementationClassName];
+    var scriptsToImport = (this._options.scriptsToImport || []).concat([decoderSlaveScriptUrl]);
+    var args = [this._options];
     
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
         scriptsToImport,
@@ -31,12 +29,12 @@ function WorkerProxyPixelsDecoder(imageImplementationClassName) {
 }
 
 WorkerProxyPixelsDecoder.prototype.decode = function decode(dataForDecode) {
-    var transferables = this._imageImplementation.getTransferablesOfRequestCallback(dataForDecode);
-    var resultTransferables = [0, 'pixels', 'buffer'];
+    //var transferables = this._imageImplementation.getTransferableOfDecodeArguments(dataForDecode);
+    var resultTransferables = [['data', 'buffer']];
     
     var args = [dataForDecode];
     var options = {
-        transferables: transferables,
+        //transferables: transferables,
         pathsToTransferablesInPromiseResult: resultTransferables,
         isReturnPromise: true
     };
@@ -47,10 +45,8 @@ WorkerProxyPixelsDecoder.prototype.decode = function decode(dataForDecode) {
 function decoderSlaveScriptBody() {
     'use strict';
 
-    AsyncProxy.AsyncProxySlave.setSlaveSideCreator(createDecoder);
-
-    function createDecoder(imageImplementationClassName) {
-        var imageImplementation = self[imageImplementationClassName];
-        return imageImplementation.createDecoder();
-    }
+    AsyncProxy.AsyncProxySlave.setSlaveSideCreator(function createDecoder(options) {
+        var imageImplementation = self[options.imageImplementationClassName];
+        return imageImplementation.createPixelsDecoder();
+    });
 }

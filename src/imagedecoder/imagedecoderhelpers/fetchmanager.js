@@ -7,10 +7,10 @@ var FetchJob = require('fetchjob.js');
 
 /* global console: false */
 
-function FetchManager(imageImplementationClassName, options) {
+function FetchManager(options) {
     var serverRequestsLimit = options.serverRequestsLimit || 5;
     
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
+    this._imageImplementation = imageHelperFunctions.getImageImplementation(options.imageImplementationClassName);
     this._fetchClient = this._imageImplementation.createFetchClient();
     this._showLog = options.showLog;
     this._sizesCalculator = null;
@@ -45,11 +45,6 @@ FetchManager.prototype.open = function open(url) {
 
 FetchManager.prototype.close = function close(closedCallback) {
     this._fetchClient.close(closedCallback);
-};
-
-FetchManager.prototype.getSizesParams = function getSizesParams() {
-    var sizesParams = this._fetchClient.getSizesParams();
-    return sizesParams;
 };
 
 FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
@@ -184,17 +179,22 @@ FetchManager.prototype.getDefaultNumResolutionLevels = function getDefaultNumRes
     return numLevels;
 };
     
+FetchManager.prototype._getSizesParams = function getSizesParams() {
+    var sizesParams = this._fetchClient.getSizesParams();
+    return sizesParams;
+};
+
 FetchManager.prototype._validateSizesCalculator = function validateSizesCalculator() {
     if (this._sizesCalculator !== null) {
         return;
     }
     
-    this._imageParams = this.getSizesParams();
+    this._imageParams = this._getSizesParams();
     this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
         this._imageParams);
 };
 
-function internalCallback(contextVars, fetchContext) {
+function internalCallback(contextVars, imageDataContext) {
     var isLimitToLowQualityLayer = 
         contextVars.progressiveStagesDone === 0;
     
@@ -213,10 +213,10 @@ function internalCallback(contextVars, fetchContext) {
     ++contextVars.progressiveStagesDone;
     
     extractDataAndCallCallback(
-        contextVars, fetchContext, maxNumQualityLayers);
+        contextVars, imageDataContext, maxNumQualityLayers);
 }
 
-function internalTerminatedCallback(contextVars, fetchContext, isAborted) {
+function internalTerminatedCallback(contextVars, imageDataContext, isAborted) {
     if (!contextVars.isLastCallbackCalledWithoutLowQualityLayerLimit) {
         // This condition come to check if another decoding should be done.
         // One situation it may happen is when the request is not
@@ -225,7 +225,7 @@ function internalTerminatedCallback(contextVars, fetchContext, isAborted) {
         // thus the callback was called with only the first quality layer
         // (for performance reasons). Thus another decoding should be done.
         
-        extractDataAndCallCallback(contextVars, fetchContext);
+        extractDataAndCallCallback(contextVars, imageDataContext);
     }
     
     contextVars.terminatedCallback.call(
@@ -235,9 +235,9 @@ function internalTerminatedCallback(contextVars, fetchContext, isAborted) {
 }
 
 function extractDataAndCallCallback(
-    contextVars, fetchContext, maxNumQualityLayers) {
+    contextVars, imageDataContext, maxNumQualityLayers) {
     
-    var dataForDecode = fetchContext.getFetchedData(maxNumQualityLayers);
+    var dataForDecode = imageDataContext.getFetchedData(maxNumQualityLayers);
     
     contextVars.callback.call(
         contextVars.callbackThis, dataForDecode);

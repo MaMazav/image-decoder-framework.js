@@ -3,68 +3,69 @@
 module.exports = DataPublisher;
 
 var LinkedList = require('linkedlist.js');
+var HashMap = require('hashmap.js');
 
-function DataPublisher() {
-    this._subscribersByKey = {};
+function DataPublisher(hasher) {
+    this._subscribersByKey = new HashMap(hasher);
 }
 
 DataPublisher.prototype.publish = function publish(key, data) {
-    var subscribers = this._subscribersByKey[key];
+    var subscribers = this._subscribersByKey.getFromKey(key);
     if (!subscribers) {
         return;
     }
     
     var iterator = subscribers.subscribersList.getFirstIterator();
+	var listeners = [];
     while (iterator !== null) {
         var subscriber = subscribers.subscribersList.getValue(iterator);
-        subscriber(key, data);
+		listeners.push(subscriber.listener);
         
         iterator = subscribers.subscribersList.getNextIterator(iterator);
     }
-    
-    
+	
+	// Call only after collecting all listeners, so the list will not be destroyed while iterating
+	for (var i = 0; i < listeners.length; ++i) {
+		listeners[i].call(this, key, data);
+	}
 };
 
 DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
-    var subscribers = this._subscribersByKey[key];
-    if (!subscribers) {
-        subscribers = {
+    var subscribers = this._subscribersByKey.tryAdd(key, function() {
+        return {
             subscribersList: new LinkedList(),
             subscribersNeverGotResultCount: 0
         };
-        this._subscribersByKey[key] = subscribers;
-    }
+    });
     
-    ++subscribers.subscribersNeverGotResultCount;
+    ++subscribers.value.subscribersNeverGotResultCount;
     
-    var iterator = subscribers.subscribersList.add({
-        subscriber: subscriber,
+    var listIterator = subscribers.value.subscribersList.add({
+        listener: subscriber,
         isGotResult: false
     });
     
     var handle = {
-        _iterator: iterator,
-        _key: key
+        _listIterator: listIterator,
+        _hashIterator: subscribers.iterator
     };
     return handle;
 };
 
 DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
-    var subscribers = this._subscribersByKey[handle._key];
-    if (!subscribers) {
-        throw 'DataPublisher error: subscriber was not registered';
-    }
+    var subscribers = this._subscribersByKey.getFromIterator(handle._hashIterator);
     
-    var subscriber = subscribers.subscribersList.getValue(handle._iterator);
-    subscribers.subscribersList.remove(handle._iterator);
+    var subscriber = subscribers.subscribersList.getValue(handle._listIterator);
+    subscribers.subscribersList.remove(handle._listIterator);
     if (subscribers.subscribersList.getCount() === 0) {
-        delete this._subscribersByKey[handle._key];
+        this._subscribersByKey.remove(handle._hashIterator);
     } else if (!subscriber.isGotResult) {
         --subscribers.subscribersNeverGotResultCount;
+		subscriber.isGotResult = true;
     }
 };
 
 DataPublisher.prototype.isKeyNeedFetch = function isKeyNeedFetch(key) {
-    var subscribers = this._subscribersByKey[key];
+    var subscribers = this._subscribersByKey.getFromKey(key);
     return (!!subscribers) && (subscribers.subscribersNeverGotResultCount > 0);
 };

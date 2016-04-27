@@ -18,8 +18,8 @@ function DecodeJob(
     this._isFirstStage = true;
     this._isManuallyAborted = false;
 
-    this._firstDecodeResult = null;
-    this._pendingDecodeResult = null;
+    this._firstDecodeInput = null;
+    this._pendingDecodeInput = null;
     this._activeSubJobs = 1;
     this._imagePartParams = imagePartParams;
     this._decodeScheduler = decodeScheduler;
@@ -98,11 +98,11 @@ DecodeJob.prototype._dataReadyForDecode = function dataReadyForDecode(dataForDec
     }
     
     if (this._isFirstStage) {
-        this._firstDecodeResult = {
+        this._firstDecodeInput = {
             dataForDecode: dataForDecode
         };
     } else {
-        this._pendingDecodeResult = {
+        this._pendingDecodeInput = {
             dataForDecode: dataForDecode
         };
     
@@ -131,18 +131,18 @@ DecodeJob.prototype._dataReadyForDecode = function dataReadyForDecode(dataForDec
 };
 
 DecodeJob.prototype._startDecode = function startDecode(decoder, jobContext) {
-    var decodeResult;
-    if (this._firstDecodeResult !== null) {
-        decodeResult = this._firstDecodeResult;
-        this._firstDecodeResult = null;
+    var decodeInput;
+    if (this._firstDecodeInput !== null) {
+        decodeInput = this._firstDecodeInput;
+        this._firstDecodeInput = null;
     } else {
-        decodeResult = this._pendingDecodeResult;
-        this._pendingDecodeResult = null;
+        decodeInput = this._pendingDecodeInput;
+        this._pendingDecodeInput = null;
         
         this._isAlreadyScheduledNonFirstJob = false;
     }
     
-    jobContext.allRelevantBytesLoaded = decodeResult.dataForDecode.allRelevantBytesLoaded;
+    jobContext.allRelevantBytesLoaded = decodeInput.dataForDecode.allRelevantBytesLoaded;
     
     if (this._isAbortedNoTermination()) {
         --this._activeSubJobs;
@@ -158,7 +158,7 @@ DecodeJob.prototype._startDecode = function startDecode(decoder, jobContext) {
     var width = params.maxXExclusive - params.minX;
     var height = params.maxYExclusive - params.minY;
 
-    decoder.decode(decodeResult.dataForDecode).then(pixelsDecodedCallbackInClosure);
+    decoder.decode(decodeInput.dataForDecode).then(pixelsDecodedCallbackInClosure);
     
     //var regionToParse = {
     //    left: dataForDecode.headersCodestream.offsetX,
@@ -275,10 +275,10 @@ DecodeJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
 DecodeJob.prototype._decodeAborted = function decodeAborted(jobContext) {
     this._isAborted = true;
     
-    if (this._firstDecodeResult !== null) {
-        this._firstDecodeResult = null;
+    if (this._firstDecodeInput !== null) {
+        this._firstDecodeInput = null;
     } else {
-        this._pendingDecodeResult = null;
+        this._pendingDecodeInput = null;
         this._isAlreadyScheduledNonFirstJob = false;
     }
     

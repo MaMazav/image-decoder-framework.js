@@ -1,39 +1,36 @@
-var AsyncProxyMaster=function AsyncProxyMasterClosure(){var callId=0;var isGetMasterEntryUrlCalled=false;var masterEntryUrl=getBaseUrlFromEntryScript();function AsyncProxyMaster(scriptsToImport,ctorName,ctorArgs,options){var self=this;options=options||{};var slaveScriptContentString=mainSlaveScriptContent.toString();var scriptUrl=AsyncProxySlave._getScriptName();slaveScriptContentString=slaveScriptContentString.replace("SCRIPT_PLACEHOLDER",scriptUrl);var slaveScriptContentBlob=new Blob(["(",slaveScriptContentString,
-")()"],{type:"application/javascript"});var slaveScriptUrl=URL.createObjectURL(slaveScriptContentBlob);this._callbacks=[];this._pendingPromiseCalls=[];this._subWorkerById=[];this._subWorkers=[];this._worker=new Worker(slaveScriptUrl);this._worker.onmessage=onWorkerMessageInternal;this._userDataHandler=null;this._notReturnedFunctions=0;this._functionsBufferSize=options["functionsBufferSize"]||5;this._pendingMessages=[];this._worker.postMessage({functionToCall:"ctor",scriptsToImport:scriptsToImport,
-ctorName:ctorName,args:ctorArgs,callId:++callId,isPromise:false,masterEntryUrl:AsyncProxyMaster.getEntryUrl()});function onWorkerMessageInternal(workerEvent){onWorkerMessage(self,workerEvent)}}AsyncProxyMaster.prototype.setUserDataHandler=function setUserDataHandler(userDataHandler){this._userDataHandler=userDataHandler};AsyncProxyMaster.prototype.terminate=function terminate(){this._worker.terminate();for(var i=0;i<this._subWorkers.length;++i)this._subWorkers[i].terminate()};AsyncProxyMaster.prototype.callFunction=
-function callFunction(functionToCall,args,options){options=options||{};var isReturnPromise=!!options["isReturnPromise"];var transferables=options["transferables"];var pathsToTransferables=options["pathsToTransferablesInPromiseResult"];var localCallId=++callId;var promiseOnMasterSide=null;var self=this;if(isReturnPromise)promiseOnMasterSide=new Promise(function promiseFunc(resolve,reject){self._pendingPromiseCalls[localCallId]={resolve:resolve,reject:reject}});var sendMessageFunction=options["isSendImmediately"]?
+var BlobScriptGenerator=BlobScriptGeneratorClosure();self["asyncProxyScriptBlob"]=new BlobScriptGenerator;
+function BlobScriptGeneratorClosure(){function BlobScriptGenerator(){var that=this;that._blobChunks=["'use strict';"];that._blob=null;that._blobUrl=null;that._namespaces={};that.addMember(BlobScriptGeneratorClosure,"BlobScriptGenerator");that.addStatement("var asyncProxyScriptBlob = new BlobScriptGenerator();")}BlobScriptGenerator.prototype.addMember=function addMember(closureFunction,memberName,namespace){if(this._blob)throw new Error("Cannot add member to AsyncProxyScriptBlob after blob was used");
+if(memberName){if(namespace){this._namespaces[namespace]=true;this._blobChunks.push(namespace);this._blobChunks.push(".")}else this._blobChunks.push("var ");this._blobChunks.push(memberName);this._blobChunks.push(" = ")}this._blobChunks.push("(");this._blobChunks.push(closureFunction.toString());this._blobChunks.push(")();")};BlobScriptGenerator.prototype.addStatement=function addStatement(statement){if(this._blob)throw new Error("Cannot add statement to AsyncProxyScriptBlob after blob was used");
+this._blobChunks.push(statement)};BlobScriptGenerator.prototype.getBlob=function getBlob(){if(!this._blob)this._blob=new Blob(this._blobChunks,{type:"application/javascript"});return this._blob};BlobScriptGenerator.prototype.getBlobUrl=function getBlobUrl(){if(!this._blobUrl)this._blobUrl=URL.createObjectURL(this.getBlob());return this._blobUrl};return BlobScriptGenerator};function SubWorkerEmulationForChromeClosure(){var subWorkerId=0;var subWorkerIdToSubWorker=null;function SubWorkerEmulationForChrome(scriptUrl){if(subWorkerIdToSubWorker===null)throw"AsyncProxy internal error: SubWorkerEmulationForChrome "+"not initialized";var that=this;that._subWorkerId=++subWorkerId;subWorkerIdToSubWorker[that._subWorkerId]=that;self.postMessage({type:"subWorkerCtor",subWorkerId:that._subWorkerId,scriptUrl:scriptUrl})}SubWorkerEmulationForChrome.initialize=function initialize(subWorkerIdToSubWorker_){subWorkerIdToSubWorker=
+subWorkerIdToSubWorker_};SubWorkerEmulationForChrome.prototype.postMessage=function postMessage(data,transferables){self.postMessage({type:"subWorkerPostMessage",subWorkerId:this._subWorkerId,data:data},transferables)};SubWorkerEmulationForChrome.prototype.terminate=function terminate(data,transferables){self.postMessage({type:"subWorkerTerminate",subWorkerId:this._subWorkerId},transferables)};self["asyncProxyScriptBlob"].addMember(SubWorkerEmulationForChromeClosure,"SubWorkerEmulationForChrome");
+return SubWorkerEmulationForChrome}var SubWorkerEmulationForChrome=SubWorkerEmulationForChromeClosure();function AsyncProxyMasterClosure(){var asyncProxyScriptBlob=self["asyncProxyScriptBlob"];var callId=0;var isGetMasterEntryUrlCalled=false;var masterEntryUrl=getBaseUrlFromEntryScript();function AsyncProxyMaster(scriptsToImport,ctorName,ctorArgs,options){var that=this;options=options||{};var slaveScriptContentString=mainSlaveScriptContent.toString();slaveScriptContentString=slaveScriptContentString.replace("SCRIPT_PLACEHOLDER",asyncProxyScriptBlob.getBlobUrl());var slaveScriptContentBlob=new Blob(["(",
+slaveScriptContentString,")()"],{type:"application/javascript"});var slaveScriptUrl=URL.createObjectURL(slaveScriptContentBlob);that._callbacks=[];that._pendingPromiseCalls=[];that._subWorkerById=[];that._subWorkers=[];that._worker=new Worker(slaveScriptUrl);that._worker.onmessage=onWorkerMessageInternal;that._userDataHandler=null;that._notReturnedFunctions=0;that._functionsBufferSize=options["functionsBufferSize"]||5;that._pendingMessages=[];that._worker.postMessage({functionToCall:"ctor",scriptsToImport:scriptsToImport,
+ctorName:ctorName,args:ctorArgs,callId:++callId,isPromise:false,masterEntryUrl:AsyncProxyMaster.getEntryUrl()});function onWorkerMessageInternal(workerEvent){onWorkerMessage(that,workerEvent)}}AsyncProxyMaster.prototype.setUserDataHandler=function setUserDataHandler(userDataHandler){this._userDataHandler=userDataHandler};AsyncProxyMaster.prototype.terminate=function terminate(){this._worker.terminate();for(var i=0;i<this._subWorkers.length;++i)this._subWorkers[i].terminate()};AsyncProxyMaster.prototype.callFunction=
+function callFunction(functionToCall,args,options){options=options||{};var isReturnPromise=!!options["isReturnPromise"];var transferables=options["transferables"];var pathsToTransferables=options["pathsToTransferablesInPromiseResult"];var localCallId=++callId;var promiseOnMasterSide=null;var that=this;if(isReturnPromise)promiseOnMasterSide=new Promise(function promiseFunc(resolve,reject){that._pendingPromiseCalls[localCallId]={resolve:resolve,reject:reject}});var sendMessageFunction=options["isSendImmediately"]?
 sendMessageToSlave:enqueueMessageToSlave;sendMessageFunction(this,transferables,true,{functionToCall:functionToCall,args:args||[],callId:localCallId,isPromise:isReturnPromise,pathsToTransferablesInPromiseResult:pathsToTransferables});if(isReturnPromise)return promiseOnMasterSide};AsyncProxyMaster.prototype.wrapCallback=function wrapCallback(callback,callbackName,options){options=options||{};var localCallId=++callId;var callbackHandle={isWorkerHelperCallback:true,isMultipleTimeCallback:!!options["isMultipleTimeCallback"],
 callId:localCallId,callbackName:callbackName,pathsToTransferables:options["pathsToTransferables"]};var internalCallbackHandle={isMultipleTimeCallback:!!options["isMultipleTimeCallback"],callId:localCallId,callback:callback,pathsToTransferables:options["pathsToTransferables"]};this._callbacks[localCallId]=internalCallbackHandle;return callbackHandle};AsyncProxyMaster.prototype.freeCallback=function freeCallback(callbackHandle){delete this._callbacks[callbackHandle.callId]};AsyncProxyMaster.getEntryUrl=
-function getEntryUrl(){isGetMasterEntryUrlCalled=true;return masterEntryUrl};AsyncProxyMaster._setEntryUrl=function setEntryUrl(newUrl){if(masterEntryUrl!==newUrl&&isGetMasterEntryUrlCalled)throw"Previous values returned from getMasterEntryUrl "+"is wrong. Avoid calling it within the slave c`tor";masterEntryUrl=newUrl};function mainSlaveScriptContent(){importScripts("SCRIPT_PLACEHOLDER");AsyncProxySlave._initializeSlave()}function onWorkerMessage(self,workerEvent){var callId=workerEvent.data.callId;
-switch(workerEvent.data.type){case "functionCalled":--self._notReturnedFunctions;trySendPendingMessages(self);break;case "promiseResult":var promiseData=self._pendingPromiseCalls[callId];delete self._pendingPromiseCalls[callId];var result=workerEvent.data.result;promiseData.resolve(result);break;case "promiseFailure":var promiseData=self._pendingPromiseCalls[callId];delete self._pendingPromiseCalls[callId];var reason=workerEvent.data.reason;promiseData.reject(reason);break;case "userData":if(self._userDataHandler!==
-null)self._userDataHandler(workerEvent.data.userData);break;case "callback":var callbackHandle=self._callbacks[workerEvent.data.callId];if(callbackHandle===undefined)throw"Unexpected message from SlaveWorker of callback ID: "+workerEvent.data.callId+". Maybe should indicate "+"isMultipleTimesCallback = true on creation?";if(!callbackHandle.isMultipleTimeCallback)self.freeCallback(self._callbacks[workerEvent.data.callId]);if(callbackHandle.callback!==null)callbackHandle.callback.apply(null,workerEvent.data.args);
-break;case "subWorkerCtor":var subWorker=new Worker(workerEvent.data.scriptUrl);var id=workerEvent.data.subWorkerId;self._subWorkerById[id]=subWorker;self._subWorkers.push(subWorker);subWorker.onmessage=function onSubWorkerMessage(subWorkerEvent){enqueueMessageToSlave(self,subWorkerEvent.ports,false,{functionToCall:"subWorkerOnMessage",subWorkerId:id,data:subWorkerEvent.data})};break;case "subWorkerPostMessage":var subWorker=self._subWorkerById[workerEvent.data.subWorkerId];subWorker.postMessage(workerEvent.data.data);
-break;case "subWorkerTerminate":var subWorker=self._subWorkerById[workerEvent.data.subWorkerId];subWorker.terminate();break;default:throw"Unknown message from AsyncProxySlave of type: "+workerEvent.data.type;}}function enqueueMessageToSlave(self,transferables,isFunctionCall,message){if(self._notReturnedFunctions>=self._functionsBufferSize){self._pendingMessages.push({transferables:transferables,isFunctionCall:isFunctionCall,message:message});return}sendMessageToSlave(self,transferables,isFunctionCall,
-message)}function sendMessageToSlave(self,transferables,isFunctionCall,message){if(isFunctionCall)++self._notReturnedFunctions;self._worker.postMessage(message,transferables)}function trySendPendingMessages(self){while(self._notReturnedFunctions<self._functionsBufferSize&&self._pendingMessages.length>0){var message=self._pendingMessages.shift();sendMessageToSlave(self,message.transferables,message.isFunctionCall,message.message)}}function getBaseUrlFromEntryScript(){var baseUrl=location.href;var endOfPath=
-baseUrl.lastIndexOf("/");if(endOfPath>=0)baseUrl=baseUrl.substring(0,endOfPath);return baseUrl}return AsyncProxyMaster}();var SubWorkerEmulationForChrome=function SubWorkerEmulationForChromeClosure(){var subWorkerId=0;var subWorkerIdToSubWorker=null;function SubWorkerEmulationForChrome(scriptUrl){if(subWorkerIdToSubWorker===null)throw"AsyncProxy internal error: SubWorkerEmulationForChrome "+"not initialized";this._subWorkerId=++subWorkerId;subWorkerIdToSubWorker[this._subWorkerId]=this;self.postMessage({type:"subWorkerCtor",subWorkerId:this._subWorkerId,scriptUrl:scriptUrl})}SubWorkerEmulationForChrome.initialize=function initialize(subWorkerIdToSubWorker_){subWorkerIdToSubWorker=
-subWorkerIdToSubWorker_};SubWorkerEmulationForChrome.prototype.postMessage=function postMessage(data,transferables){self.postMessage({type:"subWorkerPostMessage",subWorkerId:this._subWorkerId,data:data},transferables)};SubWorkerEmulationForChrome.prototype.terminate=function terminate(data,transferables){self.postMessage({type:"subWorkerTerminate",subWorkerId:this._subWorkerId},transferables)};return SubWorkerEmulationForChrome}();
-var AsyncProxySlave=function AsyncProxySlaveClosure(){var slaveHelperSingleton={};var beforeOperationListener=null;var slaveSideMainInstance;var slaveSideInstanceCreator=defaultInstanceCreator;var subWorkerIdToSubWorker={};var ctorName;slaveHelperSingleton._initializeSlave=function initializeSlave(){self.onmessage=onMessage};slaveHelperSingleton.setSlaveSideCreator=function setSlaveSideCreator(creator){slaveSideInstanceCreator=creator};slaveHelperSingleton.setBeforeOperationListener=function setBeforeOperationListener(listener){beforeOperationListener=
+function getEntryUrl(){isGetMasterEntryUrlCalled=true;return masterEntryUrl};AsyncProxyMaster._setEntryUrl=function setEntryUrl(newUrl){if(masterEntryUrl!==newUrl&&isGetMasterEntryUrlCalled)throw"Previous values returned from getMasterEntryUrl "+"is wrong. Avoid calling it within the slave c`tor";masterEntryUrl=newUrl};function mainSlaveScriptContent(){importScripts("SCRIPT_PLACEHOLDER");AsyncProxy["AsyncProxySlave"]=self["AsyncProxy"]["AsyncProxySlaveSingleton"];AsyncProxy["AsyncProxySlave"]._initializeSlave()}
+function onWorkerMessage(that,workerEvent){var callId=workerEvent.data.callId;switch(workerEvent.data.type){case "functionCalled":--that._notReturnedFunctions;trySendPendingMessages(that);break;case "promiseResult":var promiseData=that._pendingPromiseCalls[callId];delete that._pendingPromiseCalls[callId];var result=workerEvent.data.result;promiseData.resolve(result);break;case "promiseFailure":var promiseData=that._pendingPromiseCalls[callId];delete that._pendingPromiseCalls[callId];var reason=workerEvent.data.reason;
+promiseData.reject(reason);break;case "userData":if(that._userDataHandler!==null)that._userDataHandler(workerEvent.data.userData);break;case "callback":var callbackHandle=that._callbacks[workerEvent.data.callId];if(callbackHandle===undefined)throw"Unexpected message from SlaveWorker of callback ID: "+workerEvent.data.callId+". Maybe should indicate "+"isMultipleTimesCallback = true on creation?";if(!callbackHandle.isMultipleTimeCallback)that.freeCallback(that._callbacks[workerEvent.data.callId]);
+if(callbackHandle.callback!==null)callbackHandle.callback.apply(null,workerEvent.data.args);break;case "subWorkerCtor":var subWorker=new Worker(workerEvent.data.scriptUrl);var id=workerEvent.data.subWorkerId;that._subWorkerById[id]=subWorker;that._subWorkers.push(subWorker);subWorker.onmessage=function onSubWorkerMessage(subWorkerEvent){enqueueMessageToSlave(that,subWorkerEvent.ports,false,{functionToCall:"subWorkerOnMessage",subWorkerId:id,data:subWorkerEvent.data})};break;case "subWorkerPostMessage":var subWorker=
+that._subWorkerById[workerEvent.data.subWorkerId];subWorker.postMessage(workerEvent.data.data);break;case "subWorkerTerminate":var subWorker=that._subWorkerById[workerEvent.data.subWorkerId];subWorker.terminate();break;default:throw"Unknown message from AsyncProxySlave of type: "+workerEvent.data.type;}}function enqueueMessageToSlave(that,transferables,isFunctionCall,message){if(that._notReturnedFunctions>=that._functionsBufferSize){that._pendingMessages.push({transferables:transferables,isFunctionCall:isFunctionCall,
+message:message});return}sendMessageToSlave(that,transferables,isFunctionCall,message)}function sendMessageToSlave(that,transferables,isFunctionCall,message){if(isFunctionCall)++that._notReturnedFunctions;that._worker.postMessage(message,transferables)}function trySendPendingMessages(that){while(that._notReturnedFunctions<that._functionsBufferSize&&that._pendingMessages.length>0){var message=that._pendingMessages.shift();sendMessageToSlave(that,message.transferables,message.isFunctionCall,message.message)}}
+function getBaseUrlFromEntryScript(){var baseUrl=location.href;var endOfPath=baseUrl.lastIndexOf("/");if(endOfPath>=0)baseUrl=baseUrl.substring(0,endOfPath);return baseUrl}asyncProxyScriptBlob.addMember(AsyncProxyMasterClosure,"AsyncProxyMaster");return AsyncProxyMaster}var AsyncProxyMaster=AsyncProxyMasterClosure();function AsyncProxySlaveClosure(){var slaveHelperSingleton={};var beforeOperationListener=null;var slaveSideMainInstance;var slaveSideInstanceCreator=defaultInstanceCreator;var subWorkerIdToSubWorker={};var ctorName;slaveHelperSingleton._initializeSlave=function initializeSlave(){self.onmessage=onMessage};slaveHelperSingleton.setSlaveSideCreator=function setSlaveSideCreator(creator){slaveSideInstanceCreator=creator};slaveHelperSingleton.setBeforeOperationListener=function setBeforeOperationListener(listener){beforeOperationListener=
 listener};slaveHelperSingleton.sendUserDataToMaster=function sendUserDataToMaster(userData){self.postMessage({type:"userData",userData:userData})};slaveHelperSingleton.wrapPromiseFromSlaveSide=function wrapPromiseFromSlaveSide(callId,promise,pathsToTransferables){var promiseThen=promise.then(function sendPromiseToMaster(result){var transferables=extractTransferables(pathsToTransferables,result);self.postMessage({type:"promiseResult",callId:callId,result:result},transferables)});promiseThen["catch"](function sendFailureToMaster(reason){self.postMessage({type:"promiseFailure",
-callId:callId,reason:reason})})};slaveHelperSingleton.wrapCallbackFromSlaveSide=function wrapCallbackFromSlaveSide(callbackHandle){var isAlreadyCalled=false;function callbackWrapperFromSlaveSide(){if(isAlreadyCalled)throw"Callback is called twice but isMultipleTimeCallback "+"= false";var argumentsAsArray=getArgumentsAsArray(arguments);if(beforeOperationListener!==null)beforeOperationListener.call(slaveSideMainInstance,"callback",callbackHandle.callbackName,argumentsAsArray);var transferables=extractTransferables(callbackHandle.pathsToTransferables,
-argumentsAsArray);self.postMessage({type:"callback",callId:callbackHandle.callId,args:argumentsAsArray},transferables);if(!callbackHandle.isMultipleTimeCallback)isAlreadyCalled=true}return callbackWrapperFromSlaveSide};slaveHelperSingleton._getScriptName=function _getScriptName(){var error=new Error;var scriptName=ScriptsToImportPool._getScriptName(error);return scriptName};function extractTransferables(pathsToTransferables,pathsBase){if(pathsToTransferables===undefined)return undefined;var transferables=
-new Array(pathsToTransferables.length);for(var i=0;i<pathsToTransferables.length;++i){var path=pathsToTransferables[i];var transferable=pathsBase;for(var j=0;j<path.length;++j){var member=path[j];transferable=transferable[member]}transferables[i]=transferable}return transferables}function onMessage(event){var functionNameToCall=event.data.functionToCall;var args=event.data.args;var callId=event.data.callId;var isPromise=event.data.isPromise;var pathsToTransferablesInPromiseResult=event.data.pathsToTransferablesInPromiseResult;
-var result=null;switch(functionNameToCall){case "ctor":AsyncProxyMaster._setEntryUrl(event.data.masterEntryUrl);var scriptsToImport=event.data.scriptsToImport;ctorName=event.data.ctorName;for(var i=0;i<scriptsToImport.length;++i)importScripts(scriptsToImport[i]);slaveSideMainInstance=slaveSideInstanceCreator.apply(null,args);return;case "subWorkerOnMessage":var subWorker=subWorkerIdToSubWorker[event.data.subWorkerId];var workerEvent={data:event.data.data};subWorker.onmessage(workerEvent);return}args=
-new Array(event.data.args.length);for(var i=0;i<event.data.args.length;++i){var arg=event.data.args[i];if(arg!==undefined&&arg!==null&&arg.isWorkerHelperCallback)arg=slaveHelperSingleton.wrapCallbackFromSlaveSide(arg);args[i]=arg}var functionContainer=slaveSideMainInstance;var functionToCall;while(functionContainer){functionToCall=slaveSideMainInstance[functionNameToCall];if(functionToCall)break;functionContainer=functionContainer.__proto__}if(!functionToCall)throw"AsyncProxy error: could not find function "+
-functionToCall;var promise=functionToCall.apply(slaveSideMainInstance,args);if(isPromise)slaveHelperSingleton.wrapPromiseFromSlaveSide(callId,promise,pathsToTransferablesInPromiseResult);self.postMessage({type:"functionCalled",callId:event.data.callId,result:result})}function defaultInstanceCreator(){var TypeCtor=self[ctorName];var bindArgs=[null].concat(getArgumentsAsArray(arguments));var instance=new (Function.prototype.bind.apply(TypeCtor,bindArgs));return instance}function getArgumentsAsArray(args){var argumentsAsArray=
-new Array(args.length);for(var i=0;i<args.length;++i)argumentsAsArray[i]=args[i];return argumentsAsArray}if(self["Worker"]===undefined){SubWorkerEmulationForChrome.initialize(subWorkerIdToSubWorker);self["Worker"]=SubWorkerEmulationForChrome}return slaveHelperSingleton}();var ScriptsToImportPool=function ScriptsToImportPoolClosure(){function ScriptsToImportPool(){this._scriptsByName={};this._scriptsArray=null}ScriptsToImportPool.prototype.addScriptFromErrorWithStackTrace=function addScriptForWorkerImport(errorWithStackTrace){var fileName=ScriptsToImportPool._getScriptName(errorWithStackTrace);if(!this._scriptsByName[fileName]){this._scriptsByName[fileName]=true;this._scriptsArray=null}};ScriptsToImportPool.prototype.getScriptsForWorkerImport=function getScriptsForWorkerImport(){if(this._scriptsArray===
+callId:callId,reason:reason})})};slaveHelperSingleton.wrapCallbackFromSlaveSide=function wrapCallbackFromSlaveSide(callbackHandle){var isAlreadyCalled=false;function callbackWrapperFromSlaveSide(){if(isAlreadyCalled)throw"Callback is called twice but isMultipleTimeCallback "+"= false";var argumentsAsArray=getArgumentsAsArray(arguments);if(beforeOperationListener!==null)try{beforeOperationListener.call(slaveSideMainInstance,"callback",callbackHandle.callbackName,argumentsAsArray)}catch(e){console.log("AsyncProxySlave.beforeOperationListener has thrown an exception: "+
+e)}var transferables=extractTransferables(callbackHandle.pathsToTransferables,argumentsAsArray);self.postMessage({type:"callback",callId:callbackHandle.callId,args:argumentsAsArray},transferables);if(!callbackHandle.isMultipleTimeCallback)isAlreadyCalled=true}return callbackWrapperFromSlaveSide};slaveHelperSingleton._getScriptName=function _getScriptName(){var error=new Error;var scriptName=ScriptsToImportPool._getScriptName(error);return scriptName};function extractTransferables(pathsToTransferables,
+pathsBase){if(pathsToTransferables===undefined)return undefined;var transferables=new Array(pathsToTransferables.length);for(var i=0;i<pathsToTransferables.length;++i){var path=pathsToTransferables[i];var transferable=pathsBase;for(var j=0;j<path.length;++j){var member=path[j];transferable=transferable[member]}transferables[i]=transferable}return transferables}function onMessage(event){var functionNameToCall=event.data.functionToCall;var args=event.data.args;var callId=event.data.callId;var isPromise=
+event.data.isPromise;var pathsToTransferablesInPromiseResult=event.data.pathsToTransferablesInPromiseResult;var result=null;switch(functionNameToCall){case "ctor":self["AsyncProxy"]["AsyncProxyMaster"]._setEntryUrl(event.data.masterEntryUrl);var scriptsToImport=event.data.scriptsToImport;ctorName=event.data.ctorName;for(var i=0;i<scriptsToImport.length;++i)importScripts(scriptsToImport[i]);slaveSideMainInstance=slaveSideInstanceCreator.apply(null,args);return;case "subWorkerOnMessage":var subWorker=
+subWorkerIdToSubWorker[event.data.subWorkerId];var workerEvent={data:event.data.data};subWorker.onmessage(workerEvent);return}args=new Array(event.data.args.length);for(var i=0;i<event.data.args.length;++i){var arg=event.data.args[i];if(arg!==undefined&&arg!==null&&arg.isWorkerHelperCallback)arg=slaveHelperSingleton.wrapCallbackFromSlaveSide(arg);args[i]=arg}var functionContainer=slaveSideMainInstance;var functionToCall;while(functionContainer){functionToCall=slaveSideMainInstance[functionNameToCall];
+if(functionToCall)break;functionContainer=functionContainer.__proto__}if(!functionToCall)throw"AsyncProxy error: could not find function "+functionToCall;var promise=functionToCall.apply(slaveSideMainInstance,args);if(isPromise)slaveHelperSingleton.wrapPromiseFromSlaveSide(callId,promise,pathsToTransferablesInPromiseResult);self.postMessage({type:"functionCalled",callId:event.data.callId,result:result})}function defaultInstanceCreator(){var namespacesAndCtorName=ctorName.split(".");var member=self;
+for(var i=0;i<namespacesAndCtorName.length;++i)member=member[namespacesAndCtorName[i]];var TypeCtor=member;var bindArgs=[null].concat(getArgumentsAsArray(arguments));var instance=new (Function.prototype.bind.apply(TypeCtor,bindArgs));return instance}function getArgumentsAsArray(args){var argumentsAsArray=new Array(args.length);for(var i=0;i<args.length;++i)argumentsAsArray[i]=args[i];return argumentsAsArray}if(self["Worker"]===undefined){var SubWorkerEmulationForChrome=self["SubWorkerEmulationForChrome"];
+SubWorkerEmulationForChrome.initialize(subWorkerIdToSubWorker);self["Worker"]=SubWorkerEmulationForChrome}self["asyncProxyScriptBlob"].addMember(AsyncProxySlaveClosure,"AsyncProxySlaveSingleton");return slaveHelperSingleton}var AsyncProxySlaveSingleton=AsyncProxySlaveClosure();function ScriptsToImportPoolClosure(){function ScriptsToImportPool(){var that=this;that._scriptsByName={};that._scriptsArray=null}ScriptsToImportPool.prototype.addScriptFromErrorWithStackTrace=function addScriptForWorkerImport(errorWithStackTrace){var fileName=ScriptsToImportPool._getScriptName(errorWithStackTrace);if(!this._scriptsByName[fileName]){this._scriptsByName[fileName]=true;this._scriptsArray=null}};ScriptsToImportPool.prototype.getScriptsForWorkerImport=function getScriptsForWorkerImport(){if(this._scriptsArray===
 null){this._scriptsArray=[];for(var fileName in this._scriptsByName)this._scriptsArray.push(fileName)}return this._scriptsArray};ScriptsToImportPool._getScriptName=function getScriptName(errorWithStackTrace){var stack=errorWithStackTrace.stack.trim();var currentStackFrameRegex=/at (|[^ ]+ \()([^ ]+):\d+:\d+/;var source=currentStackFrameRegex.exec(stack);if(source&&source[2]!=="")return source[2];var lastStackFrameRegex=new RegExp(/.+\/(.*?):\d+(:\d+)*$/);source=lastStackFrameRegex.exec(stack);if(source&&
-source[1]!=="")return source[1];if(errorWithStackTrace.fileName!=undefined)return errorWithStackTrace.fileName;throw"ImageDecoderFramework.js: Could not get current script URL";};return ScriptsToImportPool}();self["AsyncProxy"]={};self["AsyncProxy"]["AsyncProxySlave"]=AsyncProxySlave;self["AsyncProxy"]["AsyncProxyMaster"]=AsyncProxyMaster;self["AsyncProxy"]["ScriptsToImportPool"]=ScriptsToImportPool;SubWorkerEmulationForChrome.prototype["postMessage"]=SubWorkerEmulationForChrome.prototype.postMessage;SubWorkerEmulationForChrome.prototype["terminate"]=SubWorkerEmulationForChrome.prototype.terminate;AsyncProxySlave["setSlaveSideCreator"]=AsyncProxySlave.setSlaveSideCreator;
-AsyncProxySlave["setBeforeOperationListener"]=AsyncProxySlave.setBeforeOperationListener;AsyncProxySlave["sendUserDataToMaster"]=AsyncProxySlave.sendUserDataToMaster;AsyncProxySlave["wrapPromiseFromSlaveSide"]=AsyncProxySlave.wrapPromiseFromSlaveSide;AsyncProxySlave["wrapCallbackFromSlaveSide"]=AsyncProxySlave.wrapCallbackFromSlaveSide;AsyncProxyMaster.prototype["setUserDataHandler"]=AsyncProxyMaster.prototype.setUserDataHandler;AsyncProxyMaster.prototype["terminate"]=AsyncProxyMaster.prototype.terminate;
-AsyncProxyMaster.prototype["callFunction"]=AsyncProxyMaster.prototype.callFunction;AsyncProxyMaster.prototype["wrapCallback"]=AsyncProxyMaster.prototype.wrapCallback;AsyncProxyMaster.prototype["freeCallback"]=AsyncProxyMaster.prototype.freeCallback;AsyncProxyMaster["getEntryUrl"]=AsyncProxyMaster.getEntryUrl;ScriptsToImportPool.prototype["addScriptFromErrorWithStackTrace"]=ScriptsToImportPool.prototype.addScriptFromErrorWithStackTrace;ScriptsToImportPool.prototype["getScriptsForWorkerImport"]=ScriptsToImportPool.prototype.getScriptsForWorkerImport;
-
-var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
-return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
-1:++e[g])}f=b}f=null;null!==c&&(f=q(a,c),--a.j);if(a.e){b=c="";void 0!==a.c&&(c=a.c+"'s ",b=a.c+"'s ");c+="Jobs list:";for(m=0;m<e.length;++m)void 0!==e[m]&&(c+=e[m]+" jobs of priority "+m+";");console.log(c);null!==f&&console.log(b+(" dequeued new job of priority "+d))}k(a);return f}function g(a,h,c){++a.j;var d=a.a.C();a.a.add(h,d);t(a);a.e&&(h="",void 0!==a.c&&(h=a.c+"'s "),console.log(h+(" enqueued job of priority "+c)));a.a.h<=a.u||(c=a.a.L(),c=q(a,c),l(a,c));k(a)}function l(a,h){var c=a.k.getPriority(h.f);
-0>c?(--a.j,h.s(h.f)):(void 0===a.b[c]&&(a.b[c]=[]),a.b[c].push(h))}function v(a,h){++a.d;var c=a.d<=a.H?a.I:0;--a.d;c=e(a,c);if(null!==c)k(a),r(a,c,h);else if(a.j>a.a.h)a.l.push(h),++a.d;else{for(var d,b=a.b.length-1;0<=b;--b){var f=a.b[b];if(void 0!==f&&0!==f.length){for(var g=f.length-1;0<=g;--g){c=f[g];d=a.k.getPriority(c.f);if(d>=b){f.length=g;break}else 0>d?(--a.j,c.s(c.f)):(void 0===a.b[d]&&(a.b[d]=[]),a.b[d].push(c));c=null}if(null!==c)break;f.length=0}}null===c?(a.l.push(h),++a.d):(a.e&&(b=
-"",void 0!==a.c&&(b=a.c+"'s "),console.log(b+(" dequeued old job of priority "+d))),--a.j,k(a),r(a,c,h))}k(a)}function r(a,h,c){++a.A;if(a.A>=a.J){a.A=0;var d=a.b,b=a.a;if(0!==d.length){a.b=[];a.a=new p;for(var f=0;f<d.length;++f)if(void 0!==d[f])for(var e=0;e<d[f].length;++e)l(a,d[f][e]);for(f=b.C();null!==f;)d=b.D(f),l(a,d),f=b.r(f);b="";void 0!==a.c&&(b=a.c+"'s ");b+="rerank: ";for(f=a.b.length-1;0<=f;--f)if(d=a.b[f],void 0!==d){for(a.e&&(b+=d.length+" jobs in priority "+f+";");0<d.length&&a.a.h<
-a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
-a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
-if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
+source[1]!=="")return source[1];if(errorWithStackTrace.fileName!=undefined)return errorWithStackTrace.fileName;throw"ImageDecoderFramework.js: Could not get current script URL";};self["asyncProxyScriptBlob"].addMember(ScriptsToImportPoolClosure,"ScriptsToImportPool");return ScriptsToImportPool}var ScriptsToImportPool=ScriptsToImportPoolClosure();function ExportAsyncProxySymbolsClosure(){function ExportAsyncProxySymbols(SubWorkerEmulationForChrome,AsyncProxySlaveSingleton,AsyncProxyMaster,ScriptsToImportPool){self["AsyncProxy"]=self["AsyncProxy"]||{};SubWorkerEmulationForChrome.prototype["postMessage"]=SubWorkerEmulationForChrome.prototype.postMessage;SubWorkerEmulationForChrome.prototype["terminate"]=SubWorkerEmulationForChrome.prototype.terminate;AsyncProxySlaveSingleton["setSlaveSideCreator"]=AsyncProxySlaveSingleton.setSlaveSideCreator;
+AsyncProxySlaveSingleton["setBeforeOperationListener"]=AsyncProxySlaveSingleton.setBeforeOperationListener;AsyncProxySlaveSingleton["sendUserDataToMaster"]=AsyncProxySlaveSingleton.sendUserDataToMaster;AsyncProxySlaveSingleton["wrapPromiseFromSlaveSide"]=AsyncProxySlaveSingleton.wrapPromiseFromSlaveSide;AsyncProxySlaveSingleton["wrapCallbackFromSlaveSide"]=AsyncProxySlaveSingleton.wrapCallbackFromSlaveSide;AsyncProxyMaster.prototype["setUserDataHandler"]=AsyncProxyMaster.prototype.setUserDataHandler;
+AsyncProxyMaster.prototype["terminate"]=AsyncProxyMaster.prototype.terminate;AsyncProxyMaster.prototype["callFunction"]=AsyncProxyMaster.prototype.callFunction;AsyncProxyMaster.prototype["wrapCallback"]=AsyncProxyMaster.prototype.wrapCallback;AsyncProxyMaster.prototype["freeCallback"]=AsyncProxyMaster.prototype.freeCallback;AsyncProxyMaster["getEntryUrl"]=AsyncProxyMaster.getEntryUrl;ScriptsToImportPool.prototype["addScriptFromErrorWithStackTrace"]=ScriptsToImportPool.prototype.addScriptFromErrorWithStackTrace;
+ScriptsToImportPool.prototype["getScriptsForWorkerImport"]=ScriptsToImportPool.prototype.getScriptsForWorkerImport}asyncProxyScriptBlob.addMember(ExportAsyncProxySymbolsClosure,"ExportAsyncProxySymbols");asyncProxyScriptBlob.addStatement("ExportAsyncProxySymbols(SubWorkerEmulationForChrome, AsyncProxySlaveSingleton, AsyncProxyMaster, ScriptsToImportPool);");asyncProxyScriptBlob.addStatement("self['AsyncProxy']['AsyncProxySlaveSingleton'] = AsyncProxySlaveSingleton;");asyncProxyScriptBlob.addStatement("self['AsyncProxy']['AsyncProxyMaster'] = AsyncProxyMaster;");
+asyncProxyScriptBlob.addStatement("self['AsyncProxy']['ScriptsToImportPool'] = ScriptsToImportPool;");return ExportAsyncProxySymbols}ExportAsyncProxySymbolsClosure()(SubWorkerEmulationForChrome,AsyncProxySlaveSingleton,AsyncProxyMaster,ScriptsToImportPool);self["AsyncProxy"]["AsyncProxySlaveSingleton"]=AsyncProxySlaveSingleton;self["AsyncProxy"]["AsyncProxyMaster"]=AsyncProxyMaster;self["AsyncProxy"]["ScriptsToImportPool"]=ScriptsToImportPool;
 
 var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
 jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
@@ -60,16 +57,29 @@ iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCou
 }function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
 LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
 
+var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
+return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
+1:++e[g])}f=b}f=null;null!==c&&(f=q(a,c),--a.j);if(a.e){b=c="";void 0!==a.c&&(c=a.c+"'s ",b=a.c+"'s ");c+="Jobs list:";for(m=0;m<e.length;++m)void 0!==e[m]&&(c+=e[m]+" jobs of priority "+m+";");console.log(c);null!==f&&console.log(b+(" dequeued new job of priority "+d))}k(a);return f}function g(a,h,c){++a.j;var d=a.a.C();a.a.add(h,d);t(a);a.e&&(h="",void 0!==a.c&&(h=a.c+"'s "),console.log(h+(" enqueued job of priority "+c)));a.a.h<=a.u||(c=a.a.L(),c=q(a,c),l(a,c));k(a)}function l(a,h){var c=a.k.getPriority(h.f);
+0>c?(--a.j,h.s(h.f)):(void 0===a.b[c]&&(a.b[c]=[]),a.b[c].push(h))}function v(a,h){++a.d;var c=a.d<=a.H?a.I:0;--a.d;c=e(a,c);if(null!==c)k(a),r(a,c,h);else if(a.j>a.a.h)a.l.push(h),++a.d;else{for(var d,b=a.b.length-1;0<=b;--b){var f=a.b[b];if(void 0!==f&&0!==f.length){for(var g=f.length-1;0<=g;--g){c=f[g];d=a.k.getPriority(c.f);if(d>=b){f.length=g;break}else 0>d?(--a.j,c.s(c.f)):(void 0===a.b[d]&&(a.b[d]=[]),a.b[d].push(c));c=null}if(null!==c)break;f.length=0}}null===c?(a.l.push(h),++a.d):(a.e&&(b=
+"",void 0!==a.c&&(b=a.c+"'s "),console.log(b+(" dequeued old job of priority "+d))),--a.j,k(a),r(a,c,h))}k(a)}function r(a,h,c){++a.A;if(a.A>=a.J){a.A=0;var d=a.b,b=a.a;if(0!==d.length){a.b=[];a.a=new p;for(var f=0;f<d.length;++f)if(void 0!==d[f])for(var e=0;e<d[f].length;++e)l(a,d[f][e]);for(f=b.C();null!==f;)d=b.D(f),l(a,d),f=b.r(f);b="";void 0!==a.c&&(b=a.c+"'s ");b+="rerank: ";for(f=a.b.length-1;0<=f;--f)if(d=a.b[f],void 0!==d){for(a.e&&(b+=d.length+" jobs in priority "+f+";");0<d.length&&a.a.h<
+a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
+a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
+if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
+
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.imageDecoderFramework = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
 module.exports.ViewerImageDecoder = require('viewerimagedecoder.js');
 module.exports.ImageDecoder = require('imagedecoder.js');
 module.exports.FetchClientBase = require('fetchclientbase.js');
+module.exports.SimplePixelsDecoderBase = require('simplepixelsdecoderbase.js');
 module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
 module.exports.CesiumImageDecoderLayerManager = require('_cesiumimagedecoderlayermanager.js');
 module.exports.ImageDecoderRegionLayer = require('imagedecoderregionlayer.js');
-},{"_cesiumimagedecoderlayermanager.js":3,"fetchclientbase.js":7,"imagedecoder.js":10,"imagedecoderimageryprovider.js":5,"imagedecoderregionlayer.js":22,"viewerimagedecoder.js":21}],2:[function(require,module,exports){
+module.exports.Internals = {
+	FetchManager: require('fetchmanager.js')
+};
+},{"_cesiumimagedecoderlayermanager.js":3,"fetchclientbase.js":7,"fetchmanager.js":15,"imagedecoder.js":11,"imagedecoderimageryprovider.js":5,"imagedecoderregionlayer.js":27,"simplepixelsdecoderbase.js":10,"viewerimagedecoder.js":26}],2:[function(require,module,exports){
 'use strict';
 
 module.exports = calculateFrustum;
@@ -153,7 +163,7 @@ function transformAndAddPoint(x, y, cesiumWidget, points) {
     points.push(cartesian);
     return 1;
 }
-},{"imagehelperfunctions.js":15}],3:[function(require,module,exports){
+},{"imagehelperfunctions.js":19}],3:[function(require,module,exports){
 'use strict';
 
 module.exports = CesiumImageDecoderLayerManager;
@@ -249,7 +259,7 @@ CesiumImageDecoderLayerManager.prototype._removeAndReAddLayer = function removeA
     this._layers.remove(this._imageryLayer, /*destroy=*/false);
     this._layers.add(this._imageryLayer, index);
 };
-},{"_cesiumfrustumcalculator.js":2,"canvasimageryprovider.js":4,"viewerimagedecoder.js":21}],4:[function(require,module,exports){
+},{"_cesiumfrustumcalculator.js":2,"canvasimageryprovider.js":4,"viewerimagedecoder.js":26}],4:[function(require,module,exports){
 'use strict';
 
 module.exports = CanvasImageryProvider;
@@ -1183,83 +1193,84 @@ function createTilingScheme(params) {
     
     return tilingScheme;
 }
-},{"_cesiumfrustumcalculator.js":2,"imagehelperfunctions.js":15,"workerproxyimagedecoder.js":19}],6:[function(require,module,exports){
+},{"_cesiumfrustumcalculator.js":2,"imagehelperfunctions.js":19,"workerproxyimagedecoder.js":24}],6:[function(require,module,exports){
 'use strict';
 
 module.exports = DataPublisher;
 
 var LinkedList = require('linkedlist.js');
+var HashMap = require('hashmap.js');
 
-function DataPublisher() {
-    this._subscribersByKey = {};
+function DataPublisher(hasher) {
+    this._subscribersByKey = new HashMap(hasher);
 }
 
 DataPublisher.prototype.publish = function publish(key, data) {
-    var subscribers = this._subscribersByKey[key];
+    var subscribers = this._subscribersByKey.getFromKey(key);
     if (!subscribers) {
         return;
     }
     
     var iterator = subscribers.subscribersList.getFirstIterator();
+	var listeners = [];
     while (iterator !== null) {
         var subscriber = subscribers.subscribersList.getValue(iterator);
-        subscriber(key, data);
+		listeners.push(subscriber.listener);
         
         iterator = subscribers.subscribersList.getNextIterator(iterator);
     }
-    
-    
+	
+	// Call only after collecting all listeners, so the list will not be destroyed while iterating
+	for (var i = 0; i < listeners.length; ++i) {
+		listeners[i].call(this, key, data);
+	}
 };
 
 DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
-    var subscribers = this._subscribersByKey[key];
-    if (!subscribers) {
-        subscribers = {
+    var subscribers = this._subscribersByKey.tryAdd(key, function() {
+        return {
             subscribersList: new LinkedList(),
             subscribersNeverGotResultCount: 0
         };
-        this._subscribersByKey[key] = subscribers;
-    }
+    });
     
-    ++subscribers.subscribersNeverGotResultCount;
+    ++subscribers.value.subscribersNeverGotResultCount;
     
-    var iterator = subscribers.subscribersList.add({
-        subscriber: subscriber,
+    var listIterator = subscribers.value.subscribersList.add({
+        listener: subscriber,
         isGotResult: false
     });
     
     var handle = {
-        _iterator: iterator,
-        _key: key
+        _listIterator: listIterator,
+        _hashIterator: subscribers.iterator
     };
     return handle;
 };
 
 DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
-    var subscribers = this._subscribersByKey[handle._key];
-    if (!subscribers) {
-        throw 'DataPublisher error: subscriber was not registered';
-    }
+    var subscribers = this._subscribersByKey.getFromIterator(handle._hashIterator);
     
-    var subscriber = subscribers.subscribersList.getValue(handle._iterator);
-    subscribers.subscribersList.remove(handle._iterator);
+    var subscriber = subscribers.subscribersList.getValue(handle._listIterator);
+    subscribers.subscribersList.remove(handle._listIterator);
     if (subscribers.subscribersList.getCount() === 0) {
-        delete this._subscribersByKey[handle._key];
+        this._subscribersByKey.remove(handle._hashIterator);
     } else if (!subscriber.isGotResult) {
         --subscribers.subscribersNeverGotResultCount;
+		subscriber.isGotResult = true;
     }
 };
 
 DataPublisher.prototype.isKeyNeedFetch = function isKeyNeedFetch(key) {
-    var subscribers = this._subscribersByKey[key];
+    var subscribers = this._subscribersByKey.getFromKey(key);
     return (!!subscribers) && (subscribers.subscribersNeverGotResultCount > 0);
 };
-},{"linkedlist.js":16}],7:[function(require,module,exports){
+},{"hashmap.js":17,"linkedlist.js":20}],7:[function(require,module,exports){
 'use strict';
 
 module.exports = FetchClientBase;
 
-var SimpleFetchContext = require('simplefetchcontext.js');
+var SimpleImageDataContext = require('simpleimagedatacontext.js');
 var SimpleFetcher = require('simplefetcher.js');
 var DataPublisher = require('datapublisher.js');
 
@@ -1269,7 +1280,7 @@ function FetchClientBase(options) {
     this._options = options;
     this._isReady = false;
     this._sizesParams = null;
-    this._dataPublisher = this.createDataPublisherInternal();
+    this._dataPublisher = this.createDataPublisherInternal(this);
 }
 
 // Methods for implementor
@@ -1287,7 +1298,15 @@ FetchClientBase.prototype.getDataKeysInternal = function getDataKeysInternal(ima
 };
 
 FetchClientBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
-    return new DataPublisher();
+    return new DataPublisher(this);
+};
+
+FetchClientBase.prototype.getHashCode = function getHashCode(tileKey) {
+	throw 'FetchClientBase error: getHashCode is not implemented';
+};
+
+FetchClientBase.prototype.isEqual = function getHashCode(key1, key2) {
+	throw 'FetchClientBase error: isEqual is not implemented';
 };
 
 // FetchClient implementation
@@ -1313,11 +1332,11 @@ FetchClientBase.prototype.open = function open(url) {
         .catch(this._onError.bind(this));
 };
 
-FetchClientBase.prototype.createFetchContext = function createFetchContext(
+FetchClientBase.prototype.createImageDataContext = function createImageDataContext(
     imagePartParams, contextVars) {
     
     var dataKeys = this.getDataKeysInternal(imagePartParams);
-    return new SimpleFetchContext(contextVars, dataKeys, this._dataPublisher);
+    return new SimpleImageDataContext(contextVars, dataKeys, imagePartParams, this._dataPublisher, this);
 };
 
 FetchClientBase.prototype.createRequestFetcher = function createRequestFetcher() {
@@ -1375,12 +1394,112 @@ FetchClientBase.prototype._opened = function opened(sizesParams) {
 FetchClientBase.prototype._onError = function onError(error) {
     // NOTE: Should define API between ImageDecoderFramework and FetchClient for error notifications
 };
-},{"datapublisher.js":6,"simplefetchcontext.js":8,"simplefetcher.js":9}],8:[function(require,module,exports){
+},{"datapublisher.js":6,"simplefetcher.js":8,"simpleimagedatacontext.js":9}],8:[function(require,module,exports){
 'use strict';
 
-function SimpleFetchContext(contextVars, dataKeys, dataPublisher) {
+module.exports = SimpleFetcher;
+
+function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
+    this._fetchClient = fetchClient;
+    this._dataPublisher = dataPublisher;
+    this._isChannel = isChannel;
+    this._stopListeners = [];
+    this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
+    this._keysToFetch = null;
+	this._nextKeyToFetch = 0;
+    this._activeFetches = {};
+    this._activeFetchesCount = 0;
+    this._isAborted = false;
+    this._isStoppedCalled = false;
+}
+
+SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
+    if (!this._isChannel && this._keysToFetch !== null) {
+        throw 'SimpleFetcher error: Request fetcher can fetch only one region';
+    }
+    
+    this._keysToFetch = imageDataContext.getDataKeys();
+	this._nextKeyToFetch = 0;
+    while (this._activeFetchesCount < this._fetchLimit) {
+        if (!this._fetchSingleKey()) {
+            break;
+        }
+    }
+};
+
+SimpleFetcher.prototype.on = function on(event, listener) {
+    if (event !== 'stop') {
+        throw 'SimpleFetcher error: Unexpected event ' + event;
+    }
+    
+    this._stopListeners.push(listener);
+};
+
+SimpleFetcher.prototype.abortAsync = function abortAsync() {
+    if (this._isChannel) {
+        throw 'SimpleFetcher error: cannot abort channel fetcher';
+    }
+    
+    if (this._keysToFetch !== null && this._nextKeyToFetch < this._keysToFetch.length) {
+        this._isAborted = true;
+    }
+    this._onAborted(/*isAborted=*/true);
+};
+
+SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
+    var key;
+    do {
+        if (this._nextKeyToFetch >= this._keysToFetch.length) {
+            return false;
+        }
+        key = this._keysToFetch[this._nextKeyToFetch++];
+    } while (!this._dataPublisher.isKeyNeedFetch(key));
+    
+    var self = this;
+    this._activeFetches[key] = true;
+    ++this._activeFetchesCount;
+    
+    this._fetchClient.fetchInternal(key)
+        .then(function resolved(result) {
+            self._dataPublisher.publish(key, result);
+            self._fetchEnded(null, key, result);
+        }).catch(function failed(reason) {
+            self._fetchClient._onError(reason);
+            self._fetchEnded(reason, key);
+        });
+    
+    return true;
+};
+
+SimpleFetcher.prototype._fetchEnded = function fetchEnded(error, key, result) {
+    delete this._activeFetches[key];
+    --this._activeFetchesCount;
+    
+    this._fetchSingleKey();
+};
+
+SimpleFetcher.prototype._onAborted = function onStopped(isAborted) {
+    if (this._activeFetchesCount === 0 && !this._isStoppedCalled) {
+        this._isStoppedCalled = true;
+        for (var i = 0; i < this._stopListeners.length; ++i) {
+            this._stopListeners[i].call(this, isAborted);
+        }
+    }
+};
+},{}],9:[function(require,module,exports){
+'use strict';
+
+module.exports = SimpleImageDataContext;
+
+var HashMap = require('hashmap.js');
+
+function SimpleImageDataContext(contextVars, dataKeys, imagePartParams, dataPublisher, hasher) {
     this._contextVars = contextVars;
-    this._dataByKey = {};
+    this._dataByKey = new HashMap(hasher);
+	this._dataToReturn = {
+		imagePartParams: JSON.parse(JSON.stringify(imagePartParams)),
+		fetchedItems: []
+	};
     this._dataKeysFetchedCount = 0;
     this._dataListeners = [];
     this._dataKeys = dataKeys;
@@ -1397,35 +1516,35 @@ function SimpleFetchContext(contextVars, dataKeys, dataPublisher) {
     }
 }
 
-SimpleFetchContext.prototype.getDataKeys = function getDataKeys() {
+SimpleImageDataContext.prototype.getDataKeys = function getDataKeys() {
     return this._dataKeys;
 };
 
-SimpleFetchContext.prototype.hasData = function hasData() {
+SimpleImageDataContext.prototype.hasData = function hasData() {
     return this.isDone();
 };
 
-SimpleFetchContext.prototype.getFetchedData = function getFetchedData() {
+SimpleImageDataContext.prototype.getFetchedData = function getFetchedData() {
     if (!this.hasData()) {
-        throw 'SimpleFetchContext error: cannot call getFetchedData before hasData = true';
+        throw 'SimpleImageDataContext error: cannot call getFetchedData before hasData = true';
     }
     
-    return this._dataByKey;
+    return this._dataToReturn;
 };
 
-SimpleFetchContext.prototype.on = function on(event, listener) {
+SimpleImageDataContext.prototype.on = function on(event, listener) {
     if (event !== 'data') {
-        throw 'SimpleFetchContext error: Unexpected event ' + event;
+        throw 'SimpleImageDataContext error: Unexpected event ' + event;
     }
     
     this._dataListeners.push(listener);
 };
 
-SimpleFetchContext.prototype.isDone = function isDone() {
+SimpleImageDataContext.prototype.isDone = function isDone() {
     return this._dataKeysFetchedCount === this._dataKeys.length;
 };
 
-SimpleFetchContext.prototype.release = function release() {
+SimpleImageDataContext.prototype.release = function release() {
     for (var i = 0; i < this._subscribeHandles.length; ++i) {
         this._dataPublisher.unsubscribe(this._subscribeHandles[i]);
     }
@@ -1433,12 +1552,14 @@ SimpleFetchContext.prototype.release = function release() {
     this._subscribeHandles = [];
 };
 
-SimpleFetchContext.prototype._dataFetched = function dataFetched(key, data) {
-    if (!this._dataByKey[key]) {
+SimpleImageDataContext.prototype._dataFetched = function dataFetched(key, data) {
+    if (this._dataByKey.tryAdd(key, function() {}).isNew) {
         ++this._dataKeysFetchedCount;
+		this._dataToReturn.fetchedItems.push({
+			key: key,
+			data: data
+		});
     }
-    
-    this._dataByKey[key] = data;
     
     if (this.hasData()) {
         for (var i = 0; i < this._dataListeners.length; ++i) {
@@ -1446,101 +1567,35 @@ SimpleFetchContext.prototype._dataFetched = function dataFetched(key, data) {
         }
     }
 };
-},{}],9:[function(require,module,exports){
+},{"hashmap.js":17}],10:[function(require,module,exports){
 'use strict';
 
-function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
-    this._fetchClient = fetchClient;
-    this._dataPublisher = dataPublisher;
-    this._isChannel = isChannel;
-    this._stopListeners = [];
-    this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
-    this._remainingKeysToFetch = null;
-    this._activeFetches = {};
-    this._activeFetchesCount = 0;
-    this._isAborted = false;
-    this._isStoppedCalled = false;
-    
-    this._fetchSucceededBound = this._fetchSucceeded.bind(this);
-    this._fetchFailedBound = this._fetchFailed.bind(this);
+module.exports = SimplePixelsDecoderBase;
+
+/* global Promise : false */
+/* global ImageData : false */
+
+function SimplePixelsDecoderBase() {
+    SimplePixelsDecoderBase.prototype.decode = function decode(fetchedData) {
+		var imagePartParams = fetchedData.imagePartParams;
+		var width  = imagePartParams.maxXExclusive - imagePartParams.minX;
+		var height = imagePartParams.maxYExclusive - imagePartParams.minY;
+		var result = new ImageData(width, height);
+		var promises = [];
+		for (var i = 0; i < fetchedData.fetchedItems.length; ++i) {
+			promises.push(this.decodeRegion(result, imagePartParams, fetchedData.fetchedItems[i].key, fetchedData.fetchedItems[i].data));
+		}
+		
+		return Promise.all(promises).then(function() {
+			return result;
+		});
+	};
+	
+	SimplePixelsDecoderBase.prototype.decodeRegion = function decodeRegion(targetImageData, imagePartParams, key, fetchedData) {
+		throw 'SimplePixelsDecoderBase error: decodeRegion is not implemented';
+	};
 }
-
-SimpleFetcher.prototype.fetch = function fetch(fetchContext) {
-    if (!this._isChannel && this._remainingKeysToFetch !== null) {
-        throw 'SimpleFetcher error: Request fetcher can fetch only one region';
-    }
-    
-    this._remainingKeysToFetch = fetchContext.getDataKeys();
-    while (this._activeFetchesCount < this._fetchLimit) {
-        if (!this._fetchSingleKey()) {
-            break;
-        }
-    }
-    
-    this._onStopped();
-};
-
-SimpleFetcher.prototype.on = function on(event, listener) {
-    if (event !== 'stop') {
-        throw 'SimpleFetcher error: Unexpected event ' + event;
-    }
-    
-    this._stopListeners.push(listener);
-};
-
-SimpleFetcher.prototype.abortAsync = function abortAsync() {
-    if (this._isChannel) {
-        throw 'SimpleFetcher error: cannot abort channel fetcher';
-    }
-    
-    if (this._remainingKeysToFetch.length > 0) {
-        this._isAborted = true;
-    }
-    this._onStopped();
-};
-
-SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
-    var key;
-    do {
-        if (this._remainingKeysToFetch.length === 0) {
-            return false;
-        }
-        key = this._remainingKeysToFetch.pop();
-    } while (this._dataPublisher.isKeyNeedFetch(key));
-    
-    var self = this;
-    this._activeFetches[key] = true;
-    ++this._activeFetchesCount;
-    
-    this._fetchClient.fetchInternal(key)
-        .then(function resolved(result) {
-            self._dataPublisher.publish(key, result);
-            self._fetchedEnded(null, key, result);
-        }).catch(function failed(reason) {
-            self._fetchClient._onError(reason);
-            self._fetchEnded(reason, key);
-        });
-    
-    return true;
-};
-
-SimpleFetcher.prototype._fetchEnded = function fetchEnded(error, key, result) {
-    delete this._activeFetches[key];
-    --this._activeFetchesCount;
-    
-    this._fetchSingleKey();
-    this._onStopped();
-};
-
-SimpleFetcher.prototype._onStopped = function onStopped() {
-    if (this._activeFetchesCount === 0 && !this._isStoppedCalled) {
-        this._isStoppedCalled = true;
-        for (var i = 0; i < this._stopListeners.length; ++i) {
-            this._stopListeners[i]();
-        }
-    }
-};
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 'use strict';
 
 module.exports = ImageDecoder;
@@ -1554,17 +1609,17 @@ var WorkerProxyPixelsDecoder = require('workerproxypixelsdecoder.js');
 /* global Promise: false */
 
 function ImageDecoder(imageImplementationClassName, options) {
-    options = options || {};
-    var decodeWorkersLimit = options.workersLimit || 5;
+    this._options = options || {};
+    var decodeWorkersLimit = this._options.workersLimit || 5;
     
-    this._tileWidth = options.tileWidth || 256;
-    this._tileHeight = options.tileHeight || 256;
-    this._showLog = !!options.showLog;
+    this._tileWidth = this._options.tileWidth || 256;
+    this._tileHeight = this._options.tileHeight || 256;
+    this._showLog = !!this._options.showLog;
     
-    if (this._showLog) {
+    /*if (this._showLog) {
         // Old IE
         throw 'showLog is not supported on this browser';
-    }
+    }*/
 
     this._sizesParams = null;
     this._sizesCalculator = null;
@@ -1572,12 +1627,13 @@ function ImageDecoder(imageImplementationClassName, options) {
     this._decoders = [];
     this._imageImplementationClassName = imageImplementationClassName;
     this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
-    this._fetchManager = new WorkerProxyFetchManager(
-        imageImplementationClassName, options);
+
+	var optionsFetchManager = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
+    this._fetchManager = new WorkerProxyFetchManager(optionsFetchManager);
     
     var decodeScheduler = imageHelperFunctions.createScheduler(
         this._showLog,
-        options.decodePrioritizer,
+        this._options.decodePrioritizer,
         'decode',
         this._createDecoder.bind(this),
         decodeWorkersLimit);
@@ -1813,7 +1869,7 @@ ImageDecoder.prototype._getSizesParams = function getSizesParams() {
 };
 
 ImageDecoder.prototype._createDecoder = function createDecoder() {
-    var decoder = new WorkerProxyPixelsDecoder(this._imageImplementationClassName, this._options);
+    var decoder = new WorkerProxyPixelsDecoder(this._options);
     this._decoders.push(decoder);
     
     return decoder;
@@ -1870,7 +1926,7 @@ function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
         targetOffset += targetStride;
     }
 }
-},{"decodejobspool.js":12,"imageHelperFunctions.js":14,"workerproxyfetchmanager.js":18,"workerproxypixelsdecoder.js":20}],11:[function(require,module,exports){
+},{"decodejobspool.js":13,"imageHelperFunctions.js":18,"workerproxyfetchmanager.js":23,"workerproxypixelsdecoder.js":25}],12:[function(require,module,exports){
 'use strict';
 
 module.exports = DecodeJob;
@@ -1891,8 +1947,8 @@ function DecodeJob(
     this._isFirstStage = true;
     this._isManuallyAborted = false;
 
-    this._firstDecodeResult = null;
-    this._pendingDecodeResult = null;
+    this._firstDecodeInput = null;
+    this._pendingDecodeInput = null;
     this._activeSubJobs = 1;
     this._imagePartParams = imagePartParams;
     this._decodeScheduler = decodeScheduler;
@@ -1971,11 +2027,11 @@ DecodeJob.prototype._dataReadyForDecode = function dataReadyForDecode(dataForDec
     }
     
     if (this._isFirstStage) {
-        this._firstDecodeResult = {
+        this._firstDecodeInput = {
             dataForDecode: dataForDecode
         };
     } else {
-        this._pendingDecodeResult = {
+        this._pendingDecodeInput = {
             dataForDecode: dataForDecode
         };
     
@@ -2004,18 +2060,18 @@ DecodeJob.prototype._dataReadyForDecode = function dataReadyForDecode(dataForDec
 };
 
 DecodeJob.prototype._startDecode = function startDecode(decoder, jobContext) {
-    var decodeResult;
-    if (this._firstDecodeResult !== null) {
-        decodeResult = this._firstDecodeResult;
-        this._firstDecodeResult = null;
+    var decodeInput;
+    if (this._firstDecodeInput !== null) {
+        decodeInput = this._firstDecodeInput;
+        this._firstDecodeInput = null;
     } else {
-        decodeResult = this._pendingDecodeResult;
-        this._pendingDecodeResult = null;
+        decodeInput = this._pendingDecodeInput;
+        this._pendingDecodeInput = null;
         
         this._isAlreadyScheduledNonFirstJob = false;
     }
     
-    jobContext.allRelevantBytesLoaded = decodeResult.dataForDecode.allRelevantBytesLoaded;
+    jobContext.allRelevantBytesLoaded = decodeInput.dataForDecode.allRelevantBytesLoaded;
     
     if (this._isAbortedNoTermination()) {
         --this._activeSubJobs;
@@ -2031,7 +2087,7 @@ DecodeJob.prototype._startDecode = function startDecode(decoder, jobContext) {
     var width = params.maxXExclusive - params.minX;
     var height = params.maxYExclusive - params.minY;
 
-    decoder.decode(decodeResult.dataForDecode).then(pixelsDecodedCallbackInClosure);
+    decoder.decode(decodeInput.dataForDecode).then(pixelsDecodedCallbackInClosure);
     
     //var regionToParse = {
     //    left: dataForDecode.headersCodestream.offsetX,
@@ -2148,10 +2204,10 @@ DecodeJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
 DecodeJob.prototype._decodeAborted = function decodeAborted(jobContext) {
     this._isAborted = true;
     
-    if (this._firstDecodeResult !== null) {
-        this._firstDecodeResult = null;
+    if (this._firstDecodeInput !== null) {
+        this._firstDecodeInput = null;
     } else {
-        this._pendingDecodeResult = null;
+        this._pendingDecodeInput = null;
         this._isAlreadyScheduledNonFirstJob = false;
     }
     
@@ -2214,7 +2270,7 @@ function checkIfAllTerminated(self) {
         iterator = linkedList.getNextIterator(iterator);
     }
 }
-},{"linkedlist.js":16}],12:[function(require,module,exports){
+},{"linkedlist.js":20}],13:[function(require,module,exports){
 'use strict';
 
 module.exports = DecodeJobsPool;
@@ -2390,7 +2446,575 @@ function getOrAddValue(parentArray, index, defaultValue) {
     
     return subArray;
 }
-},{"decodejob.js":11}],13:[function(require,module,exports){
+},{"decodejob.js":12}],14:[function(require,module,exports){
+'use strict';
+
+module.exports = FetchJob;
+
+FetchJob.FETCH_TYPE_REQUEST = 1;
+FetchJob.FETCH_TYPE_CHANNEL = 2;
+FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA = 3;
+
+function FetchJob(fetchClient, scheduler, fetchType, contextVars) {
+    this._fetchClient = fetchClient;
+    this._scheduler = scheduler;
+    
+    this._dataListeners = [];
+    this._terminatedListeners = [];
+    
+    this._imagePartParams = null;
+    this._progressiveStagesDone = 0;
+    
+    this._isYielded = false;
+    this._isFailure = false;
+    this._isTerminated = false;
+    this._isManuallyAborted = false;
+    this._isChannel = fetchType === FetchJob.FETCH_TYPE_CHANNEL;
+    this._contextVars = contextVars;
+    this._isOnlyWaitForData = fetchType === FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA;
+    this._useScheduler = fetchType === FetchJob.FETCH_TYPE_REQUEST;
+    this._imageDataContext = null;
+    this._fetcher = null;
+    this._resource = null;
+	this._fetchStoppedByFetchClientBound = this._fetchStoppedByFetchClient.bind(this);
+	//this._alreadyTerminatedWhenAllDataArrived = false;
+    
+    if (fetchType === FetchJob.FETCH_TYPE_CHANNEL) {
+        this._fetcher = this._fetchClient.createChannelFetcher();
+    } else {
+        this._fetcher = null;
+    }
+}
+
+FetchJob.prototype.fetch = function fetch(imagePartParams) {
+    if (this._isChannel) {
+        this._imagePartParams = imagePartParams;
+        this._startFetch();
+        return;
+    }
+    
+    if (this._imagePartParams !== null) {
+        throw 'Cannot fetch twice on fetch type of "request"';
+    }
+    
+    this._imagePartParams = imagePartParams;
+    
+    if (!this._useScheduler) {
+        startRequest(/*resource=*/null, this);
+        return;
+    }
+    
+    this._scheduler.enqueueJob(startRequest, this, fetchAbortedByScheduler);
+};
+
+FetchJob.prototype.manualAbortRequest = function manualAbortRequest() {
+    this._isManuallyAborted = true;
+    this._isTerminated = true;
+    
+    if (this._fetcher !== null) {
+        this._fetcher.abortAsync();
+    }
+};
+
+FetchJob.prototype.getContextVars = function getContextVars(requestId) {
+    return this._contextVars;
+};
+
+FetchJob.prototype.on = function on(event, listener) {
+    switch (event) {
+        case 'data':
+            this._dataListeners.push(listener);
+            break;
+        case 'terminated':
+            this._terminatedListeners.push(listener);
+            break;
+        default:
+            throw 'Unexpected event ' + event;
+    }
+};
+
+FetchJob.prototype._startFetch = function startFetch() {
+    var imageDataContext = this._fetchClient.createImageDataContext(
+        this._imagePartParams, this);
+    
+    this._imageDataContext = imageDataContext;
+
+    if (imageDataContext.isDone()) {
+        for (var i = 0; i < this._dataListeners.length; ++i) {
+            this._dataListeners[i](this._contextVars, imageDataContext);
+        }
+
+        this._fetchTerminated(/*isAborted=*/false);
+		//this._alreadyTerminatedWhenAllDataArrived = true;
+        
+        return;
+    }
+    
+    if (imageDataContext.hasData()) {
+        for (var j = 0; j < this._dataListeners.length; ++j) {
+            this._dataListeners[j](this._contextVars, imageDataContext);
+        }
+    }
+    
+	var self = this;
+    imageDataContext.on('data', function() {
+		self._dataCallback(imageDataContext);
+	});
+    
+    if (!this._isOnlyWaitForData) {
+        this._fetcher.fetch(imageDataContext);
+    }
+};
+
+FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
+    if (this._isYielded || this._isTerminated) {
+        throw 'Unexpected request state on terminated';
+    }
+    
+    if (this._resource !== null) {
+        if (isAborted) {
+            throw 'Unexpected request termination without resource allocated';
+        }
+
+        this._scheduler.jobDone(this._resource, this);
+
+        this._resource = null;
+    } else if (!isAborted && this._useScheduler) {
+        throw 'Job expected to have resource on successful termination';
+    }
+    
+    if (this._isChannel) {
+        // Channel is not really terminated, but only fetches a new region
+        // (see moveChannel()).
+        
+        return;
+    }
+    
+    this._isTerminated = true;
+    
+    for (var i = 0; i < this._terminatedListeners.length; ++i) {
+        this._terminatedListeners[i](
+            this._contextVars, this._imageDataContext, isAborted);
+    }
+    
+    if (this._imageDataContext !== null && !this._isFailure) {
+        this._imageDataContext.release();
+    }
+};
+
+FetchJob.prototype._continueFetch = function continueFetch() {
+    if (this.isChannel) {
+        throw 'Unexpected call to continueFetch on channel';
+    }
+    
+    var fetcher = this._fetchClient.createRequestFetcher();
+    
+    this._fetcher = fetcher;
+    fetcher.on('stop', this._fetchStoppedByFetchClientBound);
+    fetcher.fetch(this._imageDataContext);
+};
+
+FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
+    try {
+        if (this._isYielded || this._isTerminated) {
+            throw 'Unexpected request state on fetch callback';
+        }
+            
+        if (imageDataContext !== this._imageDataContext) {
+            throw 'Unexpected imageDataContext';
+        }
+
+        ++this._progressiveStagesDone;
+        
+        
+        for (var i = 0; i < this._dataListeners.length; ++i) {
+            this._dataListeners[i](this._contextVars, imageDataContext);
+        }
+        
+        if (this._useScheduler) {
+            if (this._resource === null) {
+                throw 'No resource allocated but fetch callback called';
+            }
+            
+            if (imageDataContext.isDone()) {
+                this._fetchTerminated(/*isAborted=*/false);
+				//this._alreadyTerminatedWhenAllDataArrived = true;
+                return;
+            }
+            
+            var scheduler = this._scheduler;
+            
+            if (scheduler.shouldYieldOrAbort(this)) {
+                this._fetcher.abortAsync();
+            }
+        }
+    } catch (e) {
+        this._isFailure = true;
+        fetchAbortedByScheduler(this);
+    }
+};
+
+FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClient(isAborted) {
+	//if (this._alreadyTerminatedWhenAllDataArrived) {
+	//	// Resources were already released ASAP
+	//	return;
+	//}
+	
+    if (this._isYielded || this._resource === null) {
+        throw 'Unexpected request state on stopped';
+    }
+    
+    if (this._isOnlyWaitForData ||
+        this._fetcher === null) {
+        
+        throw 'Unexpected request type on stopped';
+    }
+    
+    if (!isAborted) {
+        if (!this._isTerminated) {
+            throw '"stopped" listener was called with isAborted=false but ' +
+                'imageDataContext "data" listener was not called yet';
+        }
+        
+        return;
+    }
+    
+    var scheduler = this._scheduler;
+    
+    var isYielded = scheduler.tryYield(
+        continueYieldedRequest,
+        this,
+        fetchAbortedByScheduler,
+        fetchYieldedByScheduler,
+        this._resource);
+    
+    if (isYielded || this._isTerminated) {
+        scheduler.jobDone(this._resource, this);
+        
+        return;
+    }
+    
+    this._continueFetch();
+};
+
+// Properties for FrustumRequesetPrioritizer
+
+Object.defineProperty(FetchJob.prototype, 'imagePartParams', {
+    get: function getImagePartParams() {
+        return this._imagePartParams;
+    }
+});
+
+Object.defineProperty(FetchJob.prototype, 'progressiveStagesDone', {
+    get: function getProgressiveStagesDone() {
+        return this._progressiveStagesDone;
+    }
+});
+
+function startRequest(resource, self) {
+    if (self._imageDataContext !== null) {
+        throw 'Unexpected restart of already started request';
+    }
+    
+    if (self._isManuallyAborted) {
+        if (resource !== null) {
+            self._scheduler.jobDone(resource, self);
+        }
+        
+        return;
+    }
+    
+    self._resource = resource;
+    
+    if (!self._isOnlyWaitForData) {
+        self._fetcher = self._fetchClient.createRequestFetcher();
+        self._fetcher.on('stop', self._fetchStoppedByFetchClientBound);
+    }
+    
+    self._startFetch();
+}
+
+function continueYieldedRequest(resource, self) {
+    if (self._isManuallyAborted || self._isFailure) {
+        self._scheduler.jobDone(self._resource, self);
+        
+        return;
+    }
+    
+    if (!self.isYielded || self.isTerminated) {
+        throw 'Unexpected request state on continue';
+    }
+    
+    self.isYielded = false;
+    self.resource = resource;
+    
+    self._continueFetch();
+}
+
+function fetchYieldedByScheduler(self) {
+    if (self._isYielded || self._isTerminated) {
+        throw 'Unexpected request state on yield';
+    }
+    
+    self._isYielded = true;
+    self._resource = null;
+}
+
+function fetchAbortedByScheduler(self) {
+    self._isYielded = false;
+    self._resource = null;
+    self._fetchTerminated(/*isAborted=*/true);
+}
+},{}],15:[function(require,module,exports){
+'use strict';
+
+module.exports = FetchManager;
+
+var imageHelperFunctions = require('imagehelperfunctions.js');
+var FetchJob = require('fetchjob.js');
+
+/* global console: false */
+
+function FetchManager(options) {
+    var serverRequestsLimit = options.serverRequestsLimit || 5;
+    
+    this._imageImplementation = imageHelperFunctions.getImageImplementation(options.imageImplementationClassName);
+    this._fetchClient = this._imageImplementation.createFetchClient();
+    this._showLog = options.showLog;
+    this._sizesCalculator = null;
+    
+    if (this._showLog) {
+        // Old IE
+        throw 'showLog is not supported on this browser';
+    }
+    
+    var serverRequestScheduler = imageHelperFunctions.createScheduler(
+        options.showLog,
+        options.serverRequestPrioritizer,
+        'serverRequest',
+        createServerRequestDummyResource,
+        serverRequestsLimit);
+    
+    this._serverRequestPrioritizer = serverRequestScheduler.prioritizer;
+    
+    this._scheduler = serverRequestScheduler.scheduler;
+    this._channelHandleCounter = 0;
+    this._channelHandles = [];
+    this._requestById = [];
+}
+
+FetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
+    this._fetchClient.setStatusCallback(statusCallback);
+};
+
+FetchManager.prototype.open = function open(url) {
+    this._fetchClient.open(url);
+};
+
+FetchManager.prototype.close = function close(closedCallback) {
+    this._fetchClient.close(closedCallback);
+};
+
+FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
+    requestId, isProgressive) {
+    
+    var scheduledRequest = this._requestById[requestId];
+    if (scheduledRequest === undefined) {
+        // This situation might occur if request has been terminated,
+        // but user's terminatedCallback has not been called yet. It
+        // happens on WorkerProxyFetchManager due to thread
+        // message delay.
+        
+        return null;
+    }
+    
+    return scheduledRequest.getContextVars();
+};
+
+FetchManager.prototype.createChannel = function createChannel(
+    createdCallback) {
+    
+    var channelHandle = ++this._channelHandleCounter;
+    this._channelHandles[channelHandle] = new FetchJob(
+        this._fetchClient,
+        this._scheduler,
+        FetchJob.FETCH_TYPE_CHANNEL,
+        /*contextVars=*/null);
+
+    createdCallback(channelHandle);
+};
+
+FetchManager.prototype.moveChannel = function moveChannel(
+    channelHandle, imagePartParams) {
+    
+    var channel = this._channelHandles[channelHandle];
+    channel.fetch(imagePartParams);
+};
+
+FetchManager.prototype.createRequest = function createRequest(
+    fetchParams,
+    callbackThis,
+    callback,
+    terminatedCallback,
+    isOnlyWaitForData,
+    requestId) {
+    
+    var contextVars = {
+        progressiveStagesDone: 0,
+        isProgressive: false,
+        isLastCallbackCalledWithoutLowQualityLayerLimit: false,
+        callbackThis: callbackThis,
+        callback: callback,
+        terminatedCallback: terminatedCallback,
+        requestId: requestId,
+        self: this
+    };
+    
+    var fetchType = isOnlyWaitForData ?
+        FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : FetchJob.FETCH_TYPE_REQUEST;
+    
+    var scheduledRequest = new FetchJob(
+        this._fetchClient, this._scheduler, fetchType, contextVars);
+    
+    if (this._requestById[requestId] !== undefined) {
+        throw 'Duplication of requestId ' + requestId;
+    } else if (requestId !== undefined) {
+        this._requestById[requestId] = scheduledRequest;
+    }
+    
+    scheduledRequest.on('data', internalCallback);
+    scheduledRequest.on('terminated', internalTerminatedCallback);
+    
+    scheduledRequest.fetch(fetchParams);
+};
+
+FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
+    requestId) {
+    
+    var scheduledRequest = this._requestById[requestId];
+    
+    if (scheduledRequest === undefined) {
+        // This situation might occur if request has been terminated,
+        // but user's terminatedCallback has not been called yet. It
+        // happens on WorkerProxyFetchManager due to web worker
+        // message delay.
+        
+        return;
+    }
+    
+    scheduledRequest.manualAbortRequest();
+    delete this._requestById[requestId];
+};
+
+FetchManager.prototype.reconnect = function reconnect() {
+    this._fetchClient.reconnect();
+};
+
+FetchManager.prototype.setServerRequestPrioritizerData =
+    function setServerRequestPrioritizerData(prioritizerData) {
+        if (this._serverRequestPrioritizer === null) {
+            throw 'No serverRequest prioritizer has been set';
+        }
+        
+        if (this._showLog) {
+            console.log('setServerRequestPrioritizerData(' + prioritizerData + ')');
+        }
+        
+        prioritizerData.image = this;
+        this._serverRequestPrioritizer.setPrioritizerData(prioritizerData);
+    };
+
+FetchManager.prototype.getLevelWidth = function getLevelWidth(numResolutionLevelsToCut) {
+    this._validateSizesCalculator();
+    var width = this._sizesCalculator.getLevelWidth(
+        numResolutionLevelsToCut);
+
+    return width;
+};
+
+FetchManager.prototype.getLevelHeight = function getLevelHeight(numResolutionLevelsToCut) {
+    this._validateSizesCalculator();
+    var height = this._sizesCalculator.getLevelHeight(
+        numResolutionLevelsToCut);
+
+    return height;
+};
+
+FetchManager.prototype.getDefaultNumResolutionLevels = function getDefaultNumResolutionLevels() {
+    this._validateSizesCalculator();
+    var numLevels = this._sizesCalculator.getDefaultNumResolutionLevels();
+    
+    return numLevels;
+};
+    
+FetchManager.prototype._getSizesParams = function getSizesParams() {
+    var sizesParams = this._fetchClient.getSizesParams();
+    return sizesParams;
+};
+
+FetchManager.prototype._validateSizesCalculator = function validateSizesCalculator() {
+    if (this._sizesCalculator !== null) {
+        return;
+    }
+    
+    this._imageParams = this._getSizesParams();
+    this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
+        this._imageParams);
+};
+
+function internalCallback(contextVars, imageDataContext) {
+    var isLimitToLowQualityLayer = 
+        contextVars.progressiveStagesDone === 0;
+    
+    // See comment at internalTerminatedCallback method
+    contextVars.isLastCallbackCalledWithoutLowQualityLayerLimit |=
+        contextVars.isProgressive &&
+        !isLimitToLowQualityLayer;
+    
+    if (!contextVars.isProgressive) {
+        return;
+    }
+    
+    var maxNumQualityLayers =
+        isLimitToLowQualityLayer ? 1 : undefined;
+    
+    ++contextVars.progressiveStagesDone;
+    
+    extractDataAndCallCallback(
+        contextVars, imageDataContext, maxNumQualityLayers);
+}
+
+function internalTerminatedCallback(contextVars, imageDataContext, isAborted) {
+    if (!contextVars.isLastCallbackCalledWithoutLowQualityLayerLimit) {
+        // This condition come to check if another decoding should be done.
+        // One situation it may happen is when the request is not
+        // progressive, then the decoding is done only on termination.
+        // Another situation is when only the first stage has been reached,
+        // thus the callback was called with only the first quality layer
+        // (for performance reasons). Thus another decoding should be done.
+        
+        extractDataAndCallCallback(contextVars, imageDataContext);
+    }
+    
+    contextVars.terminatedCallback.call(
+        contextVars.callbackThis, isAborted);
+    
+    delete contextVars.self._requestById[contextVars.requestId];
+}
+
+function extractDataAndCallCallback(
+    contextVars, imageDataContext, maxNumQualityLayers) {
+    
+    var dataForDecode = imageDataContext.getFetchedData(maxNumQualityLayers);
+    
+    contextVars.callback.call(
+        contextVars.callbackThis, dataForDecode);
+}
+
+function createServerRequestDummyResource() {
+    return {};
+}
+},{"fetchjob.js":14,"imagehelperfunctions.js":19}],16:[function(require,module,exports){
 'use strict';
 
 module.exports = FrustumRequestsPrioritizer;
@@ -2567,7 +3191,90 @@ FrustumRequestsPrioritizer.prototype._pixelToCartographicY = function tileToCart
     var yProjected = imageRectangle.north - relativeY * rectangleHeight;
     return yProjected;
 };
-},{}],14:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
+'use strict';
+
+module.exports = HashMap;
+
+var LinkedList = require('linkedlist.js');
+
+function HashMap(hasher) {
+    this._byKey = [];
+	this._hasher = hasher;
+}
+
+HashMap.prototype.getFromKey = function getFromKey(key) {
+	var hashCode = this._hasher.getHashCode(key);
+    var hashElements = this._byKey[hashCode];
+    if (!hashElements) {
+		return null;
+    }
+	
+    var iterator = hashElements.getFirstIterator();
+    while (iterator !== null) {
+        var item = hashElements.getValue(iterator);
+        if (this._hasher.isEqual(item.key, key)) {
+			return item.value;
+		}
+        
+        iterator = hashElements.getNextIterator(iterator);
+    }
+
+	return null;
+};
+
+HashMap.prototype.getFromIterator = function getFromIterator(iterator) {
+	return iterator._hashElements.getValue(iterator._internalIterator).value;
+};
+
+HashMap.prototype.tryAdd = function tryAdd(key, createValue) {
+	var hashCode = this._hasher.getHashCode(key);
+    var hashElements = this._byKey[hashCode];
+    if (!hashElements) {
+		hashElements = new LinkedList();
+		this._byKey[hashCode] = hashElements ;
+    }
+	
+	var iterator = {
+		_hashCode: hashCode,
+		_hashElements: hashElements,
+		_internalIterator: null
+	};
+	
+    iterator._internalIterator = hashElements.getFirstIterator();
+    while (iterator._internalIterator !== null) {
+        var item = hashElements.getValue(iterator._internalIterator);
+        if (this._hasher.isEqual(item.key, key)) {
+			return {
+				iterator: iterator,
+				isNew: false,
+				value: item.value
+			};
+		}
+        
+        iterator._internalIterator = hashElements.getNextIterator(iterator._internalIterator);
+    }
+	
+	var value = createValue();
+	iterator._internalIterator = hashElements.add({
+		key: key,
+		value: value
+	});
+	
+	return {
+		iterator: iterator,
+		isNew: true,
+		value: value
+	};
+};
+
+HashMap.prototype.remove = function remove(iterator) {
+	iterator._hashElements.remove(iterator._internalIterator);
+	if (iterator._hashElements.getCount() === 0) {
+		delete this._byKey[iterator._hashCode];
+	}
+};
+},{"linkedlist.js":20}],18:[function(require,module,exports){
 'use strict';
 
 var FrustumRequestsPrioritizer = require('frustumrequestsprioritizer.js');
@@ -2578,14 +3285,13 @@ module.exports = {
     fixBounds: fixBounds,
     alignParamsToTilesAndLevel: alignParamsToTilesAndLevel,
     getImageImplementation: getImageImplementation,
-    getScriptsForWorkerImport: getScriptsForWorkerImport
+    getScriptsForWorkerImport: getScriptsForWorkerImport,
+	createInternalOptions: createInternalOptions
 };
-
-// Avoid strict mode error
-var globals;
 
 // Avoid jshint error
 /* global self: false */
+/* global globals: false */
     
 var log2 = Math.log(2);
 
@@ -2770,113 +3476,168 @@ function alignParamsToTilesAndLevel(
 }
 
 function getImageImplementation(imageImplementationClassName) {
-    return  (window && window[imageImplementationClassName]) ||
-            (globals && globals[imageImplementationClassName]) ||
-            (self && self[imageImplementationClassName]);
+	try {
+		return window && window[imageImplementationClassName];
+	} catch(e) { }
+
+	try {
+		return globals && globals[imageImplementationClassName];
+	} catch(e) { }
+
+	try {
+		return self && self[imageImplementationClassName];
+	} catch(e) { }
 }
 
 function getScriptsForWorkerImport(imageImplementation, options) {
     return scriptsForWorkerToImport.concat(
         imageImplementation.getScriptsToImport());
 }
-},{"frustumrequestsprioritizer.js":13}],15:[function(require,module,exports){
-arguments[4][14][0].apply(exports,arguments)
-},{"dup":14,"frustumrequestsprioritizer.js":13}],16:[function(require,module,exports){
+
+function createInternalOptions(imageImplementationClassName, options) {
+	options = options || {};
+	
+	if (options.imageImplementationClassName &&
+		options.scriptsToImport) {
+			
+		return options;
+	}
+	
+	var imageImplementation = getImageImplementation(imageImplementationClassName);
+	
+	var optionsInternal = JSON.parse(JSON.stringify(options));
+	optionsInternal.imageImplementationClassName = options.imageImplementationClassName || imageImplementationClassName;
+	optionsInternal.scriptsToImport = options.scriptsToImport || getScriptsForWorkerImport(imageImplementation, options);
+	
+	return optionsInternal;
+}
+},{"frustumrequestsprioritizer.js":16}],19:[function(require,module,exports){
+arguments[4][18][0].apply(exports,arguments)
+},{"dup":18,"frustumrequestsprioritizer.js":16}],20:[function(require,module,exports){
 'use strict';
 
-var LinkedList = (function LinkedListClosure() {
-    function LinkedList() {
-        this._first = { _prev: null, _parent: this };
-        this._last = { _next: null, _parent: this };
-        this._count = 0;
-        
-        this._last._prev = this._first;
-        this._first._next = this._last;
-    }
-    
-    LinkedList.prototype.add = function add(value, addBefore) {
-        if (addBefore === null || addBefore === undefined) {
-            addBefore = this._last;
-        }
-        
-        this._validateIteratorOfThis(addBefore);
-        
-        ++this._count;
-        
-        var newNode = {
-            _value: value,
-            _next: addBefore,
-            _prev: addBefore._prev,
-            _parent: this
-        };
-        
-        newNode._prev._next = newNode;
-        addBefore._prev = newNode;
-        
-        return newNode;
-    };
-    
-    LinkedList.prototype.remove = function remove(iterator) {
-        this._validateIteratorOfThis(iterator);
-        
-        --this._count;
-        
-        iterator._prev._next = iterator._next;
-        iterator._next._prev = iterator._prev;
-        iterator._parent = null;
-    };
-    
-    LinkedList.prototype.getValue = function getValue(iterator) {
-        this._validateIteratorOfThis(iterator);
-        
-        return iterator._value;
-    };
-    
-    LinkedList.prototype.getFirstIterator = function getFirstIterator() {
-        var iterator = this.getNextIterator(this._first);
-        return iterator;
-    };
-    
-    LinkedList.prototype.getLastIterator = function getFirstIterator() {
-        var iterator = this.getPrevIterator(this._last);
-        return iterator;
-    };
-    
-    LinkedList.prototype.getNextIterator = function getNextIterator(iterator) {
-        this._validateIteratorOfThis(iterator);
+module.exports = LinkedList;
 
-        if (iterator._next === this._last) {
-            return null;
-        }
-        
-        return iterator._next;
-    };
-    
-    LinkedList.prototype.getPrevIterator = function getPrevIterator(iterator) {
-        this._validateIteratorOfThis(iterator);
+function LinkedList() {
+	this._first = { _prev: null, _parent: this };
+	this._last = { _next: null, _parent: this };
+	this._count = 0;
+	
+	this._last._prev = this._first;
+	this._first._next = this._last;
+}
 
-        if (iterator._prev === this._first) {
-            return null;
+LinkedList.prototype.add = function add(value, addBefore) {
+	if (addBefore === null || addBefore === undefined) {
+		addBefore = this._last;
+	}
+	
+	this._validateIteratorOfThis(addBefore);
+	
+	++this._count;
+	
+	var newNode = {
+		_value: value,
+		_next: addBefore,
+		_prev: addBefore._prev,
+		_parent: this
+	};
+	
+	newNode._prev._next = newNode;
+	addBefore._prev = newNode;
+	
+	return newNode;
+};
+
+LinkedList.prototype.remove = function remove(iterator) {
+	this._validateIteratorOfThis(iterator);
+	
+	--this._count;
+	
+	iterator._prev._next = iterator._next;
+	iterator._next._prev = iterator._prev;
+	iterator._parent = null;
+};
+
+LinkedList.prototype.getValue = function getValue(iterator) {
+	this._validateIteratorOfThis(iterator);
+	
+	return iterator._value;
+};
+
+LinkedList.prototype.getFirstIterator = function getFirstIterator() {
+	var iterator = this.getNextIterator(this._first);
+	return iterator;
+};
+
+LinkedList.prototype.getLastIterator = function getFirstIterator() {
+	var iterator = this.getPrevIterator(this._last);
+	return iterator;
+};
+
+LinkedList.prototype.getNextIterator = function getNextIterator(iterator) {
+	this._validateIteratorOfThis(iterator);
+
+	if (iterator._next === this._last) {
+		return null;
+	}
+	
+	return iterator._next;
+};
+
+LinkedList.prototype.getPrevIterator = function getPrevIterator(iterator) {
+	this._validateIteratorOfThis(iterator);
+
+	if (iterator._prev === this._first) {
+		return null;
+	}
+	
+	return iterator._prev;
+};
+
+LinkedList.prototype.getCount = function getCount() {
+	return this._count;
+};
+
+LinkedList.prototype._validateIteratorOfThis =
+	function validateIteratorOfThis(iterator) {
+	
+	if (iterator._parent !== this) {
+		throw 'iterator must be of the current LinkedList';
+	}
+};
+},{}],21:[function(require,module,exports){
+'use strict';
+
+// Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
+/*jshint -W034 */
+
+var ImageDecoder = require('imagedecoder.js');
+
+module.exports.getScriptUrl = function getScriptUrl() {
+    return slaveScriptUrl;
+};
+
+var slaveScriptBlob = new Blob(
+    ['(', slaveScriptContent.toString(), ')()'],
+    { type: 'application/javascript' });
+var slaveScriptUrl = URL.createObjectURL(slaveScriptBlob);
+
+function slaveScriptContent() {
+    'use strict';
+    AsyncProxy.AsyncProxySlave.setSlaveSideCreator(function() {
+        var argumentsAsArray = new Array(arguments.length + 1);
+        argumentsAsArray[0] = null;
+        for (var i = 0; i < arguments.length; ++i) {
+            argumentsAsArray[i + 1] = arguments[i];
         }
         
-        return iterator._prev;
-    };
-    
-    LinkedList.prototype.getCount = function getCount() {
-        return this._count;
-    };
-    
-    LinkedList.prototype._validateIteratorOfThis =
-        function validateIteratorOfThis(iterator) {
+        var instance = new (Function.prototype.bind.apply(imageDecoderFramework.ImageDecoder, argumentsAsArray));
         
-        if (iterator._parent !== this) {
-            throw 'iterator must be of the current LinkedList';
-        }
-    };
-    
-    return LinkedList;
-})();
-},{}],17:[function(require,module,exports){
+        return instance;
+    });
+}
+},{"imagedecoder.js":11}],22:[function(require,module,exports){
 'use strict';
 
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
@@ -2915,7 +3676,7 @@ function slaveScriptContent() {
         AsyncProxy.AsyncProxySlave.sendUserDataToMaster(sizes);
     }
 }
-},{}],18:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 'use strict';
 
 module.exports = WorkerProxyFetchManager;
@@ -2923,22 +3684,18 @@ module.exports = WorkerProxyFetchManager;
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
 
-function WorkerProxyFetchManager(imageImplementationClassName, options) {
+function WorkerProxyFetchManager(options) {
     this._imageWidth = null;
     this._imageHeight = null;
     this._sizesParams = null;
     this._currentStatusCallbackWrapper = null;
+    this._options = options;
     
     var ctorArgs = [options];
-    
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
-
-    var scriptsToImport = imageHelperFunctions.getScriptsForWorkerImport(
-        this._imageImplementation, options);
-    scriptsToImport = scriptsToImport.concat([sendImageParametersToMaster.getScriptUrl()]);
+    var scriptsToImport = options.scriptsToImport.concat([sendImageParametersToMaster.getScriptUrl()]);
     
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
-        scriptsToImport, 'FetchManager', ctorArgs);
+        scriptsToImport, 'imageDecoderFramework.Internals.FetchManager', ctorArgs);
     
     var boundUserDataHandler = this._userDataHandler.bind(this);
     this._workerHelper.setUserDataHandler(boundUserDataHandler);
@@ -3010,7 +3767,7 @@ WorkerProxyFetchManager.prototype.createRequest = function createRequest(
     //    pathToHeadersCodestream
     //];
     
-    var transferablePaths = this._imageImplementation.getTransferablePathsOfRequestCallback();
+    var transferablePaths = this._options.transferablePathsOfRequestCallback;
     
     var internalCallbackWrapper =
         this._workerHelper.wrapCallback(
@@ -3084,13 +3841,14 @@ WorkerProxyFetchManager.prototype.getSizesParams = function getSizesParams() {
 WorkerProxyFetchManager.prototype._userDataHandler = function userDataHandler(sizesParams) {
     this._sizesParams = sizesParams;
 };
-},{"imagehelperfunctions.js":15,"sendimageparameterstomaster.js":17}],19:[function(require,module,exports){
+},{"imagehelperfunctions.js":19,"sendimageparameterstomaster.js":22}],24:[function(require,module,exports){
 'use strict';
 
 module.exports = WorkerProxyImageDecoder;
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
+var createImageDecoderSlaveSide = require('createimagedecoderonslaveside.js');
 
 function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._imageWidth = null;
@@ -3099,17 +3857,21 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._tileWidth = 0;
     this._tileHeight = 0;
     this._currentStatusCallbackWrapper = null;
+	this._sizesCalculator = null;
     
-    var ctorArgs = [imageImplementationClassName, options];
+	var optionsInternal = imageHelperFunctions.createInternalOptions(imageImplementationClassName, options);
+    var ctorArgs = [imageImplementationClassName, optionsInternal];
 
     this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
     
     var scriptsToImport = imageHelperFunctions.getScriptsForWorkerImport(
         this._imageImplementation, options);
-    scriptsToImport = scriptsToImport.concat([sendImageParametersToMaster.getScriptUrl()]);
+    scriptsToImport = scriptsToImport.concat([
+        sendImageParametersToMaster.getScriptUrl(),
+        createImageDecoderSlaveSide.getScriptUrl()]);
 
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
-        scriptsToImport, 'ImageDecoder', ctorArgs);
+        scriptsToImport, 'imageDecoderFramework.ImageDecoder', ctorArgs);
     
     var boundUserDataHandler = this._userDataHandler.bind(this);
     this._workerHelper.setUserDataHandler(boundUserDataHandler);
@@ -3213,7 +3975,7 @@ WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
 };
 
 WorkerProxyImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
-    var pathToPixelsArray = ['pixels', 'buffer'];
+    var pathToPixelsArray = ['data', 'buffer'];
     var transferables = [pathToPixelsArray];
     
     var args = [imagePartParams];
@@ -3317,7 +4079,7 @@ WorkerProxyImageDecoder.prototype._userDataHandler = function userDataHandler(si
     this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
         sizesParams.imageParams);
 };
-},{"imagehelperfunctions.js":15,"sendimageparameterstomaster.js":17}],20:[function(require,module,exports){
+},{"createimagedecoderonslaveside.js":21,"imagehelperfunctions.js":19,"sendimageparameterstomaster.js":22}],25:[function(require,module,exports){
 'use strict';
 
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
@@ -3334,15 +4096,13 @@ var decoderSlaveScriptBlob = new Blob(
     { type: 'application/javascript' });
 var decoderSlaveScriptUrl = URL.createObjectURL(decoderSlaveScriptBlob);
 
-function WorkerProxyPixelsDecoder(imageImplementationClassName) {
+function WorkerProxyPixelsDecoder(options) {
+    this._options = options || {};
     this._imageImplementation = imageHelperFunctions.getImageImplementation(
-        imageImplementationClassName);
+        options.imageImplementationClassName);
     
-    var scriptsToImport = imageHelperFunctions.getScriptsForWorkerImport(
-        this._imageImplementation);
-    scriptsToImport = scriptsToImport.concat([decoderSlaveScriptUrl]);
-    
-    var args = [imageImplementationClassName];
+    var scriptsToImport = (this._options.scriptsToImport || []).concat([decoderSlaveScriptUrl]);
+    var args = [this._options];
     
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
         scriptsToImport,
@@ -3351,12 +4111,12 @@ function WorkerProxyPixelsDecoder(imageImplementationClassName) {
 }
 
 WorkerProxyPixelsDecoder.prototype.decode = function decode(dataForDecode) {
-    var transferables = this._imageImplementation.getTransferablesOfRequestCallback(dataForDecode);
-    var resultTransferables = [0, 'pixels', 'buffer'];
+    //var transferables = this._imageImplementation.getTransferableOfDecodeArguments(dataForDecode);
+    var resultTransferables = [['data', 'buffer']];
     
     var args = [dataForDecode];
     var options = {
-        transferables: transferables,
+        //transferables: transferables,
         pathsToTransferablesInPromiseResult: resultTransferables,
         isReturnPromise: true
     };
@@ -3367,14 +4127,12 @@ WorkerProxyPixelsDecoder.prototype.decode = function decode(dataForDecode) {
 function decoderSlaveScriptBody() {
     'use strict';
 
-    AsyncProxy.AsyncProxySlave.setSlaveSideCreator(createDecoder);
-
-    function createDecoder(imageImplementationClassName) {
-        var imageImplementation = self[imageImplementationClassName];
-        return imageImplementation.createDecoder();
-    }
+    AsyncProxy.AsyncProxySlave.setSlaveSideCreator(function createDecoder(options) {
+        var imageImplementation = self[options.imageImplementationClassName];
+        return imageImplementation.createPixelsDecoder();
+    });
 }
-},{"imagehelperfunctions.js":15}],21:[function(require,module,exports){
+},{"imagehelperfunctions.js":19}],26:[function(require,module,exports){
 'use strict';
 
 module.exports = ViewerImageDecoder;
@@ -3975,165 +4733,176 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         this._startShowingDynamicRegion();
     }
 };
-},{"imagedecoder.js":10,"imagehelperfunctions.js":15,"workerproxyimagedecoder.js":19}],22:[function(require,module,exports){
+},{"imagedecoder.js":11,"imagehelperfunctions.js":19,"workerproxyimagedecoder.js":24}],27:[function(require,module,exports){
 'use strict';
 
 var ViewerImageDecoder = require('viewerimagedecoder.js');
 var calculateLeafletFrustum = require('leafletfrustumcalculator.js');
 
 /* global L: false */
+/* global self: false */
 
-module.exports = L.Class.extend({
-    initialize: function initialize(options) {
-        this._options = Object.create(options);
-        
-        if (options.latLngBounds !== undefined) {
-            this._options.cartographicBounds = {
-                west: options.latLngBounds.getWest(),
-                east: options.latLngBounds.getEast(),
-                south: options.latLngBounds.getSouth(),
-                north: options.latLngBounds.getNorth()
-            };
-        }
-        
-        this._targetCanvas = null;
-        this._canvasPosition = null;
-        this._canvasUpdatedCallbackBound = this._canvasUpdatedCallback.bind(this);
-        this._image = null;
-        this._exceptionCallback = null;
-    },
-    
-    setExceptionCallback: function setExceptionCallback(exceptionCallback) {
-        this._exceptionCallback = exceptionCallback;
-        if (this._image !== null) {
-            this._image.setExceptionCallback(exceptionCallback);
-        }
-    },
-    
-    _createImage: function createImage() {
-        if (this._image === null) {
-            this._image = new ViewerImageDecoder(
-                this._options.imageImplementationClassName,
-                this._canvasUpdatedCallbackBound,
-                this._options);
+if (self.L) {
+    module.exports = L.Class.extend(createImageDecoderRegionLayerFunctions());
+} else {
+    module.exports = function() {
+        throw new Error('Cannot instantiate ImageDecoderRegionLayer: No Leaflet namespace in scope');
+    };
+}
+
+function createImageDecoderRegionLayerFunctions() {
+    return {
+        initialize: function initialize(options) {
+            this._options = Object.create(options);
             
-            if (this._exceptionCallback !== null) {
-                this._image.setExceptionCallback(this._exceptionCallback);
+            if (options.latLngBounds !== undefined) {
+                this._options.cartographicBounds = {
+                    west: options.latLngBounds.getWest(),
+                    east: options.latLngBounds.getEast(),
+                    south: options.latLngBounds.getSouth(),
+                    north: options.latLngBounds.getNorth()
+                };
             }
             
-            this._image.open(this._options.url);
-        }
-    },
+            this._targetCanvas = null;
+            this._canvasPosition = null;
+            this._canvasUpdatedCallbackBound = this._canvasUpdatedCallback.bind(this);
+            this._image = null;
+            this._exceptionCallback = null;
+        },
+        
+        setExceptionCallback: function setExceptionCallback(exceptionCallback) {
+            this._exceptionCallback = exceptionCallback;
+            if (this._image !== null) {
+                this._image.setExceptionCallback(exceptionCallback);
+            }
+        },
+        
+        _createImage: function createImage() {
+            if (this._image === null) {
+                this._image = new ViewerImageDecoder(
+                    this._options.imageImplementationClassName,
+                    this._canvasUpdatedCallbackBound,
+                    this._options);
+                
+                if (this._exceptionCallback !== null) {
+                    this._image.setExceptionCallback(this._exceptionCallback);
+                }
+                
+                this._image.open(this._options.url);
+            }
+        },
 
-    onAdd: function onAdd(map) {
-        if (this._map !== undefined) {
-            throw 'Cannot add this layer to two maps';
-        }
-        
-        this._map = map;
-        this._createImage();
-
-        // create a DOM element and put it into one of the map panes
-        this._targetCanvas = L.DomUtil.create(
-            'canvas', 'image-decoder-layer-canvas leaflet-zoom-animated');
-        
-        this._image.setTargetCanvas(this._targetCanvas);
-        
-        this._canvasPosition = null;
+        onAdd: function onAdd(map) {
+            if (this._map !== undefined) {
+                throw 'Cannot add this layer to two maps';
+            }
             
-        map.getPanes().mapPane.appendChild(this._targetCanvas);
+            this._map = map;
+            this._createImage();
 
-        // add a viewreset event listener for updating layer's position, do the latter
-        map.on('viewreset', this._moved, this);
-        map.on('move', this._moved, this);
+            // create a DOM element and put it into one of the map panes
+            this._targetCanvas = L.DomUtil.create(
+                'canvas', 'image-decoder-layer-canvas leaflet-zoom-animated');
+            
+            this._image.setTargetCanvas(this._targetCanvas);
+            
+            this._canvasPosition = null;
+                
+            map.getPanes().mapPane.appendChild(this._targetCanvas);
 
-        if (L.Browser.any3d) {
-            map.on('zoomanim', this._animateZoom, this);
-        }
+            // add a viewreset event listener for updating layer's position, do the latter
+            map.on('viewreset', this._moved, this);
+            map.on('move', this._moved, this);
 
-        this._moved();
-    },
+            if (L.Browser.any3d) {
+                map.on('zoomanim', this._animateZoom, this);
+            }
 
-    onRemove: function onRemove(map) {
-        if (map !== this._map) {
-            throw 'Removed from wrong map';
-        }
+            this._moved();
+        },
+
+        onRemove: function onRemove(map) {
+            if (map !== this._map) {
+                throw 'Removed from wrong map';
+            }
+            
+            map.off('viewreset', this._moved, this);
+            map.off('move', this._moved, this);
+            map.off('zoomanim', this._animateZoom, this);
+            
+            // remove layer's DOM elements and listeners
+            map.getPanes().mapPane.removeChild(this._targetCanvas);
+            this._targetCanvas = null;
+            this._canvasPosition = null;
+
+            this._map = undefined;
+            
+            this._image.close();
+            this._image = null;
+        },
         
-        map.off('viewreset', this._moved, this);
-        map.off('move', this._moved, this);
-        map.off('zoomanim', this._animateZoom, this);
-        
-        // remove layer's DOM elements and listeners
-        map.getPanes().mapPane.removeChild(this._targetCanvas);
-        this._targetCanvas = null;
-        this._canvasPosition = null;
-
-        this._map = undefined;
-        
-        this._image.close();
-        this._image = null;
-    },
-    
-    _moved: function () {
-        this._moveCanvases();
-
-        var frustumData = calculateLeafletFrustum(this._map);
-        
-        this._image.updateViewArea(frustumData);
-    },
-    
-    _canvasUpdatedCallback: function canvasUpdatedCallback(newPosition) {
-        if (newPosition !== null) {
-            this._canvasPosition = newPosition;
+        _moved: function () {
             this._moveCanvases();
-        }
-    },
-    
-    _moveCanvases: function moveCanvases() {
-        if (this._canvasPosition === null) {
-            return;
-        }
-    
-        // update layer's position
-        var west = this._canvasPosition.west;
-        var east = this._canvasPosition.east;
-        var south = this._canvasPosition.south;
-        var north = this._canvasPosition.north;
-        
-        var topLeft = this._map.latLngToLayerPoint([north, west]);
-        var bottomRight = this._map.latLngToLayerPoint([south, east]);
-        var size = bottomRight.subtract(topLeft);
-        
-        L.DomUtil.setPosition(this._targetCanvas, topLeft);
-        this._targetCanvas.style.width = size.x + 'px';
-        this._targetCanvas.style.height = size.y + 'px';
-    },
-    
-    _animateZoom: function animateZoom(options) {
-        // NOTE: All method (including using of private method
-        // _latLngToNewLayerPoint) was copied from ImageOverlay,
-        // as Leaflet documentation recommends.
-        
-        var west =  this._canvasPosition.west;
-        var east =  this._canvasPosition.east;
-        var south = this._canvasPosition.south;
-        var north = this._canvasPosition.north;
 
-        var topLeft = this._map._latLngToNewLayerPoint(
-            [north, west], options.zoom, options.center);
-        var bottomRight = this._map._latLngToNewLayerPoint(
-            [south, east], options.zoom, options.center);
+            var frustumData = calculateLeafletFrustum(this._map);
+            
+            this._image.updateViewArea(frustumData);
+        },
         
-        var scale = this._map.getZoomScale(options.zoom);
-        var size = bottomRight.subtract(topLeft);
-        var sizeScaled = size.multiplyBy((1 / 2) * (1 - 1 / scale));
-        var origin = topLeft.add(sizeScaled);
+        _canvasUpdatedCallback: function canvasUpdatedCallback(newPosition) {
+            if (newPosition !== null) {
+                this._canvasPosition = newPosition;
+                this._moveCanvases();
+            }
+        },
         
-        this._targetCanvas.style[L.DomUtil.TRANSFORM] =
-            L.DomUtil.getTranslateString(origin) + ' scale(' + scale + ') ';
-    }
-});
-},{"leafletfrustumcalculator.js":23,"viewerimagedecoder.js":21}],23:[function(require,module,exports){
+        _moveCanvases: function moveCanvases() {
+            if (this._canvasPosition === null) {
+                return;
+            }
+        
+            // update layer's position
+            var west = this._canvasPosition.west;
+            var east = this._canvasPosition.east;
+            var south = this._canvasPosition.south;
+            var north = this._canvasPosition.north;
+            
+            var topLeft = this._map.latLngToLayerPoint([north, west]);
+            var bottomRight = this._map.latLngToLayerPoint([south, east]);
+            var size = bottomRight.subtract(topLeft);
+            
+            L.DomUtil.setPosition(this._targetCanvas, topLeft);
+            this._targetCanvas.style.width = size.x + 'px';
+            this._targetCanvas.style.height = size.y + 'px';
+        },
+        
+        _animateZoom: function animateZoom(options) {
+            // NOTE: All method (including using of private method
+            // _latLngToNewLayerPoint) was copied from ImageOverlay,
+            // as Leaflet documentation recommends.
+            
+            var west =  this._canvasPosition.west;
+            var east =  this._canvasPosition.east;
+            var south = this._canvasPosition.south;
+            var north = this._canvasPosition.north;
+
+            var topLeft = this._map._latLngToNewLayerPoint(
+                [north, west], options.zoom, options.center);
+            var bottomRight = this._map._latLngToNewLayerPoint(
+                [south, east], options.zoom, options.center);
+            
+            var scale = this._map.getZoomScale(options.zoom);
+            var size = bottomRight.subtract(topLeft);
+            var sizeScaled = size.multiplyBy((1 / 2) * (1 - 1 / scale));
+            var origin = topLeft.add(sizeScaled);
+            
+            this._targetCanvas.style[L.DomUtil.TRANSFORM] =
+                L.DomUtil.getTranslateString(origin) + ' scale(' + scale + ') ';
+        }
+    };
+}
+},{"leafletfrustumcalculator.js":28,"viewerimagedecoder.js":26}],28:[function(require,module,exports){
 'use strict';
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
@@ -4154,6 +4923,6 @@ module.exports = function calculateLeafletFrustum(leafletMap) {
 
     return frustumData;
 };
-},{"imagehelperfunctions.js":15}]},{},[1])(1)
+},{"imagehelperfunctions.js":19}]},{},[1])(1)
 });
 

@@ -5,22 +5,18 @@ module.exports = WorkerProxyFetchManager;
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
 
-function WorkerProxyFetchManager(imageImplementationClassName, options) {
+function WorkerProxyFetchManager(options) {
     this._imageWidth = null;
     this._imageHeight = null;
     this._sizesParams = null;
     this._currentStatusCallbackWrapper = null;
+    this._options = options;
     
     var ctorArgs = [options];
-    
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
-
-    var scriptsToImport = imageHelperFunctions.getScriptsForWorkerImport(
-        this._imageImplementation, options);
-    scriptsToImport = scriptsToImport.concat([sendImageParametersToMaster.getScriptUrl()]);
+    var scriptsToImport = options.scriptsToImport.concat([sendImageParametersToMaster.getScriptUrl()]);
     
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
-        scriptsToImport, 'FetchManager', ctorArgs);
+        scriptsToImport, 'imageDecoderFramework.Internals.FetchManager', ctorArgs);
     
     var boundUserDataHandler = this._userDataHandler.bind(this);
     this._workerHelper.setUserDataHandler(boundUserDataHandler);
@@ -92,7 +88,7 @@ WorkerProxyFetchManager.prototype.createRequest = function createRequest(
     //    pathToHeadersCodestream
     //];
     
-    var transferablePaths = this._imageImplementation.getTransferablePathsOfRequestCallback();
+    var transferablePaths = this._options.transferablePathsOfRequestCallback;
     
     var internalCallbackWrapper =
         this._workerHelper.wrapCallback(
