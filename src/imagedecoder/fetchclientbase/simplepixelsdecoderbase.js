@@ -13,7 +13,7 @@ function SimplePixelsDecoderBase() {
 		var result = new ImageData(width, height);
 		var promises = [];
 		for (var i = 0; i < fetchedData.fetchedItems.length; ++i) {
-			promises.push(this.decodeRegion(result, imagePartParams, fetchedData.fetchedItems[i].key, fetchedData.fetchedItems[i].data));
+			promises.push(this.decodeRegion(result, imagePartParams.minX, imagePartParams.minY, fetchedData.fetchedItems[i].key, fetchedData.fetchedItems[i].data));
 		}
 		
 		return Promise.all(promises).then(function() {

@@ -222,8 +222,6 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
         if (channelState === undefined) {
             throw 'Channel handle does not exist';
         }
-        
-        this._fetchManager.moveChannel(channelHandle, imagePartParams);
     }
     
     var listenerHandle = decodeJobsPool.forkDecodeJobs(
@@ -235,16 +233,14 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
         /*isProgressive=*/true,
         imagePartParamsNotNeeded);
         
-    if (channelHandle !== undefined &&
-        channelState.decodeJobsListenerHandle !== null) {
-        
-        // Unregister after forked new jobs, so no termination occurs meanwhile
-        decodeJobsPool.unregisterForkedJobs(
-            channelState.decodeJobsListenerHandle);
-    }
-    
-    if (channelState !== null) {
+    if (channelHandle !== undefined) {
+        if (channelState.decodeJobsListenerHandle !== null) {
+			// Unregister after forked new jobs, so no termination occurs meanwhile
+			decodeJobsPool.unregisterForkedJobs(
+				channelState.decodeJobsListenerHandle);
+		}
         channelState.decodeJobsListenerHandle = listenerHandle;
+        this._fetchManager.moveChannel(channelHandle, imagePartParams);
     }
 };
 

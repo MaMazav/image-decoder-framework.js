@@ -147,7 +147,7 @@ DecodeJob.prototype._startDecode = function startDecode(decoder, jobContext) {
     if (this._isAbortedNoTermination()) {
         --this._activeSubJobs;
         this._decodeScheduler.jobDone(decoder, jobContext);
-        checkIfAllTerminated(this);
+        this._checkIfAllTerminated();
         
         return;
     }
@@ -203,7 +203,7 @@ DecodeJob.prototype._pixelsDecodedCallback = function pixelsDecodedCallback(
     this._allRelevantBytesLoaded = jobContext.allRelevantBytesLoaded;
     
     if (this._isAbortedNoTermination()) {
-        checkIfAllTerminated(this);
+        this._checkIfAllTerminated();
         return;
     }
     
@@ -212,7 +212,7 @@ DecodeJob.prototype._pixelsDecodedCallback = function pixelsDecodedCallback(
         // Do not refresh pixels with lower quality layer than
         // what was already returned
         
-        checkIfAllTerminated(this);
+        this._checkIfAllTerminated();
         return;
     }
     
@@ -248,7 +248,7 @@ DecodeJob.prototype._pixelsDecodedCallback = function pixelsDecodedCallback(
         iterator = this._listenersLinkedList.getNextIterator(iterator);
     }
 
-    checkIfAllTerminated(this);
+    this._checkIfAllTerminated();
 };
 
 DecodeJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
@@ -269,7 +269,7 @@ DecodeJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
     --this._activeSubJobs;
     this._isAborted |= isAborted;
     
-    checkIfAllTerminated(this);
+    this._checkIfAllTerminated();
 };
 
 DecodeJob.prototype._decodeAborted = function decodeAborted(jobContext) {
@@ -284,7 +284,7 @@ DecodeJob.prototype._decodeAborted = function decodeAborted(jobContext) {
     
     --this._activeSubJobs;
     
-    checkIfAllTerminated(this);
+    this._checkIfAllTerminated();
 };
 
 DecodeJob.prototype._isAbortedNoTermination = function _isAbortedNoTermination() {
@@ -303,28 +303,28 @@ DecodeJob.prototype._isAbortedNoTermination = function _isAbortedNoTermination()
 //    // Do nothing
 //}
 
-function checkIfAllTerminated(self) {
-    if (self._activeSubJobs < 0) {
+DecodeJob.prototype._checkIfAllTerminated = function checkIfAllTerminated() {
+    if (this._activeSubJobs < 0) {
         throw 'Inconsistent number of decode jobs';
     }
     
-    if (self._activeSubJobs > 0) {
+    if (this._activeSubJobs > 0) {
         return;
     }
     
-    if (self._isAlreadyScheduledNonFirstJob) {
+    if (this._isAlreadyScheduledNonFirstJob) {
         throw 'Inconsistent isAlreadyScheduledNonFirstJob flag';
     }
     
-    self._isTerminated = true;
-    var linkedList = self._listenersLinkedList;
-    self._listenersLinkedList = null;
+    this._isTerminated = true;
+    var linkedList = this._listenersLinkedList;
+    this._listenersLinkedList = null;
 
     var iterator = linkedList.getFirstIterator();
     
     while (iterator !== null) {
         var listenerHandle = linkedList.getValue(iterator);
-        listenerHandle.isAnyDecoderAborted |= self._isAborted;
+        listenerHandle.isAnyDecoderAborted |= this._isAborted;
         
         var remaining = --listenerHandle.remainingDecodeJobs;
         if (remaining < 0) {
@@ -340,4 +340,4 @@ function checkIfAllTerminated(self) {
         
         iterator = linkedList.getNextIterator(iterator);
     }
-}
+};

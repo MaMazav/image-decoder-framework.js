@@ -136,12 +136,12 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
 
     this._dynamicFetchParams = alignedParams;
     
-    var allowAdditionalChannel = false;
+    var startDynamicRegionOnTermination = false;
     var moveExistingChannel = !this._allowMultipleChannelsInSession;
     this._fetch(
         REGION_DYNAMIC,
         alignedParams,
-        allowAdditionalChannel,
+        startDynamicRegionOnTermination,
         moveExistingChannel);
 };
 
@@ -160,7 +160,7 @@ ViewerImageDecoder.prototype._isImagePartsEqual = function isImagePartsEqual(fir
 ViewerImageDecoder.prototype._fetch = function fetch(
     regionId,
     fetchParams,
-    allowAdditionalChannel,
+    startDynamicRegionOnTermination,
     moveExistingChannel) {
     
     var requestIndex = ++this._lastRequestIndex;
@@ -250,12 +250,12 @@ ViewerImageDecoder.prototype._fetch = function fetch(
             regionId,
             fetchParams.imagePartParams.requestPriorityData,
             isAborted,
-            allowAdditionalChannel);
+            startDynamicRegionOnTermination);
     }
 };
 
 ViewerImageDecoder.prototype._fetchTerminatedCallback = function fetchTerminatedCallback(
-    regionId, priorityData, isAborted, allowAdditionalChannel) {
+    regionId, priorityData, isAborted, startDynamicRegionOnTermination) {
     
     var region = this._regions[regionId];
     if (region === undefined) {
@@ -270,7 +270,7 @@ ViewerImageDecoder.prototype._fetchTerminatedCallback = function fetchTerminated
     
     region.isDone = !isAborted && this._isReady;
     
-    if (allowAdditionalChannel) {
+    if (startDynamicRegionOnTermination) {
         this._image.createChannel(
             this._createdChannelBound);
     }
@@ -586,13 +586,13 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
     overviewAlignedParams.imagePartParams.requestPriorityData.overrideHighestPriority = true;
     overviewAlignedParams.imagePartParams.maxNumQualityLayers = 1;
     
-    var allowAdditionalChannel =
+    var startDynamicRegionOnTermination =
         !this._allowMultipleChannelsInSession;
         
     this._fetch(
         REGION_OVERVIEW,
         overviewAlignedParams,
-        allowAdditionalChannel);
+        startDynamicRegionOnTermination);
     
     if (this._allowMultipleChannelsInSession) {
         this._startShowingDynamicRegion();
