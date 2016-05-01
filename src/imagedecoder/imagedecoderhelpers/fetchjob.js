@@ -182,15 +182,15 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
             this._dataListeners[i](this._contextVars, imageDataContext);
         }
         
+		if (imageDataContext.isDone()) {
+			this._fetchTerminated(/*isAborted=*/false);
+			//this._alreadyTerminatedWhenAllDataArrived = true;
+			return;
+		}
+		
         if (this._useScheduler) {
             if (this._resource === null) {
                 throw 'No resource allocated but fetch callback called';
-            }
-            
-            if (imageDataContext.isDone()) {
-                this._fetchTerminated(/*isAborted=*/false);
-				//this._alreadyTerminatedWhenAllDataArrived = true;
-                return;
             }
             
             var scheduler = this._scheduler;
