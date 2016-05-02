@@ -17,9 +17,10 @@ if (self.L) {
 function createImageDecoderRegionLayerFunctions() {
     return {
         initialize: function initialize(options) {
-            this._options = Object.create(options);
-            
-            if (options.latLngBounds !== undefined) {
+			this._options = options || {};
+			
+            if (this._options.latLngBounds !== undefined) {
+				this._options = JSON.parse(JSON.stringify(options));
                 this._options.cartographicBounds = {
                     west: options.latLngBounds.getWest(),
                     east: options.latLngBounds.getEast(),

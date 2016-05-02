@@ -170,12 +170,23 @@ module.exports = CesiumImageDecoderLayerManager;
 
 var CanvasImageryProvider = require('canvasimageryprovider.js');
 var ViewerImageDecoder = require('viewerimagedecoder.js');
-var CesiumFrustumCalculator = require('_cesiumfrustumcalculator.js');
+var calculateFrustum = require('_cesiumfrustumcalculator.js');
 
 /* global Cesium: false */
 
-function CesiumImageDecoderLayerManager(options) {
-    this._options = Object.create(options);
+function CesiumImageDecoderLayerManager(imageImplementationClassName, options) {
+	this._options = options || {};
+	
+	if (this._options.rectangle !== undefined) {
+		this._options = JSON.parse(JSON.stringify(options));
+		this._options.cartographicBounds = {
+			west: options.rectangle.west,
+			east: options.rectangle.east,
+			south: options.rectangle.south,
+			north: options.rectangle.north
+		};
+	}
+	
     this._options.minFunctionCallIntervalMilliseconds =
         options.minFunctionCallIntervalMilliseconds || 100;
     this._url = options.url;
@@ -187,6 +198,7 @@ function CesiumImageDecoderLayerManager(options) {
     this._canvasUpdatedCallbackBound = this._canvasUpdatedCallback.bind(this);
     
     this._image = new ViewerImageDecoder(
+		imageImplementationClassName,
         this._canvasUpdatedCallbackBound,
         this._options);
     
@@ -227,7 +239,7 @@ CesiumImageDecoderLayerManager.prototype.getImageryLayer = function getImageryLa
 };
 
 CesiumImageDecoderLayerManager.prototype._updateFrustum = function updateFrustum() {
-    var frustum = CesiumFrustumCalculator.calculateFrustum(this._widget);
+    var frustum = calculateFrustum(this._widget);
     if (frustum !== null) {
         this._image.updateViewArea(frustum);
     }
@@ -4749,9 +4761,10 @@ if (self.L) {
 function createImageDecoderRegionLayerFunctions() {
     return {
         initialize: function initialize(options) {
-            this._options = Object.create(options);
-            
-            if (options.latLngBounds !== undefined) {
+			this._options = options || {};
+			
+            if (this._options.latLngBounds !== undefined) {
+				this._options = JSON.parse(JSON.stringify(options));
                 this._options.cartographicBounds = {
                     west: options.latLngBounds.getWest(),
                     east: options.latLngBounds.getEast(),
