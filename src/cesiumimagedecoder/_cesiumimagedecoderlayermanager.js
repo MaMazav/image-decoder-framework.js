@@ -4,7 +4,7 @@ module.exports = CesiumImageDecoderLayerManager;
 
 var CanvasImageryProvider = require('canvasimageryprovider.js');
 var ViewerImageDecoder = require('viewerimagedecoder.js');
-var calculateFrustum = require('_cesiumfrustumcalculator.js');
+var calculateCesiumFrustum = require('_cesiumfrustumcalculator.js');
 
 /* global Cesium: false */
 
@@ -73,7 +73,7 @@ CesiumImageDecoderLayerManager.prototype.getImageryLayer = function getImageryLa
 };
 
 CesiumImageDecoderLayerManager.prototype._updateFrustum = function updateFrustum() {
-    var frustum = calculateFrustum(this._widget);
+    var frustum = calculateCesiumFrustum(this._widget);
     if (frustum !== null) {
         this._image.updateViewArea(frustum);
     }

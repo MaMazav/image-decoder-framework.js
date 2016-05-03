@@ -75,6 +75,7 @@ module.exports.FetchClientBase = require('fetchclientbase.js');
 module.exports.SimplePixelsDecoderBase = require('simplepixelsdecoderbase.js');
 module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
 module.exports.CesiumImageDecoderLayerManager = require('_cesiumimagedecoderlayermanager.js');
+module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
 module.exports.ImageDecoderRegionLayer = require('imagedecoderregionlayer.js');
 module.exports.Internals = {
 	FetchManager: require('fetchmanager.js')
@@ -101,6 +102,14 @@ function calculateFrustum(cesiumWidget) {
         0, 0, screenSize.x, screenSize.y, points, cesiumWidget, /*recursive=*/0);
 
     var frustumRectangle = Cesium.Rectangle.fromCartographicArray(points);
+	if (frustumRectangle.east < frustumRectangle.west || frustumRectangle.north < frustumRectangle.south) {
+		frustumRectangle = {
+			east: Math.max(frustumRectangle.east, frustumRectangle.west),
+			west: Math.min(frustumRectangle.east, frustumRectangle.west),
+			north: Math.max(frustumRectangle.north, frustumRectangle.south),
+			south: Math.min(frustumRectangle.north, frustumRectangle.south)
+		};
+	}
 
     var frustumData = imageHelperFunctions.calculateFrustum2DFromBounds(
         frustumRectangle, screenSize);
@@ -170,7 +179,7 @@ module.exports = CesiumImageDecoderLayerManager;
 
 var CanvasImageryProvider = require('canvasimageryprovider.js');
 var ViewerImageDecoder = require('viewerimagedecoder.js');
-var calculateFrustum = require('_cesiumfrustumcalculator.js');
+var calculateCesiumFrustum = require('_cesiumfrustumcalculator.js');
 
 /* global Cesium: false */
 
@@ -239,7 +248,7 @@ CesiumImageDecoderLayerManager.prototype.getImageryLayer = function getImageryLa
 };
 
 CesiumImageDecoderLayerManager.prototype._updateFrustum = function updateFrustum() {
-    var frustum = calculateFrustum(this._widget);
+    var frustum = calculateCesiumFrustum(this._widget);
     if (frustum !== null) {
         this._image.updateViewArea(frustum);
     }
@@ -605,7 +614,7 @@ CanvasImageryProvider.prototype.pickFeatures = function() {
 module.exports = ImageDecoderImageryProvider;
 
 var WorkerProxyImageDecoder = require('workerproxyimagedecoder.js');
-var CesiumFrustumCalculator = require('_cesiumfrustumcalculator.js');
+var calculateCesiumFrustum = require('_cesiumfrustumcalculator.js');
 var imageHelperFunctions = require('imagehelperfunctions.js');
 
 /* global Cesium: false */
@@ -634,13 +643,9 @@ var imageHelperFunctions = require('imagehelperfunctions.js');
  * @see TileMapServiceImageryProvider
  * @see WebMapServiceImageryProvider
  */
-function ImageDecoderImageryProvider(options) {
-    if (options === undefined) {
-        options = {};
-    }
-
+function ImageDecoderImageryProvider(imageImplementationClassName, options) {
     var url = options.url;
-    var adaptProportions = options.adaptProportions;
+    this._adaptProportions = options.adaptProportions;
     this._rectangle = options.rectangle;
     this._proxy = options.proxy;
     this._maxNumQualityLayers = options.maxNumQualityLayers;
@@ -655,10 +660,18 @@ function ImageDecoderImageryProvider(options) {
         this._rectangle = Cesium.Rectangle.fromDegrees(-180, -90, 180, 90);
     }
     
-    if (adaptProportions === undefined) {
-        adaptProportions = true;
+    if (this._adaptProportions === undefined) {
+        this._adaptProportions = true;
     }
 
+	options = JSON.parse(JSON.stringify(options || {}));
+	options.cartographicBounds = {
+		west: this._rectangle.west,
+		east: this._rectangle.east,
+		south: this._rectangle.south,
+		north: this._rectangle.north
+	};
+	
     //>>includeStart('debug', pragmas.debug);
     if (url === undefined) {
             throw new DeveloperError('url is required.');
@@ -675,7 +688,7 @@ function ImageDecoderImageryProvider(options) {
     this._errorEvent = new Event('ImageDecoderImageryProviderStatus');
 
     this._ready = false;
-    this._statusCallback = null;
+    this._exceptionCallback = null;
     this._cesiumWidget = null;
     this._updateFrustumIntervalHandle = null;
     
@@ -686,7 +699,7 @@ function ImageDecoderImageryProvider(options) {
         imageUrl = this._proxy.getURL(imageUrl);
     }
         
-    this._image = new WorkerProxyImageDecoder({
+    this._image = new WorkerProxyImageDecoder(imageImplementationClassName, {
         serverRequestPrioritizer: 'frustum',
         decodePrioritizer: 'frustum'
     });
@@ -1063,18 +1076,14 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
     });
     
     function pixelsDecodedCallback(decoded) {
-        var partialTileWidth = decoded.width;
-        var partialTileHeight = decoded.height;
+        var partialTileWidth = decoded.imageData.width;
+        var partialTileHeight = decoded.imageData.height;
 
         var canvasTargetX = offsetX + decoded.xInOriginalRequest;
         var canvasTargetY = offsetY + decoded.yInOriginalRequest;
         
         if (partialTileWidth > 0 && partialTileHeight > 0) {
-            var imageData = context.getImageData(
-                canvasTargetX, canvasTargetY, partialTileWidth, partialTileHeight);
-                
-            imageData.data.set(decoded.pixels);
-            context.putImageData(imageData, canvasTargetX, canvasTargetY);
+            context.putImageData(decoded.imageData, canvasTargetX, canvasTargetY);
         }
     }
 
@@ -1096,7 +1105,7 @@ ImageDecoderImageryProvider.prototype._setPriorityByFrustum =
         return;
     }
     
-    var frustumData = CesiumFrustumCalculator.calculateFrustum(
+    var frustumData = calculateCesiumFrustum(
         this._cesiumWidget, this);
     
     if (frustumData === null) {
