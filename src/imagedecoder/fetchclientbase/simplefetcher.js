@@ -9,7 +9,7 @@ function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
     this._stopListeners = [];
     this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
     this._keysToFetch = null;
-	this._nextKeyToFetch = 0;
+    this._nextKeyToFetch = 0;
     this._activeFetches = {};
     this._activeFetchesCount = 0;
     this._isAborted = false;
@@ -22,7 +22,7 @@ SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
     }
     
     this._keysToFetch = imageDataContext.getDataKeys();
-	this._nextKeyToFetch = 0;
+    this._nextKeyToFetch = 0;
     while (this._activeFetchesCount < this._fetchLimit) {
         if (!this._fetchSingleKey()) {
             break;

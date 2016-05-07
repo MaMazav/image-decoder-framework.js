@@ -19,14 +19,14 @@ function calculateFrustum(cesiumWidget) {
         0, 0, screenSize.x, screenSize.y, points, cesiumWidget, /*recursive=*/0);
 
     var frustumRectangle = Cesium.Rectangle.fromCartographicArray(points);
-	if (frustumRectangle.east < frustumRectangle.west || frustumRectangle.north < frustumRectangle.south) {
-		frustumRectangle = {
-			east: Math.max(frustumRectangle.east, frustumRectangle.west),
-			west: Math.min(frustumRectangle.east, frustumRectangle.west),
-			north: Math.max(frustumRectangle.north, frustumRectangle.south),
-			south: Math.min(frustumRectangle.north, frustumRectangle.south)
-		};
-	}
+    if (frustumRectangle.east < frustumRectangle.west || frustumRectangle.north < frustumRectangle.south) {
+        frustumRectangle = {
+            east: Math.max(frustumRectangle.east, frustumRectangle.west),
+            west: Math.min(frustumRectangle.east, frustumRectangle.west),
+            north: Math.max(frustumRectangle.north, frustumRectangle.south),
+            south: Math.min(frustumRectangle.north, frustumRectangle.south)
+        };
+    }
 
     var frustumData = imageHelperFunctions.calculateFrustum2DFromBounds(
         frustumRectangle, screenSize);

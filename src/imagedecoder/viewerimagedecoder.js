@@ -25,6 +25,8 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
         options.allowMultipleChannelsInSession;
     this._minFunctionCallIntervalMilliseconds =
         options.minFunctionCallIntervalMilliseconds;
+    this._overviewResolutionX = options.overviewResolutionX || 100;
+    this._overviewResolutionY = options.overviewResolutionY || 100;
         
     this._lastRequestIndex = 0;
     this._pendingUpdateViewArea = null;
@@ -556,8 +558,9 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         fixedBounds, this._image, this._adaptProportions);
     this._cartographicBoundsFixed = fixedBounds;
     
-    var imageWidth = this._image.getLevelWidth();
-    var imageHeight = this._image.getLevelHeight();
+    var level = this._image.getImageLevel();
+    var imageWidth = this._image.getLevelWidth(level);
+    var imageHeight = this._image.getLevelHeight(level);
 
     var rectangleWidth = fixedBounds.east - fixedBounds.west;
     var rectangleHeight = fixedBounds.north - fixedBounds.south;
@@ -572,8 +575,8 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         minY: 0,
         maxXExclusive: imageWidth,
         maxYExclusive: imageHeight,
-        screenWidth: 1,
-        screenHeight: 1
+        screenWidth: this._overviewResolutionX,
+        screenHeight: this._overviewResolutionY
     };
     
     var overviewAlignedParams =

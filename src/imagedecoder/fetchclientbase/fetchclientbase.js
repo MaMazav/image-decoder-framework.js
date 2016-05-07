@@ -34,11 +34,11 @@ FetchClientBase.prototype.createDataPublisherInternal = function createDataPubli
 };
 
 FetchClientBase.prototype.getHashCode = function getHashCode(tileKey) {
-	throw 'FetchClientBase error: getHashCode is not implemented';
+    throw 'FetchClientBase error: getHashCode is not implemented';
 };
 
 FetchClientBase.prototype.isEqual = function getHashCode(key1, key2) {
-	throw 'FetchClientBase error: isEqual is not implemented';
+    throw 'FetchClientBase error: isEqual is not implemented';
 };
 
 // FetchClient implementation

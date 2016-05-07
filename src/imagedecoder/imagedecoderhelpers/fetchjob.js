@@ -27,8 +27,8 @@ function FetchJob(fetchClient, scheduler, fetchType, contextVars) {
     this._imageDataContext = null;
     this._fetcher = null;
     this._resource = null;
-	this._fetchStoppedByFetchClientBound = this._fetchStoppedByFetchClient.bind(this);
-	//this._alreadyTerminatedWhenAllDataArrived = false;
+    this._fetchStoppedByFetchClientBound = this._fetchStoppedByFetchClient.bind(this);
+    //this._alreadyTerminatedWhenAllDataArrived = false;
     
     if (fetchType === FetchJob.FETCH_TYPE_CHANNEL) {
         this._fetcher = this._fetchClient.createChannelFetcher();
@@ -96,7 +96,7 @@ FetchJob.prototype._startFetch = function startFetch() {
         }
 
         this._fetchTerminated(/*isAborted=*/false);
-		//this._alreadyTerminatedWhenAllDataArrived = true;
+        //this._alreadyTerminatedWhenAllDataArrived = true;
         
         return;
     }
@@ -107,10 +107,10 @@ FetchJob.prototype._startFetch = function startFetch() {
         }
     }
     
-	var self = this;
+    var self = this;
     imageDataContext.on('data', function() {
-		self._dataCallback(imageDataContext);
-	});
+        self._dataCallback(imageDataContext);
+    });
     
     if (!this._isOnlyWaitForData) {
         this._fetcher.fetch(imageDataContext);
@@ -182,12 +182,12 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
             this._dataListeners[i](this._contextVars, imageDataContext);
         }
         
-		if (imageDataContext.isDone()) {
-			this._fetchTerminated(/*isAborted=*/false);
-			//this._alreadyTerminatedWhenAllDataArrived = true;
-			return;
-		}
-		
+        if (imageDataContext.isDone()) {
+            this._fetchTerminated(/*isAborted=*/false);
+            //this._alreadyTerminatedWhenAllDataArrived = true;
+            return;
+        }
+        
         if (this._useScheduler) {
             if (this._resource === null) {
                 throw 'No resource allocated but fetch callback called';
@@ -206,11 +206,11 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
 };
 
 FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClient(isAborted) {
-	//if (this._alreadyTerminatedWhenAllDataArrived) {
-	//	// Resources were already released ASAP
-	//	return;
-	//}
-	
+    //if (this._alreadyTerminatedWhenAllDataArrived) {
+    //    // Resources were already released ASAP
+    //    return;
+    //}
+    
     if (this._isYielded || this._resource === null) {
         throw 'Unexpected request state on stopped';
     }

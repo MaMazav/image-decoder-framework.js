@@ -53,14 +53,14 @@ function ImageDecoderImageryProvider(imageImplementationClassName, options) {
         this._adaptProportions = true;
     }
 
-	options = JSON.parse(JSON.stringify(options || {}));
-	options.cartographicBounds = {
-		west: this._rectangle.west,
-		east: this._rectangle.east,
-		south: this._rectangle.south,
-		north: this._rectangle.north
-	};
-	
+    options = JSON.parse(JSON.stringify(options || {}));
+    options.cartographicBounds = {
+        west: this._rectangle.west,
+        east: this._rectangle.east,
+        south: this._rectangle.south,
+        north: this._rectangle.north
+    };
+    
     //>>includeStart('debug', pragmas.debug);
     if (url === undefined) {
             throw new DeveloperError('url is required.');
@@ -391,7 +391,7 @@ ImageDecoderImageryProvider.prototype.getTileCredits = function(x, y, level) {
  *
  * @exception {DeveloperError} <code>requestImage</code> must not be called before the imagery provider is ready.
  */
-ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
+ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel) {
     //>>includeStart('debug', pragmas.debug);
     if (!this._ready) {
         throw new DeveloperError('requestImage must not be called before the imagery provider is ready.');
@@ -400,57 +400,47 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
     
     var self = this;
     
-    var numResolutionLevelsToCut = this._numResolutionLevels - level - 1;
+    var levelFactor = Math.pow(2, this._numResolutionLevels - cesiumLevel - 1);
+    var minX = x * this._tileWidth  * levelFactor;
+    var minY = y * this._tileHeight * levelFactor;
+    var maxXExclusive = (x + 1) * this._tileWidth  * levelFactor;
+    var maxYExclusive = (y + 1) * this._tileHeight * levelFactor;
     
-    var minX = x * this._tileWidth;
-    var minY = y * this._tileHeight;
-    var maxXExclusive = (x + 1) * this._tileWidth;
-    var maxYExclusive = (y + 1) * this._tileHeight;
-    
-    var levelWidth = this._image.getLevelWidth(numResolutionLevelsToCut);
-    var levelHeight = this._image.getLevelHeight(numResolutionLevelsToCut);
-    
-    var canvas = document.createElement('canvas');
-    canvas.width = this._tileWidth;
-    canvas.height = this._tileHeight;
-    
-    var context = canvas.getContext('2d');
-    context.clearRect(0, 0, this._tileWidth, this._tileHeight);
-    
-    if (minX >= levelWidth ||
-        minY >= levelHeight ||
-        maxXExclusive <= 0 ||
-        maxYExclusive <= 0) {
-        
-        return canvas;
-    }
-    
-    var offsetX = 0;
-    var offsetY = 0;
-    maxXExclusive = Math.min(maxXExclusive, levelWidth);
-    maxYExclusive = Math.min(maxYExclusive, levelHeight);
-    
-    if (minX < 0) {
-        offsetX = -minX;
-        minX = 0;
-    }
-    
-    if (minY < 0) {
-        offsetY = -minY;
-        minY = 0;
-    }
-    
-    var imagePartParams = {
+    var alignedParams = imageHelperFunctions.alignParamsToTilesAndLevel({
         minX: minX,
         minY: minY,
         maxXExclusive: maxXExclusive,
         maxYExclusive: maxYExclusive,
-        numResolutionLevelsToCut: numResolutionLevelsToCut,
-        maxNumQualityLayers: this._maxNumQualityLayers,
-        
-        requestPriorityData: {
-            imageRectangle: this._rectangle
-        }
+        screenWidth: this._tileWidth,
+        screenHeight: this._tileHeight
+    }, this._image);
+    
+    var level = alignedParams.imagePartParams.numResolutionLevelsToCut;
+    var levelWidth = this._image.getLevelWidth(level);
+    var levelHeight = this._image.getLevelHeight(level);
+    
+    var scaledCanvas = document.createElement('canvas');
+    scaledCanvas.width = this._tileWidth;
+    scaledCanvas.height = this._tileHeight;
+    
+    var scaledContext = scaledCanvas.getContext('2d');
+    scaledContext.clearRect(0, 0, this._tileWidth, this._tileHeight);
+    
+    var tempPixelWidth  = alignedParams.imagePartParams.maxXExclusive - alignedParams.imagePartParams.minX;
+    var tempPixelHeight = alignedParams.imagePartParams.maxYExclusive - alignedParams.imagePartParams.minY;
+    if (tempPixelWidth <= 0 || tempPixelHeight <= 0) {
+        return scaledCanvas;
+    }
+    
+    var tempCanvas = document.createElement('canvas');
+    tempCanvas.width = tempPixelWidth;
+    tempCanvas.height = tempPixelHeight;
+    var tempContext = tempCanvas.getContext('2d');
+    tempContext.clearRect(0, 0, tempPixelWidth, tempPixelHeight);
+    
+    alignedParams.imagePartParams.maxNumQualityLayers = this._maxNumQualityLayers;
+    alignedParams.imagePartParams.requestPriorityData = {
+        imageRectangle: this._rectangle
     };
     
     var resolve, reject;
@@ -459,7 +449,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
         reject = reject_;
         
         self._image.requestPixelsProgressive(
-            imagePartParams,
+            alignedParams.imagePartParams,
             pixelsDecodedCallback,
             terminatedCallback);
     });
@@ -468,11 +458,11 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
         var partialTileWidth = decoded.imageData.width;
         var partialTileHeight = decoded.imageData.height;
 
-        var canvasTargetX = offsetX + decoded.xInOriginalRequest;
-        var canvasTargetY = offsetY + decoded.yInOriginalRequest;
-        
         if (partialTileWidth > 0 && partialTileHeight > 0) {
-            context.putImageData(decoded.imageData, canvasTargetX, canvasTargetY);
+            tempContext.putImageData(
+                decoded.imageData,
+                decoded.xInOriginalRequest,
+                decoded.yInOriginalRequest);
         }
     }
 
@@ -480,7 +470,13 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
         if (isAborted) {
             reject('Fetch request or decode aborted');
         } else {
-            resolve(canvas);
+            scaledContext.drawImage(
+                tempCanvas,
+                0, 0, tempPixelWidth, tempPixelHeight,
+                alignedParams.croppedScreen.minX, alignedParams.croppedScreen.minY,
+                alignedParams.croppedScreen.maxXExclusive, alignedParams.croppedScreen.maxYExclusive);
+                
+            resolve(scaledCanvas);
         }
     }
 
@@ -540,40 +536,40 @@ ImageDecoderImageryProvider.prototype._statusCallback =
     this._ready = status.isReady;
     
     // This is wrong if COD or COC exists besides main header COD
-    this._numResolutionLevels = this._image.getDefaultNumResolutionLevels();
     this._maxNumQualityLayers = this._maxNumQualityLayers;
-    //this._numResolutionLevels = 1;
+    this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
+    var maximumCesiumLevel = this._numResolutionLevels - 1;
         
     this._tileWidth = this._image.getTileWidth();
     this._tileHeight = this._image.getTileHeight();
         
-    var bestLevel = this._numResolutionLevels - 1;
-    var levelZeroWidth = this._image.getLevelWidth(bestLevel);
-    var levelZeroHeight = this._image.getLevelHeight(bestLevel);
+    var bestLevel = this._image.getImageLevel();
+    var bestLevelWidth  = this._image.getLevelWidth (bestLevel);
+    var bestLevelHeight = this._image.getLevelHeight(bestLevel);
     
-    var levelZeroTilesX = Math.ceil(levelZeroWidth / this._tileWidth);
-    var levelZeroTilesY = Math.ceil(levelZeroHeight / this._tileHeight);
+    var lowestLevelTilesX = Math.ceil(bestLevelWidth  / this._tileWidth ) >> maximumCesiumLevel;
+    var lowestLevelTilesY = Math.ceil(bestLevelHeight / this._tileHeight) >> maximumCesiumLevel;
 
     imageHelperFunctions.fixBounds(
         this._rectangle,
         this._image,
         this._adaptProportions);
-    var rectangleWidth = this._rectangle.east - this._rectangle.west;
+    var rectangleWidth  = this._rectangle.east  - this._rectangle.west;
     var rectangleHeight = this._rectangle.north - this._rectangle.south;
     
-    var bestLevelScale = 1 << bestLevel;
-    var pixelsWidthForCesium = this._tileWidth * levelZeroTilesX * bestLevelScale;
-    var pixelsHeightForCesium = this._tileHeight * levelZeroTilesY * bestLevelScale;
+    var bestLevelScale = 1 << maximumCesiumLevel;
+    var pixelsWidthForCesium  = this._tileWidth  * lowestLevelTilesX * bestLevelScale;
+    var pixelsHeightForCesium = this._tileHeight * lowestLevelTilesY * bestLevelScale;
     
     // Cesium works with full tiles only, thus fix the geographic bounds so
     // the pixels lies exactly on the original bounds
     
     var geographicWidthForCesium =
-        rectangleWidth * pixelsWidthForCesium / this._image.getLevelWidth();
+        rectangleWidth * pixelsWidthForCesium / bestLevelWidth;
     var geographicHeightForCesium =
-        rectangleHeight * pixelsHeightForCesium / this._image.getLevelHeight();
+        rectangleHeight * pixelsHeightForCesium / bestLevelHeight;
     
-    var fixedEast = this._rectangle.west + geographicWidthForCesium;
+    var fixedEast  = this._rectangle.west  + geographicWidthForCesium;
     var fixedSouth = this._rectangle.north - geographicHeightForCesium;
     
     this._tilingSchemeParams = {
@@ -581,9 +577,9 @@ ImageDecoderImageryProvider.prototype._statusCallback =
         east: fixedEast,
         south: fixedSouth,
         north: this._rectangle.north,
-        levelZeroTilesX: levelZeroTilesX,
-        levelZeroTilesY: levelZeroTilesY,
-        maximumLevel: bestLevel
+        levelZeroTilesX: lowestLevelTilesX,
+        levelZeroTilesY: lowestLevelTilesY,
+        maximumLevel: maximumCesiumLevel
     };
     
     this._tilingScheme = createTilingScheme(this._tilingSchemeParams);

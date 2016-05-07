@@ -4,16 +4,17 @@ module.exports = FetchManager;
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var FetchJob = require('fetchjob.js');
+var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 /* global console: false */
 
 function FetchManager(options) {
+    ImageParamsRetrieverProxy.call(this, options.imageImplementationClassName);
+
     var serverRequestsLimit = options.serverRequestsLimit || 5;
     
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(options.imageImplementationClassName);
     this._fetchClient = this._imageImplementation.createFetchClient();
     this._showLog = options.showLog;
-    this._sizesCalculator = null;
     
     if (this._showLog) {
         // Old IE
@@ -34,6 +35,8 @@ function FetchManager(options) {
     this._channelHandles = [];
     this._requestById = [];
 }
+
+FetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
 FetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
     this._fetchClient.setStatusCallback(statusCallback);
@@ -156,42 +159,9 @@ FetchManager.prototype.setServerRequestPrioritizerData =
         this._serverRequestPrioritizer.setPrioritizerData(prioritizerData);
     };
 
-FetchManager.prototype.getLevelWidth = function getLevelWidth(numResolutionLevelsToCut) {
-    this._validateSizesCalculator();
-    var width = this._sizesCalculator.getLevelWidth(
-        numResolutionLevelsToCut);
-
-    return width;
-};
-
-FetchManager.prototype.getLevelHeight = function getLevelHeight(numResolutionLevelsToCut) {
-    this._validateSizesCalculator();
-    var height = this._sizesCalculator.getLevelHeight(
-        numResolutionLevelsToCut);
-
-    return height;
-};
-
-FetchManager.prototype.getDefaultNumResolutionLevels = function getDefaultNumResolutionLevels() {
-    this._validateSizesCalculator();
-    var numLevels = this._sizesCalculator.getDefaultNumResolutionLevels();
-    
-    return numLevels;
-};
-    
-FetchManager.prototype._getSizesParams = function getSizesParams() {
+FetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
     var sizesParams = this._fetchClient.getSizesParams();
     return sizesParams;
-};
-
-FetchManager.prototype._validateSizesCalculator = function validateSizesCalculator() {
-    if (this._sizesCalculator !== null) {
-        return;
-    }
-    
-    this._imageParams = this._getSizesParams();
-    this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
-        this._imageParams);
 };
 
 function internalCallback(contextVars, imageDataContext) {

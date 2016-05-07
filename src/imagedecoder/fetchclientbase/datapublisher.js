@@ -16,18 +16,18 @@ DataPublisher.prototype.publish = function publish(key, data) {
     }
     
     var iterator = subscribers.subscribersList.getFirstIterator();
-	var listeners = [];
+    var listeners = [];
     while (iterator !== null) {
         var subscriber = subscribers.subscribersList.getValue(iterator);
-		listeners.push(subscriber.listener);
+        listeners.push(subscriber.listener);
         
         iterator = subscribers.subscribersList.getNextIterator(iterator);
     }
-	
-	// Call only after collecting all listeners, so the list will not be destroyed while iterating
-	for (var i = 0; i < listeners.length; ++i) {
-		listeners[i].call(this, key, data);
-	}
+    
+    // Call only after collecting all listeners, so the list will not be destroyed while iterating
+    for (var i = 0; i < listeners.length; ++i) {
+        listeners[i].call(this, key, data);
+    }
 };
 
 DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
@@ -61,7 +61,7 @@ DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
         this._subscribersByKey.remove(handle._hashIterator);
     } else if (!subscriber.isGotResult) {
         --subscribers.subscribersNeverGotResultCount;
-		subscriber.isGotResult = true;
+        subscriber.isGotResult = true;
     }
 };
 

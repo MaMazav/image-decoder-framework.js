@@ -30,9 +30,17 @@ function slaveScriptContent() {
             return null;
         }
         
-        var sizes = this._getSizesParams();
-        isReady = true;
+        var data = { sizesParams: this._getSizesParams() };
         
-        AsyncProxy.AsyncProxySlave.sendUserDataToMaster(sizes);
+        // getTileWidth and getTileHeight exists only in ImageDecoder but not in FetchManager
+        if (this.getTileWidth) {
+            data.applicativeTileWidth = this.getTileWidth();
+        }
+        if (this.getTileHeight) {
+            data.applicativeTileHeight = this.getTileHeight();
+        }
+        
+        AsyncProxy.AsyncProxySlave.sendUserDataToMaster(data);
+        isReady = true;
     }
 }

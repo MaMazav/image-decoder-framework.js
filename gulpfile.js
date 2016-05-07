@@ -22,6 +22,7 @@ var sources = [
     './src/imagedecoder/imagedecoderhelpers/imagehelperfunctions.js',
     './src/imagedecoder/imagedecoderhelpers/linkedlist.js',
     './src/imagedecoder/imagedecoderhelpers/fetchjob.js',
+    './src/imagedecoder/imagedecoderhelpers/imageparamsretrieverproxy.js',
     './src/imagedecoder/imagedecoderworkers/sendimageparameterstomaster.js',
     './src/imagedecoder/imagedecoderworkers/workerproxyfetchmanager.js',
     './src/imagedecoder/imagedecoderworkers/workerproxyimagedecoder.js',

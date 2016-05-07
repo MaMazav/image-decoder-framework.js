@@ -7,10 +7,10 @@ var HashMap = require('hashmap.js');
 function SimpleImageDataContext(contextVars, dataKeys, imagePartParams, dataPublisher, hasher) {
     this._contextVars = contextVars;
     this._dataByKey = new HashMap(hasher);
-	this._dataToReturn = {
-		imagePartParams: JSON.parse(JSON.stringify(imagePartParams)),
-		fetchedItems: []
-	};
+    this._dataToReturn = {
+        imagePartParams: JSON.parse(JSON.stringify(imagePartParams)),
+        fetchedItems: []
+    };
     this._dataKeysFetchedCount = 0;
     this._dataListeners = [];
     this._dataKeys = dataKeys;
@@ -66,10 +66,10 @@ SimpleImageDataContext.prototype.release = function release() {
 SimpleImageDataContext.prototype._dataFetched = function dataFetched(key, data) {
     if (this._dataByKey.tryAdd(key, function() {}).isNew) {
         ++this._dataKeysFetchedCount;
-		this._dataToReturn.fetchedItems.push({
-			key: key,
-			data: data
-		});
+        this._dataToReturn.fetchedItems.push({
+            key: key,
+            data: data
+        });
     }
     
     if (this.hasData()) {

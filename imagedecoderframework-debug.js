@@ -73,14 +73,13 @@ module.exports.ViewerImageDecoder = require('viewerimagedecoder.js');
 module.exports.ImageDecoder = require('imagedecoder.js');
 module.exports.FetchClientBase = require('fetchclientbase.js');
 module.exports.SimplePixelsDecoderBase = require('simplepixelsdecoderbase.js');
-module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
 module.exports.CesiumImageDecoderLayerManager = require('_cesiumimagedecoderlayermanager.js');
 module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
 module.exports.ImageDecoderRegionLayer = require('imagedecoderregionlayer.js');
 module.exports.Internals = {
-	FetchManager: require('fetchmanager.js')
+    FetchManager: require('fetchmanager.js')
 };
-},{"_cesiumimagedecoderlayermanager.js":3,"fetchclientbase.js":7,"fetchmanager.js":15,"imagedecoder.js":11,"imagedecoderimageryprovider.js":5,"imagedecoderregionlayer.js":27,"simplepixelsdecoderbase.js":10,"viewerimagedecoder.js":26}],2:[function(require,module,exports){
+},{"_cesiumimagedecoderlayermanager.js":3,"fetchclientbase.js":7,"fetchmanager.js":15,"imagedecoder.js":11,"imagedecoderimageryprovider.js":5,"imagedecoderregionlayer.js":28,"simplepixelsdecoderbase.js":10,"viewerimagedecoder.js":27}],2:[function(require,module,exports){
 'use strict';
 
 module.exports = calculateFrustum;
@@ -102,14 +101,14 @@ function calculateFrustum(cesiumWidget) {
         0, 0, screenSize.x, screenSize.y, points, cesiumWidget, /*recursive=*/0);
 
     var frustumRectangle = Cesium.Rectangle.fromCartographicArray(points);
-	if (frustumRectangle.east < frustumRectangle.west || frustumRectangle.north < frustumRectangle.south) {
-		frustumRectangle = {
-			east: Math.max(frustumRectangle.east, frustumRectangle.west),
-			west: Math.min(frustumRectangle.east, frustumRectangle.west),
-			north: Math.max(frustumRectangle.north, frustumRectangle.south),
-			south: Math.min(frustumRectangle.north, frustumRectangle.south)
-		};
-	}
+    if (frustumRectangle.east < frustumRectangle.west || frustumRectangle.north < frustumRectangle.south) {
+        frustumRectangle = {
+            east: Math.max(frustumRectangle.east, frustumRectangle.west),
+            west: Math.min(frustumRectangle.east, frustumRectangle.west),
+            north: Math.max(frustumRectangle.north, frustumRectangle.south),
+            south: Math.min(frustumRectangle.north, frustumRectangle.south)
+        };
+    }
 
     var frustumData = imageHelperFunctions.calculateFrustum2DFromBounds(
         frustumRectangle, screenSize);
@@ -184,36 +183,45 @@ var calculateCesiumFrustum = require('_cesiumfrustumcalculator.js');
 /* global Cesium: false */
 
 function CesiumImageDecoderLayerManager(imageImplementationClassName, options) {
-	this._options = options || {};
-	
-	if (this._options.rectangle !== undefined) {
-		this._options = JSON.parse(JSON.stringify(options));
-		this._options.cartographicBounds = {
-			west: options.rectangle.west,
-			east: options.rectangle.east,
-			south: options.rectangle.south,
-			north: options.rectangle.north
-		};
-	}
-	
+    this._options = options || {};
+    
+    if (this._options.rectangle !== undefined) {
+        this._options = JSON.parse(JSON.stringify(options));
+        this._options.cartographicBounds = {
+            west: options.rectangle.west,
+            east: options.rectangle.east,
+            south: options.rectangle.south,
+            north: options.rectangle.north
+        };
+    }
+    
     this._options.minFunctionCallIntervalMilliseconds =
         options.minFunctionCallIntervalMilliseconds || 100;
     this._url = options.url;
 
     this._targetCanvas = document.createElement('canvas');
-    this._imageryProvider = new CanvasImageryProvider(this._targetCanvas);
-    this._imageryLayer = new Cesium.ImageryLayer(this._imageryProvider);
+    this._imageryProviders = [
+        new CanvasImageryProvider(this._targetCanvas),
+        new CanvasImageryProvider(this._targetCanvas)
+    ];
+    this._imageryLayerShown = new Cesium.ImageryLayer(this._imageryProviders[0]);
+    this._imageryLayerPending = new Cesium.ImageryLayer(this._imageryProviders[1]);
 
     this._canvasUpdatedCallbackBound = this._canvasUpdatedCallback.bind(this);
     
+    this._isPendingUpdateCallback = false;
+    this._isWhileReplaceLayerShown = false;
+    this._pendingPositionRectangle = null;
+    
     this._image = new ViewerImageDecoder(
-		imageImplementationClassName,
+        imageImplementationClassName,
         this._canvasUpdatedCallbackBound,
         this._options);
     
     this._image.setTargetCanvas(this._targetCanvas);
     
     this._updateFrustumBound = this._updateFrustum.bind(this);
+    this._postRenderBound = this._postRender.bind(this);
 }
 
 CesiumImageDecoderLayerManager.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
@@ -223,9 +231,10 @@ CesiumImageDecoderLayerManager.prototype.setExceptionCallback = function setExce
 CesiumImageDecoderLayerManager.prototype.open = function open(widgetOrViewer) {
     this._widget = widgetOrViewer;
     this._layers = widgetOrViewer.scene.imageryLayers;
+    widgetOrViewer.scene.postRender.addEventListener(this._postRenderBound);
     
     this._image.open(this._url);
-    this._layers.add(this._imageryLayer);
+    this._layers.add(this._imageryLayerShown);
     
     // NOTE: Is there an event handler to register instead?
     // (Cesium's event controllers only expose keyboard and mouse
@@ -240,11 +249,17 @@ CesiumImageDecoderLayerManager.prototype.close = function close() {
     this._image.close();
     clearInterval(this._intervalHandle);
 
-    this._layers.remove(this._imageryLayer);
+    this._layers.remove(this._imageryLayerShown);
+    this._widget.removeEventListener(this._postRenderBound);
+    if (this._isWhileReplaceLayerShown) {
+        this._isWhileReplaceLayerShown = false;
+        this._isPendingUpdateCallback = false;
+        this._layers.remove(this._imageryLayerPending);
+    }
 };
 
-CesiumImageDecoderLayerManager.prototype.getImageryLayer = function getImageryLayer() {
-    return this._imageryLayer;
+CesiumImageDecoderLayerManager.prototype.getImageryLayers = function getImageryLayers() {
+    return [this._imageryLayerShown, this._imageryLayerPending];
 };
 
 CesiumImageDecoderLayerManager.prototype._updateFrustum = function updateFrustum() {
@@ -255,6 +270,11 @@ CesiumImageDecoderLayerManager.prototype._updateFrustum = function updateFrustum
 };
 
 CesiumImageDecoderLayerManager.prototype._canvasUpdatedCallback = function canvasUpdatedCallback(newPosition) {
+    if (this._isWhileReplaceLayerShown) {
+        this._isPendingUpdateCallback = true;
+        this._pendingPositionRectangle = newPosition;
+    }
+    
     if (newPosition !== null) {
         var rectangle = new Cesium.Rectangle(
             newPosition.west,
@@ -262,14 +282,15 @@ CesiumImageDecoderLayerManager.prototype._canvasUpdatedCallback = function canva
             newPosition.east,
             newPosition.north);
         
-        this._imageryProvider.setRectangle(rectangle);
+        this._imageryProviders[0].setRectangle(rectangle);
+        this._imageryProviders[1].setRectangle(rectangle);
     }
     
     this._removeAndReAddLayer();
 };
 
 CesiumImageDecoderLayerManager.prototype._removeAndReAddLayer = function removeAndReAddLayer() {
-    var index = this._layers.indexOf(this._imageryLayer);
+    var index = this._layers.indexOf(this._imageryLayerShown);
     
     if (index < 0) {
         throw 'Layer was removed from viewer\'s layers  without ' +
@@ -277,10 +298,27 @@ CesiumImageDecoderLayerManager.prototype._removeAndReAddLayer = function removeA
             'close() instead';
     }
     
-    this._layers.remove(this._imageryLayer, /*destroy=*/false);
-    this._layers.add(this._imageryLayer, index);
+    this._isWhileReplaceLayerShown = true;
+    this._layers.add(this._imageryLayerPending, index);
 };
-},{"_cesiumfrustumcalculator.js":2,"canvasimageryprovider.js":4,"viewerimagedecoder.js":26}],4:[function(require,module,exports){
+
+CesiumImageDecoderLayerManager.prototype._postRender = function postRender() {
+    if (!this._isWhileReplaceLayerShown)
+        return;
+    
+    this._isWhileReplaceLayerShown = false;
+    this._layers.remove(this._imageryLayerShown, /*destroy=*/false);
+    
+    var swap = this._imageryLayerShown;
+    this._imageryLayerShown = this._imageryLayerPending;
+    this._imageryLayerPending = swap;
+    
+    if (this._isPendingUpdateCallback) {
+        this._isPendingUpdateCallback = false;
+        this._canvasUpdatedCallback(this._pendingPositionRectangle);
+    }
+};
+},{"_cesiumfrustumcalculator.js":2,"canvasimageryprovider.js":4,"viewerimagedecoder.js":27}],4:[function(require,module,exports){
 'use strict';
 
 module.exports = CanvasImageryProvider;
@@ -664,14 +702,14 @@ function ImageDecoderImageryProvider(imageImplementationClassName, options) {
         this._adaptProportions = true;
     }
 
-	options = JSON.parse(JSON.stringify(options || {}));
-	options.cartographicBounds = {
-		west: this._rectangle.west,
-		east: this._rectangle.east,
-		south: this._rectangle.south,
-		north: this._rectangle.north
-	};
-	
+    options = JSON.parse(JSON.stringify(options || {}));
+    options.cartographicBounds = {
+        west: this._rectangle.west,
+        east: this._rectangle.east,
+        south: this._rectangle.south,
+        north: this._rectangle.north
+    };
+    
     //>>includeStart('debug', pragmas.debug);
     if (url === undefined) {
             throw new DeveloperError('url is required.');
@@ -1002,7 +1040,7 @@ ImageDecoderImageryProvider.prototype.getTileCredits = function(x, y, level) {
  *
  * @exception {DeveloperError} <code>requestImage</code> must not be called before the imagery provider is ready.
  */
-ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
+ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel) {
     //>>includeStart('debug', pragmas.debug);
     if (!this._ready) {
         throw new DeveloperError('requestImage must not be called before the imagery provider is ready.');
@@ -1011,57 +1049,47 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
     
     var self = this;
     
-    var numResolutionLevelsToCut = this._numResolutionLevels - level - 1;
+    var levelFactor = Math.pow(2, this._numResolutionLevels - cesiumLevel - 1);
+    var minX = x * this._tileWidth  * levelFactor;
+    var minY = y * this._tileHeight * levelFactor;
+    var maxXExclusive = (x + 1) * this._tileWidth  * levelFactor;
+    var maxYExclusive = (y + 1) * this._tileHeight * levelFactor;
     
-    var minX = x * this._tileWidth;
-    var minY = y * this._tileHeight;
-    var maxXExclusive = (x + 1) * this._tileWidth;
-    var maxYExclusive = (y + 1) * this._tileHeight;
-    
-    var levelWidth = this._image.getLevelWidth(numResolutionLevelsToCut);
-    var levelHeight = this._image.getLevelHeight(numResolutionLevelsToCut);
-    
-    var canvas = document.createElement('canvas');
-    canvas.width = this._tileWidth;
-    canvas.height = this._tileHeight;
-    
-    var context = canvas.getContext('2d');
-    context.clearRect(0, 0, this._tileWidth, this._tileHeight);
-    
-    if (minX >= levelWidth ||
-        minY >= levelHeight ||
-        maxXExclusive <= 0 ||
-        maxYExclusive <= 0) {
-        
-        return canvas;
-    }
-    
-    var offsetX = 0;
-    var offsetY = 0;
-    maxXExclusive = Math.min(maxXExclusive, levelWidth);
-    maxYExclusive = Math.min(maxYExclusive, levelHeight);
-    
-    if (minX < 0) {
-        offsetX = -minX;
-        minX = 0;
-    }
-    
-    if (minY < 0) {
-        offsetY = -minY;
-        minY = 0;
-    }
-    
-    var imagePartParams = {
+    var alignedParams = imageHelperFunctions.alignParamsToTilesAndLevel({
         minX: minX,
         minY: minY,
         maxXExclusive: maxXExclusive,
         maxYExclusive: maxYExclusive,
-        numResolutionLevelsToCut: numResolutionLevelsToCut,
-        maxNumQualityLayers: this._maxNumQualityLayers,
-        
-        requestPriorityData: {
-            imageRectangle: this._rectangle
-        }
+        screenWidth: this._tileWidth,
+        screenHeight: this._tileHeight
+    }, this._image);
+    
+    var level = alignedParams.imagePartParams.numResolutionLevelsToCut;
+    var levelWidth = this._image.getLevelWidth(level);
+    var levelHeight = this._image.getLevelHeight(level);
+    
+    var scaledCanvas = document.createElement('canvas');
+    scaledCanvas.width = this._tileWidth;
+    scaledCanvas.height = this._tileHeight;
+    
+    var scaledContext = scaledCanvas.getContext('2d');
+    scaledContext.clearRect(0, 0, this._tileWidth, this._tileHeight);
+    
+    var tempPixelWidth  = alignedParams.imagePartParams.maxXExclusive - alignedParams.imagePartParams.minX;
+    var tempPixelHeight = alignedParams.imagePartParams.maxYExclusive - alignedParams.imagePartParams.minY;
+    if (tempPixelWidth <= 0 || tempPixelHeight <= 0) {
+        return scaledCanvas;
+    }
+    
+    var tempCanvas = document.createElement('canvas');
+    tempCanvas.width = tempPixelWidth;
+    tempCanvas.height = tempPixelHeight;
+    var tempContext = tempCanvas.getContext('2d');
+    tempContext.clearRect(0, 0, tempPixelWidth, tempPixelHeight);
+    
+    alignedParams.imagePartParams.maxNumQualityLayers = this._maxNumQualityLayers;
+    alignedParams.imagePartParams.requestPriorityData = {
+        imageRectangle: this._rectangle
     };
     
     var resolve, reject;
@@ -1070,7 +1098,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
         reject = reject_;
         
         self._image.requestPixelsProgressive(
-            imagePartParams,
+            alignedParams.imagePartParams,
             pixelsDecodedCallback,
             terminatedCallback);
     });
@@ -1079,11 +1107,11 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
         var partialTileWidth = decoded.imageData.width;
         var partialTileHeight = decoded.imageData.height;
 
-        var canvasTargetX = offsetX + decoded.xInOriginalRequest;
-        var canvasTargetY = offsetY + decoded.yInOriginalRequest;
-        
         if (partialTileWidth > 0 && partialTileHeight > 0) {
-            context.putImageData(decoded.imageData, canvasTargetX, canvasTargetY);
+            tempContext.putImageData(
+                decoded.imageData,
+                decoded.xInOriginalRequest,
+                decoded.yInOriginalRequest);
         }
     }
 
@@ -1091,7 +1119,13 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, level) {
         if (isAborted) {
             reject('Fetch request or decode aborted');
         } else {
-            resolve(canvas);
+            scaledContext.drawImage(
+                tempCanvas,
+                0, 0, tempPixelWidth, tempPixelHeight,
+                alignedParams.croppedScreen.minX, alignedParams.croppedScreen.minY,
+                alignedParams.croppedScreen.maxXExclusive, alignedParams.croppedScreen.maxYExclusive);
+                
+            resolve(scaledCanvas);
         }
     }
 
@@ -1151,40 +1185,40 @@ ImageDecoderImageryProvider.prototype._statusCallback =
     this._ready = status.isReady;
     
     // This is wrong if COD or COC exists besides main header COD
-    this._numResolutionLevels = this._image.getDefaultNumResolutionLevels();
     this._maxNumQualityLayers = this._maxNumQualityLayers;
-    //this._numResolutionLevels = 1;
+    this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
+    var maximumCesiumLevel = this._numResolutionLevels - 1;
         
     this._tileWidth = this._image.getTileWidth();
     this._tileHeight = this._image.getTileHeight();
         
-    var bestLevel = this._numResolutionLevels - 1;
-    var levelZeroWidth = this._image.getLevelWidth(bestLevel);
-    var levelZeroHeight = this._image.getLevelHeight(bestLevel);
+    var bestLevel = this._image.getImageLevel();
+    var bestLevelWidth  = this._image.getLevelWidth (bestLevel);
+    var bestLevelHeight = this._image.getLevelHeight(bestLevel);
     
-    var levelZeroTilesX = Math.ceil(levelZeroWidth / this._tileWidth);
-    var levelZeroTilesY = Math.ceil(levelZeroHeight / this._tileHeight);
+    var lowestLevelTilesX = Math.ceil(bestLevelWidth  / this._tileWidth ) >> maximumCesiumLevel;
+    var lowestLevelTilesY = Math.ceil(bestLevelHeight / this._tileHeight) >> maximumCesiumLevel;
 
     imageHelperFunctions.fixBounds(
         this._rectangle,
         this._image,
         this._adaptProportions);
-    var rectangleWidth = this._rectangle.east - this._rectangle.west;
+    var rectangleWidth  = this._rectangle.east  - this._rectangle.west;
     var rectangleHeight = this._rectangle.north - this._rectangle.south;
     
-    var bestLevelScale = 1 << bestLevel;
-    var pixelsWidthForCesium = this._tileWidth * levelZeroTilesX * bestLevelScale;
-    var pixelsHeightForCesium = this._tileHeight * levelZeroTilesY * bestLevelScale;
+    var bestLevelScale = 1 << maximumCesiumLevel;
+    var pixelsWidthForCesium  = this._tileWidth  * lowestLevelTilesX * bestLevelScale;
+    var pixelsHeightForCesium = this._tileHeight * lowestLevelTilesY * bestLevelScale;
     
     // Cesium works with full tiles only, thus fix the geographic bounds so
     // the pixels lies exactly on the original bounds
     
     var geographicWidthForCesium =
-        rectangleWidth * pixelsWidthForCesium / this._image.getLevelWidth();
+        rectangleWidth * pixelsWidthForCesium / bestLevelWidth;
     var geographicHeightForCesium =
-        rectangleHeight * pixelsHeightForCesium / this._image.getLevelHeight();
+        rectangleHeight * pixelsHeightForCesium / bestLevelHeight;
     
-    var fixedEast = this._rectangle.west + geographicWidthForCesium;
+    var fixedEast  = this._rectangle.west  + geographicWidthForCesium;
     var fixedSouth = this._rectangle.north - geographicHeightForCesium;
     
     this._tilingSchemeParams = {
@@ -1192,9 +1226,9 @@ ImageDecoderImageryProvider.prototype._statusCallback =
         east: fixedEast,
         south: fixedSouth,
         north: this._rectangle.north,
-        levelZeroTilesX: levelZeroTilesX,
-        levelZeroTilesY: levelZeroTilesY,
-        maximumLevel: bestLevel
+        levelZeroTilesX: lowestLevelTilesX,
+        levelZeroTilesY: lowestLevelTilesY,
+        maximumLevel: maximumCesiumLevel
     };
     
     this._tilingScheme = createTilingScheme(this._tilingSchemeParams);
@@ -1214,7 +1248,7 @@ function createTilingScheme(params) {
     
     return tilingScheme;
 }
-},{"_cesiumfrustumcalculator.js":2,"imagehelperfunctions.js":19,"workerproxyimagedecoder.js":24}],6:[function(require,module,exports){
+},{"_cesiumfrustumcalculator.js":2,"imagehelperfunctions.js":19,"workerproxyimagedecoder.js":25}],6:[function(require,module,exports){
 'use strict';
 
 module.exports = DataPublisher;
@@ -1233,18 +1267,18 @@ DataPublisher.prototype.publish = function publish(key, data) {
     }
     
     var iterator = subscribers.subscribersList.getFirstIterator();
-	var listeners = [];
+    var listeners = [];
     while (iterator !== null) {
         var subscriber = subscribers.subscribersList.getValue(iterator);
-		listeners.push(subscriber.listener);
+        listeners.push(subscriber.listener);
         
         iterator = subscribers.subscribersList.getNextIterator(iterator);
     }
-	
-	// Call only after collecting all listeners, so the list will not be destroyed while iterating
-	for (var i = 0; i < listeners.length; ++i) {
-		listeners[i].call(this, key, data);
-	}
+    
+    // Call only after collecting all listeners, so the list will not be destroyed while iterating
+    for (var i = 0; i < listeners.length; ++i) {
+        listeners[i].call(this, key, data);
+    }
 };
 
 DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
@@ -1278,7 +1312,7 @@ DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
         this._subscribersByKey.remove(handle._hashIterator);
     } else if (!subscriber.isGotResult) {
         --subscribers.subscribersNeverGotResultCount;
-		subscriber.isGotResult = true;
+        subscriber.isGotResult = true;
     }
 };
 
@@ -1323,11 +1357,11 @@ FetchClientBase.prototype.createDataPublisherInternal = function createDataPubli
 };
 
 FetchClientBase.prototype.getHashCode = function getHashCode(tileKey) {
-	throw 'FetchClientBase error: getHashCode is not implemented';
+    throw 'FetchClientBase error: getHashCode is not implemented';
 };
 
 FetchClientBase.prototype.isEqual = function getHashCode(key1, key2) {
-	throw 'FetchClientBase error: isEqual is not implemented';
+    throw 'FetchClientBase error: isEqual is not implemented';
 };
 
 // FetchClient implementation
@@ -1427,7 +1461,7 @@ function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
     this._stopListeners = [];
     this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
     this._keysToFetch = null;
-	this._nextKeyToFetch = 0;
+    this._nextKeyToFetch = 0;
     this._activeFetches = {};
     this._activeFetchesCount = 0;
     this._isAborted = false;
@@ -1440,7 +1474,7 @@ SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
     }
     
     this._keysToFetch = imageDataContext.getDataKeys();
-	this._nextKeyToFetch = 0;
+    this._nextKeyToFetch = 0;
     while (this._activeFetchesCount < this._fetchLimit) {
         if (!this._fetchSingleKey()) {
             break;
@@ -1517,10 +1551,10 @@ var HashMap = require('hashmap.js');
 function SimpleImageDataContext(contextVars, dataKeys, imagePartParams, dataPublisher, hasher) {
     this._contextVars = contextVars;
     this._dataByKey = new HashMap(hasher);
-	this._dataToReturn = {
-		imagePartParams: JSON.parse(JSON.stringify(imagePartParams)),
-		fetchedItems: []
-	};
+    this._dataToReturn = {
+        imagePartParams: JSON.parse(JSON.stringify(imagePartParams)),
+        fetchedItems: []
+    };
     this._dataKeysFetchedCount = 0;
     this._dataListeners = [];
     this._dataKeys = dataKeys;
@@ -1576,10 +1610,10 @@ SimpleImageDataContext.prototype.release = function release() {
 SimpleImageDataContext.prototype._dataFetched = function dataFetched(key, data) {
     if (this._dataByKey.tryAdd(key, function() {}).isNew) {
         ++this._dataKeysFetchedCount;
-		this._dataToReturn.fetchedItems.push({
-			key: key,
-			data: data
-		});
+        this._dataToReturn.fetchedItems.push({
+            key: key,
+            data: data
+        });
     }
     
     if (this.hasData()) {
@@ -1598,23 +1632,23 @@ module.exports = SimplePixelsDecoderBase;
 
 function SimplePixelsDecoderBase() {
     SimplePixelsDecoderBase.prototype.decode = function decode(fetchedData) {
-		var imagePartParams = fetchedData.imagePartParams;
-		var width  = imagePartParams.maxXExclusive - imagePartParams.minX;
-		var height = imagePartParams.maxYExclusive - imagePartParams.minY;
-		var result = new ImageData(width, height);
-		var promises = [];
-		for (var i = 0; i < fetchedData.fetchedItems.length; ++i) {
-			promises.push(this.decodeRegion(result, imagePartParams.minX, imagePartParams.minY, fetchedData.fetchedItems[i].key, fetchedData.fetchedItems[i].data));
-		}
-		
-		return Promise.all(promises).then(function() {
-			return result;
-		});
-	};
-	
-	SimplePixelsDecoderBase.prototype.decodeRegion = function decodeRegion(targetImageData, imagePartParams, key, fetchedData) {
-		throw 'SimplePixelsDecoderBase error: decodeRegion is not implemented';
-	};
+        var imagePartParams = fetchedData.imagePartParams;
+        var width  = imagePartParams.maxXExclusive - imagePartParams.minX;
+        var height = imagePartParams.maxYExclusive - imagePartParams.minY;
+        var result = new ImageData(width, height);
+        var promises = [];
+        for (var i = 0; i < fetchedData.fetchedItems.length; ++i) {
+            promises.push(this.decodeRegion(result, imagePartParams.minX, imagePartParams.minY, fetchedData.fetchedItems[i].key, fetchedData.fetchedItems[i].data));
+        }
+        
+        return Promise.all(promises).then(function() {
+            return result;
+        });
+    };
+    
+    SimplePixelsDecoderBase.prototype.decodeRegion = function decodeRegion(targetImageData, imagePartParams, key, fetchedData) {
+        throw 'SimplePixelsDecoderBase error: decodeRegion is not implemented';
+    };
 }
 },{}],11:[function(require,module,exports){
 'use strict';
@@ -1625,11 +1659,14 @@ var WorkerProxyFetchManager = require('workerproxyfetchmanager.js');
 var imageHelperFunctions = require('imageHelperFunctions.js');
 var DecodeJobsPool = require('decodejobspool.js');
 var WorkerProxyPixelsDecoder = require('workerproxypixelsdecoder.js');
+var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 /* global console: false */
 /* global Promise: false */
 
 function ImageDecoder(imageImplementationClassName, options) {
+    ImageParamsRetrieverProxy.call(this, imageImplementationClassName);
+    
     this._options = options || {};
     var decodeWorkersLimit = this._options.workersLimit || 5;
     
@@ -1642,14 +1679,10 @@ function ImageDecoder(imageImplementationClassName, options) {
         throw 'showLog is not supported on this browser';
     }*/
 
-    this._sizesParams = null;
-    this._sizesCalculator = null;
     this._channelStates = [];
     this._decoders = [];
-    this._imageImplementationClassName = imageImplementationClassName;
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
 
-	var optionsFetchManager = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
+    var optionsFetchManager = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
     this._fetchManager = new WorkerProxyFetchManager(optionsFetchManager);
     
     var decodeScheduler = imageHelperFunctions.createScheduler(
@@ -1676,9 +1709,21 @@ function ImageDecoder(imageImplementationClassName, options) {
         /*onlyWaitForDataAndDecode=*/true);
 }
 
+ImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
+
 ImageDecoder.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
     this._statusCallback = statusCallback;
     this._fetchManager.setStatusCallback(statusCallback);
+};
+
+ImageDecoder.prototype.getTileWidth = function getTileWidth() {
+    this._validateSizesCalculator();
+    return this._tileWidth;
+};
+
+ImageDecoder.prototype.getTileHeight = function getTileHeight() {
+    this._validateSizesCalculator();
+    return this._tileHeight;
 };
     
 ImageDecoder.prototype.setServerRequestPrioritizerData =
@@ -1717,50 +1762,10 @@ ImageDecoder.prototype.close = function close(closedCallback) {
     this._fetchManager.close(closedCallback);
 };
 
-ImageDecoder.prototype.getLevelWidth = function getLevelWidth(numResolutionLevelsToCut) {
-    validateSizesCalculator(this);
-    var width = this._sizesCalculator.getLevelWidth(
-        numResolutionLevelsToCut);
-
-    return width;
-};
-
-ImageDecoder.prototype.getLevelHeight = function getLevelHeight(numResolutionLevelsToCut) {
-    validateSizesCalculator(this);
-    var height = this._sizesCalculator.getLevelHeight(
-        numResolutionLevelsToCut);
-
-    return height;
-};
-
-ImageDecoder.prototype.getTileWidth = function getTileWidth() {
-    validateSizesCalculator(this);
-    return this._tileWidth;
-};
-
-ImageDecoder.prototype.getTileHeight = function getTileHeight() {
-    validateSizesCalculator(this);
-    return this._tileHeight;
-};
-
-ImageDecoder.prototype.getDefaultNumResolutionLevels = function getDefaultNumResolutionLevels() {
-    validateSizesCalculator(this);
-    var numLevels = this._sizesCalculator.getDefaultNumResolutionLevels();
-    
-    return numLevels;
-};
-
-ImageDecoder.prototype.getDefaultNumQualityLayers = function getDefaultNumQualityLayers() {
-    validateSizesCalculator(this);
-    var numLayers = this._sizesCalculator.getDefaultNumQualityLayers();
-    
-    return numLayers;
-};
-
 ImageDecoder.prototype.createChannel = function createChannel(
     createdCallback) {
     
-    validateSizesCalculator(this);
+    this._validateSizesCalculator();
     
     var self = this;
     
@@ -1777,7 +1782,7 @@ ImageDecoder.prototype.createChannel = function createChannel(
 };
 
 ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
-    validateSizesCalculator(this);
+    this._validateSizesCalculator();
     
     var level = imagePartParams.numResolutionLevelsToCut;
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
@@ -1823,7 +1828,7 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     imagePartParamsNotNeeded,
     channelHandle) {
     
-    validateSizesCalculator(this);
+    this._validateSizesCalculator();
     
     var level = imagePartParams.numResolutionLevelsToCut;
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
@@ -1854,10 +1859,10 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
         
     if (channelHandle !== undefined) {
         if (channelState.decodeJobsListenerHandle !== null) {
-			// Unregister after forked new jobs, so no termination occurs meanwhile
-			decodeJobsPool.unregisterForkedJobs(
-				channelState.decodeJobsListenerHandle);
-		}
+            // Unregister after forked new jobs, so no termination occurs meanwhile
+            decodeJobsPool.unregisterForkedJobs(
+                channelState.decodeJobsListenerHandle);
+        }
         channelState.decodeJobsListenerHandle = listenerHandle;
         this._fetchManager.moveChannel(channelHandle, imagePartParams);
     }
@@ -1867,22 +1872,8 @@ ImageDecoder.prototype.reconnect = function reconnect() {
     this._fetchManager.reconnect();
 };
 
-ImageDecoder.prototype._getSizesCalculator = function getSizesCalculator() {
-    validateSizesCalculator(this);
-    
-    return this._sizesCalculator;
-};
-
-ImageDecoder.prototype._getSizesParams = function getSizesParams() {
-    if (this._sizesParams === null) {
-        this._sizesParams = {
-            imageParams: this._fetchManager.getSizesParams(),
-            applicativeTileWidth: this._tileWidth,
-            applicativeTileHeight:  this._tileHeight
-        };
-    }
-    
-    return this._sizesParams;
+ImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+    return this._fetchManager._getSizesParams();
 };
 
 ImageDecoder.prototype._createDecoder = function createDecoder() {
@@ -1891,16 +1882,6 @@ ImageDecoder.prototype._createDecoder = function createDecoder() {
     
     return decoder;
 };
-
-function validateSizesCalculator(self) {
-    if (self._sizesCalculator !== null) {
-        return;
-    }
-    
-    var sizesParams = self._getSizesParams();
-    self._sizesCalculator = self._imageImplementation.createImageParamsRetriever(
-        sizesParams.imageParams);
-}
 
 function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
     var bytesPerPixel = 4;
@@ -1943,7 +1924,7 @@ function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
         targetOffset += targetStride;
     }
 }
-},{"decodejobspool.js":13,"imageHelperFunctions.js":18,"workerproxyfetchmanager.js":23,"workerproxypixelsdecoder.js":25}],12:[function(require,module,exports){
+},{"decodejobspool.js":13,"imageHelperFunctions.js":18,"imageparamsretrieverproxy.js":22,"workerproxyfetchmanager.js":24,"workerproxypixelsdecoder.js":26}],12:[function(require,module,exports){
 'use strict';
 
 module.exports = DecodeJob;
@@ -2493,8 +2474,8 @@ function FetchJob(fetchClient, scheduler, fetchType, contextVars) {
     this._imageDataContext = null;
     this._fetcher = null;
     this._resource = null;
-	this._fetchStoppedByFetchClientBound = this._fetchStoppedByFetchClient.bind(this);
-	//this._alreadyTerminatedWhenAllDataArrived = false;
+    this._fetchStoppedByFetchClientBound = this._fetchStoppedByFetchClient.bind(this);
+    //this._alreadyTerminatedWhenAllDataArrived = false;
     
     if (fetchType === FetchJob.FETCH_TYPE_CHANNEL) {
         this._fetcher = this._fetchClient.createChannelFetcher();
@@ -2562,7 +2543,7 @@ FetchJob.prototype._startFetch = function startFetch() {
         }
 
         this._fetchTerminated(/*isAborted=*/false);
-		//this._alreadyTerminatedWhenAllDataArrived = true;
+        //this._alreadyTerminatedWhenAllDataArrived = true;
         
         return;
     }
@@ -2573,10 +2554,10 @@ FetchJob.prototype._startFetch = function startFetch() {
         }
     }
     
-	var self = this;
+    var self = this;
     imageDataContext.on('data', function() {
-		self._dataCallback(imageDataContext);
-	});
+        self._dataCallback(imageDataContext);
+    });
     
     if (!this._isOnlyWaitForData) {
         this._fetcher.fetch(imageDataContext);
@@ -2648,12 +2629,12 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
             this._dataListeners[i](this._contextVars, imageDataContext);
         }
         
-		if (imageDataContext.isDone()) {
-			this._fetchTerminated(/*isAborted=*/false);
-			//this._alreadyTerminatedWhenAllDataArrived = true;
-			return;
-		}
-		
+        if (imageDataContext.isDone()) {
+            this._fetchTerminated(/*isAborted=*/false);
+            //this._alreadyTerminatedWhenAllDataArrived = true;
+            return;
+        }
+        
         if (this._useScheduler) {
             if (this._resource === null) {
                 throw 'No resource allocated but fetch callback called';
@@ -2672,11 +2653,11 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
 };
 
 FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClient(isAborted) {
-	//if (this._alreadyTerminatedWhenAllDataArrived) {
-	//	// Resources were already released ASAP
-	//	return;
-	//}
-	
+    //if (this._alreadyTerminatedWhenAllDataArrived) {
+    //    // Resources were already released ASAP
+    //    return;
+    //}
+    
     if (this._isYielded || this._resource === null) {
         throw 'Unexpected request state on stopped';
     }
@@ -2789,16 +2770,17 @@ module.exports = FetchManager;
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var FetchJob = require('fetchjob.js');
+var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 /* global console: false */
 
 function FetchManager(options) {
+    ImageParamsRetrieverProxy.call(this, options.imageImplementationClassName);
+
     var serverRequestsLimit = options.serverRequestsLimit || 5;
     
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(options.imageImplementationClassName);
     this._fetchClient = this._imageImplementation.createFetchClient();
     this._showLog = options.showLog;
-    this._sizesCalculator = null;
     
     if (this._showLog) {
         // Old IE
@@ -2819,6 +2801,8 @@ function FetchManager(options) {
     this._channelHandles = [];
     this._requestById = [];
 }
+
+FetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
 FetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
     this._fetchClient.setStatusCallback(statusCallback);
@@ -2941,42 +2925,9 @@ FetchManager.prototype.setServerRequestPrioritizerData =
         this._serverRequestPrioritizer.setPrioritizerData(prioritizerData);
     };
 
-FetchManager.prototype.getLevelWidth = function getLevelWidth(numResolutionLevelsToCut) {
-    this._validateSizesCalculator();
-    var width = this._sizesCalculator.getLevelWidth(
-        numResolutionLevelsToCut);
-
-    return width;
-};
-
-FetchManager.prototype.getLevelHeight = function getLevelHeight(numResolutionLevelsToCut) {
-    this._validateSizesCalculator();
-    var height = this._sizesCalculator.getLevelHeight(
-        numResolutionLevelsToCut);
-
-    return height;
-};
-
-FetchManager.prototype.getDefaultNumResolutionLevels = function getDefaultNumResolutionLevels() {
-    this._validateSizesCalculator();
-    var numLevels = this._sizesCalculator.getDefaultNumResolutionLevels();
-    
-    return numLevels;
-};
-    
-FetchManager.prototype._getSizesParams = function getSizesParams() {
+FetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
     var sizesParams = this._fetchClient.getSizesParams();
     return sizesParams;
-};
-
-FetchManager.prototype._validateSizesCalculator = function validateSizesCalculator() {
-    if (this._sizesCalculator !== null) {
-        return;
-    }
-    
-    this._imageParams = this._getSizesParams();
-    this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
-        this._imageParams);
 };
 
 function internalCallback(contextVars, imageDataContext) {
@@ -3031,7 +2982,7 @@ function extractDataAndCallCallback(
 function createServerRequestDummyResource() {
     return {};
 }
-},{"fetchjob.js":14,"imagehelperfunctions.js":19}],16:[function(require,module,exports){
+},{"fetchjob.js":14,"imagehelperfunctions.js":19,"imageparamsretrieverproxy.js":22}],16:[function(require,module,exports){
 'use strict';
 
 module.exports = FrustumRequestsPrioritizer;
@@ -3217,79 +3168,79 @@ var LinkedList = require('linkedlist.js');
 
 function HashMap(hasher) {
     this._byKey = [];
-	this._hasher = hasher;
+    this._hasher = hasher;
 }
 
 HashMap.prototype.getFromKey = function getFromKey(key) {
-	var hashCode = this._hasher.getHashCode(key);
+    var hashCode = this._hasher.getHashCode(key);
     var hashElements = this._byKey[hashCode];
     if (!hashElements) {
-		return null;
+        return null;
     }
-	
+    
     var iterator = hashElements.getFirstIterator();
     while (iterator !== null) {
         var item = hashElements.getValue(iterator);
         if (this._hasher.isEqual(item.key, key)) {
-			return item.value;
-		}
+            return item.value;
+        }
         
         iterator = hashElements.getNextIterator(iterator);
     }
 
-	return null;
+    return null;
 };
 
 HashMap.prototype.getFromIterator = function getFromIterator(iterator) {
-	return iterator._hashElements.getValue(iterator._internalIterator).value;
+    return iterator._hashElements.getValue(iterator._internalIterator).value;
 };
 
 HashMap.prototype.tryAdd = function tryAdd(key, createValue) {
-	var hashCode = this._hasher.getHashCode(key);
+    var hashCode = this._hasher.getHashCode(key);
     var hashElements = this._byKey[hashCode];
     if (!hashElements) {
-		hashElements = new LinkedList();
-		this._byKey[hashCode] = hashElements ;
+        hashElements = new LinkedList();
+        this._byKey[hashCode] = hashElements ;
     }
-	
-	var iterator = {
-		_hashCode: hashCode,
-		_hashElements: hashElements,
-		_internalIterator: null
-	};
-	
+    
+    var iterator = {
+        _hashCode: hashCode,
+        _hashElements: hashElements,
+        _internalIterator: null
+    };
+    
     iterator._internalIterator = hashElements.getFirstIterator();
     while (iterator._internalIterator !== null) {
         var item = hashElements.getValue(iterator._internalIterator);
         if (this._hasher.isEqual(item.key, key)) {
-			return {
-				iterator: iterator,
-				isNew: false,
-				value: item.value
-			};
-		}
+            return {
+                iterator: iterator,
+                isNew: false,
+                value: item.value
+            };
+        }
         
         iterator._internalIterator = hashElements.getNextIterator(iterator._internalIterator);
     }
-	
-	var value = createValue();
-	iterator._internalIterator = hashElements.add({
-		key: key,
-		value: value
-	});
-	
-	return {
-		iterator: iterator,
-		isNew: true,
-		value: value
-	};
+    
+    var value = createValue();
+    iterator._internalIterator = hashElements.add({
+        key: key,
+        value: value
+    });
+    
+    return {
+        iterator: iterator,
+        isNew: true,
+        value: value
+    };
 };
 
 HashMap.prototype.remove = function remove(iterator) {
-	iterator._hashElements.remove(iterator._internalIterator);
-	if (iterator._hashElements.getCount() === 0) {
-		delete this._byKey[iterator._hashCode];
-	}
+    iterator._hashElements.remove(iterator._internalIterator);
+    if (iterator._hashElements.getCount() === 0) {
+        delete this._byKey[iterator._hashCode];
+    }
 };
 },{"linkedlist.js":20}],18:[function(require,module,exports){
 'use strict';
@@ -3303,14 +3254,14 @@ module.exports = {
     alignParamsToTilesAndLevel: alignParamsToTilesAndLevel,
     getImageImplementation: getImageImplementation,
     getScriptsForWorkerImport: getScriptsForWorkerImport,
-	createInternalOptions: createInternalOptions
+    createInternalOptions: createInternalOptions
 };
 
 // Avoid jshint error
 /* global self: false */
 /* global globals: false */
     
-var log2 = Math.log(2);
+//var log2 = Math.log(2);
 
 var imageDecoderFrameworkScript = new AsyncProxy.ScriptsToImportPool();
 imageDecoderFrameworkScript.addScriptFromErrorWithStackTrace(new Error());
@@ -3399,8 +3350,9 @@ function fixBounds(bounds, image, adaptProportions) {
     var rectangleWidth = bounds.east - bounds.west;
     var rectangleHeight = bounds.north - bounds.south;
 
+    var level = image.getImageLevel();
     var pixelsAspectRatio =
-        image.getLevelWidth() / image.getLevelHeight();
+        image.getLevelWidth(level) / image.getLevelHeight(level);
     var rectangleAspectRatio = rectangleWidth / rectangleHeight;
     
     if (pixelsAspectRatio < rectangleAspectRatio) {
@@ -3439,71 +3391,88 @@ function alignParamsToTilesAndLevel(
         throw 'Parameters order is invalid';
     }
     
-    if (regionMaxX < 0 || regionMinX >= sizesCalculator.getLevelWidth() ||
-        regionMaxY < 0 || regionMinY >= sizesCalculator.getLevelHeight()) {
+    var imageLevel = sizesCalculator.getImageLevel();
+    var defaultLevelWidth = sizesCalculator.getLevelWidth(imageLevel);
+    var defaultLevelHeight = sizesCalculator.getLevelHeight(imageLevel);
+    if (regionMaxX < 0 || regionMinX >= defaultLevelWidth ||
+        regionMaxY < 0 || regionMinY >= defaultLevelHeight) {
         
         return null;
     }
     
-    var maxLevel =
-        sizesCalculator.getDefaultNumResolutionLevels() - 1;
+    //var maxLevel =
+    //    sizesCalculator.getDefaultNumResolutionLevels() - 1;
 
-    var levelX = Math.log((regionMaxX - regionMinX) / screenWidth ) / log2;
-    var levelY = Math.log((regionMaxY - regionMinY) / screenHeight) / log2;
-    var level = Math.ceil(Math.min(levelX, levelY));
-    level = Math.max(0, Math.min(maxLevel, level));
-    
+    //var levelX = Math.log((regionMaxX - regionMinX) / screenWidth ) / log2;
+    //var levelY = Math.log((regionMaxY - regionMinY) / screenHeight) / log2;
+    //var level = Math.ceil(Math.min(levelX, levelY));
+    //level = Math.max(0, Math.min(maxLevel, level));
+    var level = sizesCalculator.getLevel(region);
     var levelWidth = sizesCalculator.getLevelWidth(level);
-    var imageWidth = sizesCalculator.getLevelWidth();
     var levelHeight = sizesCalculator.getLevelHeight(level);
-    var imageHeight = sizesCalculator.getLevelHeight();
     
-    var scaleX = imageWidth / levelWidth;
-    var scaleY = imageHeight / levelHeight;
+    var scaleX = defaultLevelWidth / levelWidth;
+    var scaleY = defaultLevelHeight / levelHeight;
     
-    var minTileX = Math.floor(regionMinX / (scaleX * tileWidth));
+    var minTileX = Math.floor(regionMinX / (scaleX * tileWidth ));
     var minTileY = Math.floor(regionMinY / (scaleY * tileHeight));
-    var maxTileX = Math.ceil(regionMaxX / (scaleX * tileWidth));
-    var maxTileY = Math.ceil(regionMaxY / (scaleY * tileHeight));
+    var maxTileX = Math.ceil (regionMaxX / (scaleX * tileWidth ));
+    var maxTileY = Math.ceil (regionMaxY / (scaleY * tileHeight));
     
-    var minX = Math.max(0, Math.min(levelWidth, minTileX * tileWidth));
-    var maxX = Math.max(0, Math.min(levelWidth, maxTileX * tileWidth));
-    var minY = Math.max(0, Math.min(levelHeight, minTileY * tileHeight));
-    var maxY = Math.max(0, Math.min(levelHeight, maxTileY * tileHeight));
+    var minX = minTileX * tileWidth;
+    var minY = minTileY * tileHeight;
+    var maxX = maxTileX * tileWidth;
+    var maxY = maxTileY * tileHeight;
+    
+    var croppedMinX = Math.max(0, Math.min(levelWidth , minX));
+    var croppedMinY = Math.max(0, Math.min(levelHeight, minY));
+    var croppedMaxX = Math.max(0, Math.min(levelWidth , maxX));
+    var croppedMaxY = Math.max(0, Math.min(levelHeight, maxY));
+    
+    var imageParamsToScreenScaleX = screenWidth  / (maxX - minX);
+    var imageParamsToScreenScaleY = screenHeight / (maxY - minY);
     
     var imagePartParams = {
-        minX: minX,
-        minY: minY,
-        maxXExclusive: maxX,
-        maxYExclusive: maxY,
+        minX: croppedMinX,
+        minY: croppedMinY,
+        maxXExclusive: croppedMaxX,
+        maxYExclusive: croppedMaxY,
         numResolutionLevelsToCut: level
     };
     
     var positionInImage = {
-        minX: minX * scaleX,
-        minY: minY * scaleY,
-        maxXExclusive: maxX * scaleX,
-        maxYExclusive: maxY * scaleY
+        minX: croppedMinX * scaleX,
+        minY: croppedMinY * scaleY,
+        maxXExclusive: croppedMaxX * scaleX,
+        maxYExclusive: croppedMaxY * scaleY
+    };
+    
+    var croppedScreen = {
+        minX : Math.floor((croppedMinX - minX) * imageParamsToScreenScaleX),
+        minY : Math.floor((croppedMinY - minY) * imageParamsToScreenScaleY),
+        maxXExclusive : Math.ceil((croppedMaxX - minX) * imageParamsToScreenScaleX),
+        maxYExclusive : Math.ceil((croppedMaxY - minY) * imageParamsToScreenScaleY)
     };
     
     return {
         imagePartParams: imagePartParams,
-        positionInImage: positionInImage
+        positionInImage: positionInImage,
+        croppedScreen: croppedScreen
     };
 }
 
 function getImageImplementation(imageImplementationClassName) {
-	try {
-		return window && window[imageImplementationClassName];
-	} catch(e) { }
+    try {
+        return window && window[imageImplementationClassName];
+    } catch(e) { }
 
-	try {
-		return globals && globals[imageImplementationClassName];
-	} catch(e) { }
+    try {
+        return globals && globals[imageImplementationClassName];
+    } catch(e) { }
 
-	try {
-		return self && self[imageImplementationClassName];
-	} catch(e) { }
+    try {
+        return self && self[imageImplementationClassName];
+    } catch(e) { }
 }
 
 function getScriptsForWorkerImport(imageImplementation, options) {
@@ -3512,21 +3481,21 @@ function getScriptsForWorkerImport(imageImplementation, options) {
 }
 
 function createInternalOptions(imageImplementationClassName, options) {
-	options = options || {};
-	
-	if (options.imageImplementationClassName &&
-		options.scriptsToImport) {
-			
-		return options;
-	}
-	
-	var imageImplementation = getImageImplementation(imageImplementationClassName);
-	
-	var optionsInternal = JSON.parse(JSON.stringify(options));
-	optionsInternal.imageImplementationClassName = options.imageImplementationClassName || imageImplementationClassName;
-	optionsInternal.scriptsToImport = options.scriptsToImport || getScriptsForWorkerImport(imageImplementation, options);
-	
-	return optionsInternal;
+    options = options || {};
+    
+    if (options.imageImplementationClassName &&
+        options.scriptsToImport) {
+            
+        return options;
+    }
+    
+    var imageImplementation = getImageImplementation(imageImplementationClassName);
+    
+    var optionsInternal = JSON.parse(JSON.stringify(options));
+    optionsInternal.imageImplementationClassName = options.imageImplementationClassName || imageImplementationClassName;
+    optionsInternal.scriptsToImport = options.scriptsToImport || getScriptsForWorkerImport(imageImplementation, options);
+    
+    return optionsInternal;
 }
 },{"frustumrequestsprioritizer.js":16}],19:[function(require,module,exports){
 arguments[4][18][0].apply(exports,arguments)
@@ -3536,92 +3505,92 @@ arguments[4][18][0].apply(exports,arguments)
 module.exports = LinkedList;
 
 function LinkedList() {
-	this._first = { _prev: null, _parent: this };
-	this._last = { _next: null, _parent: this };
-	this._count = 0;
-	
-	this._last._prev = this._first;
-	this._first._next = this._last;
+    this._first = { _prev: null, _parent: this };
+    this._last = { _next: null, _parent: this };
+    this._count = 0;
+    
+    this._last._prev = this._first;
+    this._first._next = this._last;
 }
 
 LinkedList.prototype.add = function add(value, addBefore) {
-	if (addBefore === null || addBefore === undefined) {
-		addBefore = this._last;
-	}
-	
-	this._validateIteratorOfThis(addBefore);
-	
-	++this._count;
-	
-	var newNode = {
-		_value: value,
-		_next: addBefore,
-		_prev: addBefore._prev,
-		_parent: this
-	};
-	
-	newNode._prev._next = newNode;
-	addBefore._prev = newNode;
-	
-	return newNode;
+    if (addBefore === null || addBefore === undefined) {
+        addBefore = this._last;
+    }
+    
+    this._validateIteratorOfThis(addBefore);
+    
+    ++this._count;
+    
+    var newNode = {
+        _value: value,
+        _next: addBefore,
+        _prev: addBefore._prev,
+        _parent: this
+    };
+    
+    newNode._prev._next = newNode;
+    addBefore._prev = newNode;
+    
+    return newNode;
 };
 
 LinkedList.prototype.remove = function remove(iterator) {
-	this._validateIteratorOfThis(iterator);
-	
-	--this._count;
-	
-	iterator._prev._next = iterator._next;
-	iterator._next._prev = iterator._prev;
-	iterator._parent = null;
+    this._validateIteratorOfThis(iterator);
+    
+    --this._count;
+    
+    iterator._prev._next = iterator._next;
+    iterator._next._prev = iterator._prev;
+    iterator._parent = null;
 };
 
 LinkedList.prototype.getValue = function getValue(iterator) {
-	this._validateIteratorOfThis(iterator);
-	
-	return iterator._value;
+    this._validateIteratorOfThis(iterator);
+    
+    return iterator._value;
 };
 
 LinkedList.prototype.getFirstIterator = function getFirstIterator() {
-	var iterator = this.getNextIterator(this._first);
-	return iterator;
+    var iterator = this.getNextIterator(this._first);
+    return iterator;
 };
 
 LinkedList.prototype.getLastIterator = function getFirstIterator() {
-	var iterator = this.getPrevIterator(this._last);
-	return iterator;
+    var iterator = this.getPrevIterator(this._last);
+    return iterator;
 };
 
 LinkedList.prototype.getNextIterator = function getNextIterator(iterator) {
-	this._validateIteratorOfThis(iterator);
+    this._validateIteratorOfThis(iterator);
 
-	if (iterator._next === this._last) {
-		return null;
-	}
-	
-	return iterator._next;
+    if (iterator._next === this._last) {
+        return null;
+    }
+    
+    return iterator._next;
 };
 
 LinkedList.prototype.getPrevIterator = function getPrevIterator(iterator) {
-	this._validateIteratorOfThis(iterator);
+    this._validateIteratorOfThis(iterator);
 
-	if (iterator._prev === this._first) {
-		return null;
-	}
-	
-	return iterator._prev;
+    if (iterator._prev === this._first) {
+        return null;
+    }
+    
+    return iterator._prev;
 };
 
 LinkedList.prototype.getCount = function getCount() {
-	return this._count;
+    return this._count;
 };
 
 LinkedList.prototype._validateIteratorOfThis =
-	function validateIteratorOfThis(iterator) {
-	
-	if (iterator._parent !== this) {
-		throw 'iterator must be of the current LinkedList';
-	}
+    function validateIteratorOfThis(iterator) {
+    
+    if (iterator._parent !== this) {
+        throw 'iterator must be of the current LinkedList';
+    }
 };
 },{}],21:[function(require,module,exports){
 'use strict';
@@ -3657,6 +3626,93 @@ function slaveScriptContent() {
 },{"imagedecoder.js":11}],22:[function(require,module,exports){
 'use strict';
 
+module.exports = ImageParamsRetrieverProxy;
+
+var imageHelperFunctions = require('imagehelperfunctions.js');
+
+function ImageParamsRetrieverProxy(imageImplementationClassName) {
+    this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
+    this._sizesParams = null;
+    this._sizesCalculator = null;
+}
+
+ImageParamsRetrieverProxy.prototype.getImageLevel = function getImageLevel() {
+    this._validateSizesCalculator();
+    var level = this._sizesCalculator.getImageLevel();
+
+    return level;
+};
+
+ImageParamsRetrieverProxy.prototype.getNumResolutionLevelsForLimittedViewer = function getNumResolutionLevelsForLimittedViewer() {
+    this._validateSizesCalculator();
+    var levels = this._sizesCalculator.getNumResolutionLevelsForLimittedViewer();
+
+    return levels;
+};
+
+ImageParamsRetrieverProxy.prototype.getLevelWidth = function getLevelWidth(numResolutionLevelsToCut) {
+    this._validateSizesCalculator();
+    var width = this._sizesCalculator.getLevelWidth(
+        numResolutionLevelsToCut);
+
+    return width;
+};
+
+ImageParamsRetrieverProxy.prototype.getLevelHeight = function getLevelHeight(numResolutionLevelsToCut) {
+    this._validateSizesCalculator();
+    var height = this._sizesCalculator.getLevelHeight(
+        numResolutionLevelsToCut);
+
+    return height;
+};
+
+ImageParamsRetrieverProxy.prototype.getLevel = function getLevel(regionLevel0) {
+    this._validateSizesCalculator();
+    var level = this._sizesCalculator.getLevel(regionLevel0);
+    
+    return level;
+};
+
+ImageParamsRetrieverProxy.prototype.getDefaultNumQualityLayers = function getDefaultNumQualityLayers() {
+    this._validateSizesCalculator();
+    var numLayers = this._sizesCalculator.getDefaultNumQualityLayers();
+    
+    return numLayers;
+};
+
+ImageParamsRetrieverProxy.prototype._getSizesCalculator = function getSizesCalculator() {
+    this._validateSizesCalculator(this);
+    
+    return this._sizesCalculator;
+};
+
+ImageParamsRetrieverProxy.prototype._getSizesParams = function getSizesParams() {
+    if (!this._sizesParams) {
+        this._sizesParams = this._getSizesParamsInternal();
+        if (!this._sizesParams) {
+            throw 'getSizesParams() return falsy value; Maybe image not ready yet?';
+        }
+    }
+    
+    return this._sizesParams;
+};
+
+ImageParamsRetrieverProxy.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+    throw 'ImageParamsRetrieverProxy implemented did not implement _getSizesParamsInternal()';
+};
+
+ImageParamsRetrieverProxy.prototype._validateSizesCalculator = function validateSizesCalculator() {
+    if (this._sizesCalculator !== null) {
+        return;
+    }
+    
+    var sizesParams = this._getSizesParams();
+    this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
+        sizesParams);
+}
+},{"imagehelperfunctions.js":19}],23:[function(require,module,exports){
+'use strict';
+
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
 /*jshint -W034 */
 
@@ -3687,24 +3743,35 @@ function slaveScriptContent() {
             return null;
         }
         
-        var sizes = this._getSizesParams();
-        isReady = true;
+        var data = { sizesParams: this._getSizesParams() };
         
-        AsyncProxy.AsyncProxySlave.sendUserDataToMaster(sizes);
+        // getTileWidth and getTileHeight exists only in ImageDecoder but not in FetchManager
+        if (this.getTileWidth) {
+            data.applicativeTileWidth = this.getTileWidth();
+        }
+        if (this.getTileHeight) {
+            data.applicativeTileHeight = this.getTileHeight();
+        }
+        
+        AsyncProxy.AsyncProxySlave.sendUserDataToMaster(data);
+        isReady = true;
     }
 }
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 'use strict';
 
 module.exports = WorkerProxyFetchManager;
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
+var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 function WorkerProxyFetchManager(options) {
+    ImageParamsRetrieverProxy.call(this, options.imageImplementationClassName);
+
     this._imageWidth = null;
     this._imageHeight = null;
-    this._sizesParams = null;
+    this._internalSizesParams = null;
     this._currentStatusCallbackWrapper = null;
     this._options = options;
     
@@ -3717,6 +3784,8 @@ function WorkerProxyFetchManager(options) {
     var boundUserDataHandler = this._userDataHandler.bind(this);
     this._workerHelper.setUserDataHandler(boundUserDataHandler);
 }
+
+WorkerProxyFetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
 WorkerProxyFetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
     if (this._currentStatusCallbackWrapper !== null) {
@@ -3847,18 +3916,14 @@ WorkerProxyFetchManager.prototype.reconnect = function reconnect() {
     this._workerHelper.callFunction('reconnect');
 };
 
-WorkerProxyFetchManager.prototype.getSizesParams = function getSizesParams() {
-    if (this._sizesParams === null) {
-        throw 'Image is not ready yet';
-    }
-    
-    return this._sizesParams;
+WorkerProxyFetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+    return this._internalSizesParams;
 };
 
-WorkerProxyFetchManager.prototype._userDataHandler = function userDataHandler(sizesParams) {
-    this._sizesParams = sizesParams;
+WorkerProxyFetchManager.prototype._userDataHandler = function userDataHandler(data) {
+    this._internalSizesParams = data.sizesParams;
 };
-},{"imagehelperfunctions.js":19,"sendimageparameterstomaster.js":22}],24:[function(require,module,exports){
+},{"imagehelperfunctions.js":19,"imageparamsretrieverproxy.js":22,"sendimageparameterstomaster.js":23}],25:[function(require,module,exports){
 'use strict';
 
 module.exports = WorkerProxyImageDecoder;
@@ -3866,20 +3931,20 @@ module.exports = WorkerProxyImageDecoder;
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
 var createImageDecoderSlaveSide = require('createimagedecoderonslaveside.js');
+var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 function WorkerProxyImageDecoder(imageImplementationClassName, options) {
+    ImageParamsRetrieverProxy.call(this, imageImplementationClassName);
+
     this._imageWidth = null;
     this._imageHeight = null;
-    this._sizesParams = null;
     this._tileWidth = 0;
     this._tileHeight = 0;
     this._currentStatusCallbackWrapper = null;
-	this._sizesCalculator = null;
+    this._sizesCalculator = null;
     
-	var optionsInternal = imageHelperFunctions.createInternalOptions(imageImplementationClassName, options);
+    var optionsInternal = imageHelperFunctions.createInternalOptions(imageImplementationClassName, options);
     var ctorArgs = [imageImplementationClassName, optionsInternal];
-
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
     
     var scriptsToImport = imageHelperFunctions.getScriptsForWorkerImport(
         this._imageImplementation, options);
@@ -3894,6 +3959,8 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._workerHelper.setUserDataHandler(boundUserDataHandler);
 }
 
+WorkerProxyImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
+
 WorkerProxyImageDecoder.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
     if (this._currentStatusCallbackWrapper !== null) {
         this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
@@ -3904,6 +3971,16 @@ WorkerProxyImageDecoder.prototype.setStatusCallback = function setStatusCallback
     
     this._currentStatusCallbackWrapper = callbackWrapper;
     this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
+};
+
+WorkerProxyImageDecoder.prototype.getTileWidth = function getTileWidth() {
+    this._validateSizesCalculator();
+    return this._tileWidth;
+};
+
+WorkerProxyImageDecoder.prototype.getTileHeight = function getTileHeight() {
+    this._validateSizesCalculator();
+    return this._tileHeight;
 };
 
 WorkerProxyImageDecoder.prototype.open = function open(url) {
@@ -3925,60 +4002,6 @@ WorkerProxyImageDecoder.prototype.close = function close(closedCallback) {
             closedCallback();
         }
     }
-};
-
-WorkerProxyImageDecoder.prototype.getLevelWidth = function getLevelWidth(numResolutionLevelsToCut) {
-    if (this._sizesCalculator === null) {
-        throw 'Image is not ready yet';
-    }
-
-    var width = this._sizesCalculator.getLevelWidth(
-        numResolutionLevelsToCut);
-    return width;
-};
-
-WorkerProxyImageDecoder.prototype.getLevelHeight = function getLevelHeight(numResolutionLevelsToCut) {
-    if (this._sizesCalculator === null) {
-        throw 'Image is not ready yet';
-    }
-    
-    var height = this._sizesCalculator.getLevelHeight(
-        numResolutionLevelsToCut);
-    return height;
-};
-
-WorkerProxyImageDecoder.prototype.getTileWidth = function getTileWidth() {
-    if (this._tileWidth === 0) {
-        throw 'Image is not ready yet';
-    }
-
-    return this._tileWidth;
-};
-
-WorkerProxyImageDecoder.prototype.getTileHeight = function getTileHeight() {
-    if (this._tileHeight === 0) {
-        throw 'Image is not ready yet';
-    }
-
-    return this._tileHeight;
-};
-
-WorkerProxyImageDecoder.prototype.getDefaultNumResolutionLevels = function getDefaultNumResolutionLevels() {
-    if (this._sizesCalculator === null) {
-        throw 'Image is not ready yet';
-    }
-    
-    var numLevels = this._sizesCalculator.getDefaultNumResolutionLevels();
-    return numLevels;
-};
-
-WorkerProxyImageDecoder.prototype.getDefaultNumQualityLayers = function getDefaultNumQualityLayers() {
-    if (this._sizesCalculator === null) {
-        throw 'Image is not ready yet';
-    }
-    
-    var numLayers = this._sizesCalculator.getDefaultNumQualityLayers();
-    return numLayers;
 };
 
 WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
@@ -4073,30 +4096,17 @@ WorkerProxyImageDecoder.prototype.reconnect = function reconnect() {
     this._workerHelper.callFunction('reconnect');
 };
 
-WorkerProxyImageDecoder.prototype._getSizesCalculator = function getSizesCalculator() {
-    if (this._sizesCalculator === null) {
-        throw 'Image is not ready yet';
-    }
-    
-    return this._sizesCalculator;
+WorkerProxyImageDecoder.prototype._userDataHandler = function userDataHandler(data) {
+    this._internalSizesParams = data.sizesParams;
+    this._tileWidth = data.applicativeTileWidth;
+    this._tileHeight = data.applicativeTileHeight;
+    this._validateSizesCalculator();
 };
 
-WorkerProxyImageDecoder.prototype._getSizesParams = function getSizesParams() {
-    if (this._sizesParams === null) {
-        throw 'Image is not ready yet';
-    }
-    
-    return this._sizesParams;
+WorkerProxyImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+    return this._internalSizesParams;
 };
-
-WorkerProxyImageDecoder.prototype._userDataHandler = function userDataHandler(sizesParams) {
-    this._sizesParams = sizesParams;
-    this._tileWidth = sizesParams.applicativeTileWidth;
-    this._tileHeight = sizesParams.applicativeTileHeight;
-    this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
-        sizesParams.imageParams);
-};
-},{"createimagedecoderonslaveside.js":21,"imagehelperfunctions.js":19,"sendimageparameterstomaster.js":22}],25:[function(require,module,exports){
+},{"createimagedecoderonslaveside.js":21,"imagehelperfunctions.js":19,"imageparamsretrieverproxy.js":22,"sendimageparameterstomaster.js":23}],26:[function(require,module,exports){
 'use strict';
 
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
@@ -4149,7 +4159,7 @@ function decoderSlaveScriptBody() {
         return imageImplementation.createPixelsDecoder();
     });
 }
-},{"imagehelperfunctions.js":19}],26:[function(require,module,exports){
+},{"imagehelperfunctions.js":19}],27:[function(require,module,exports){
 'use strict';
 
 module.exports = ViewerImageDecoder;
@@ -4177,6 +4187,8 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
         options.allowMultipleChannelsInSession;
     this._minFunctionCallIntervalMilliseconds =
         options.minFunctionCallIntervalMilliseconds;
+    this._overviewResolutionX = options.overviewResolutionX || 100;
+    this._overviewResolutionY = options.overviewResolutionY || 100;
         
     this._lastRequestIndex = 0;
     this._pendingUpdateViewArea = null;
@@ -4708,8 +4720,9 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         fixedBounds, this._image, this._adaptProportions);
     this._cartographicBoundsFixed = fixedBounds;
     
-    var imageWidth = this._image.getLevelWidth();
-    var imageHeight = this._image.getLevelHeight();
+    var level = this._image.getImageLevel();
+    var imageWidth = this._image.getLevelWidth(level);
+    var imageHeight = this._image.getLevelHeight(level);
 
     var rectangleWidth = fixedBounds.east - fixedBounds.west;
     var rectangleHeight = fixedBounds.north - fixedBounds.south;
@@ -4724,8 +4737,8 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         minY: 0,
         maxXExclusive: imageWidth,
         maxYExclusive: imageHeight,
-        screenWidth: 1,
-        screenHeight: 1
+        screenWidth: this._overviewResolutionX,
+        screenHeight: this._overviewResolutionY
     };
     
     var overviewAlignedParams =
@@ -4750,7 +4763,7 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         this._startShowingDynamicRegion();
     }
 };
-},{"imagedecoder.js":11,"imagehelperfunctions.js":19,"workerproxyimagedecoder.js":24}],27:[function(require,module,exports){
+},{"imagedecoder.js":11,"imagehelperfunctions.js":19,"workerproxyimagedecoder.js":25}],28:[function(require,module,exports){
 'use strict';
 
 var ViewerImageDecoder = require('viewerimagedecoder.js');
@@ -4770,10 +4783,10 @@ if (self.L) {
 function createImageDecoderRegionLayerFunctions() {
     return {
         initialize: function initialize(options) {
-			this._options = options || {};
-			
+            this._options = options || {};
+            
             if (this._options.latLngBounds !== undefined) {
-				this._options = JSON.parse(JSON.stringify(options));
+                this._options = JSON.parse(JSON.stringify(options));
                 this._options.cartographicBounds = {
                     west: options.latLngBounds.getWest(),
                     east: options.latLngBounds.getEast(),
@@ -4920,7 +4933,7 @@ function createImageDecoderRegionLayerFunctions() {
         }
     };
 }
-},{"leafletfrustumcalculator.js":28,"viewerimagedecoder.js":26}],28:[function(require,module,exports){
+},{"leafletfrustumcalculator.js":29,"viewerimagedecoder.js":27}],29:[function(require,module,exports){
 'use strict';
 
 var imageHelperFunctions = require('imagehelperfunctions.js');

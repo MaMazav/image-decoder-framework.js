@@ -9,14 +9,14 @@ module.exports = {
     alignParamsToTilesAndLevel: alignParamsToTilesAndLevel,
     getImageImplementation: getImageImplementation,
     getScriptsForWorkerImport: getScriptsForWorkerImport,
-	createInternalOptions: createInternalOptions
+    createInternalOptions: createInternalOptions
 };
 
 // Avoid jshint error
 /* global self: false */
 /* global globals: false */
     
-var log2 = Math.log(2);
+//var log2 = Math.log(2);
 
 var imageDecoderFrameworkScript = new AsyncProxy.ScriptsToImportPool();
 imageDecoderFrameworkScript.addScriptFromErrorWithStackTrace(new Error());
@@ -105,8 +105,9 @@ function fixBounds(bounds, image, adaptProportions) {
     var rectangleWidth = bounds.east - bounds.west;
     var rectangleHeight = bounds.north - bounds.south;
 
+    var level = image.getImageLevel();
     var pixelsAspectRatio =
-        image.getLevelWidth() / image.getLevelHeight();
+        image.getLevelWidth(level) / image.getLevelHeight(level);
     var rectangleAspectRatio = rectangleWidth / rectangleHeight;
     
     if (pixelsAspectRatio < rectangleAspectRatio) {
@@ -145,71 +146,88 @@ function alignParamsToTilesAndLevel(
         throw 'Parameters order is invalid';
     }
     
-    if (regionMaxX < 0 || regionMinX >= sizesCalculator.getLevelWidth() ||
-        regionMaxY < 0 || regionMinY >= sizesCalculator.getLevelHeight()) {
+    var imageLevel = sizesCalculator.getImageLevel();
+    var defaultLevelWidth = sizesCalculator.getLevelWidth(imageLevel);
+    var defaultLevelHeight = sizesCalculator.getLevelHeight(imageLevel);
+    if (regionMaxX < 0 || regionMinX >= defaultLevelWidth ||
+        regionMaxY < 0 || regionMinY >= defaultLevelHeight) {
         
         return null;
     }
     
-    var maxLevel =
-        sizesCalculator.getDefaultNumResolutionLevels() - 1;
+    //var maxLevel =
+    //    sizesCalculator.getDefaultNumResolutionLevels() - 1;
 
-    var levelX = Math.log((regionMaxX - regionMinX) / screenWidth ) / log2;
-    var levelY = Math.log((regionMaxY - regionMinY) / screenHeight) / log2;
-    var level = Math.ceil(Math.min(levelX, levelY));
-    level = Math.max(0, Math.min(maxLevel, level));
-    
+    //var levelX = Math.log((regionMaxX - regionMinX) / screenWidth ) / log2;
+    //var levelY = Math.log((regionMaxY - regionMinY) / screenHeight) / log2;
+    //var level = Math.ceil(Math.min(levelX, levelY));
+    //level = Math.max(0, Math.min(maxLevel, level));
+    var level = sizesCalculator.getLevel(region);
     var levelWidth = sizesCalculator.getLevelWidth(level);
-    var imageWidth = sizesCalculator.getLevelWidth();
     var levelHeight = sizesCalculator.getLevelHeight(level);
-    var imageHeight = sizesCalculator.getLevelHeight();
     
-    var scaleX = imageWidth / levelWidth;
-    var scaleY = imageHeight / levelHeight;
+    var scaleX = defaultLevelWidth / levelWidth;
+    var scaleY = defaultLevelHeight / levelHeight;
     
-    var minTileX = Math.floor(regionMinX / (scaleX * tileWidth));
+    var minTileX = Math.floor(regionMinX / (scaleX * tileWidth ));
     var minTileY = Math.floor(regionMinY / (scaleY * tileHeight));
-    var maxTileX = Math.ceil(regionMaxX / (scaleX * tileWidth));
-    var maxTileY = Math.ceil(regionMaxY / (scaleY * tileHeight));
+    var maxTileX = Math.ceil (regionMaxX / (scaleX * tileWidth ));
+    var maxTileY = Math.ceil (regionMaxY / (scaleY * tileHeight));
     
-    var minX = Math.max(0, Math.min(levelWidth, minTileX * tileWidth));
-    var maxX = Math.max(0, Math.min(levelWidth, maxTileX * tileWidth));
-    var minY = Math.max(0, Math.min(levelHeight, minTileY * tileHeight));
-    var maxY = Math.max(0, Math.min(levelHeight, maxTileY * tileHeight));
+    var minX = minTileX * tileWidth;
+    var minY = minTileY * tileHeight;
+    var maxX = maxTileX * tileWidth;
+    var maxY = maxTileY * tileHeight;
+    
+    var croppedMinX = Math.max(0, Math.min(levelWidth , minX));
+    var croppedMinY = Math.max(0, Math.min(levelHeight, minY));
+    var croppedMaxX = Math.max(0, Math.min(levelWidth , maxX));
+    var croppedMaxY = Math.max(0, Math.min(levelHeight, maxY));
+    
+    var imageParamsToScreenScaleX = screenWidth  / (maxX - minX);
+    var imageParamsToScreenScaleY = screenHeight / (maxY - minY);
     
     var imagePartParams = {
-        minX: minX,
-        minY: minY,
-        maxXExclusive: maxX,
-        maxYExclusive: maxY,
+        minX: croppedMinX,
+        minY: croppedMinY,
+        maxXExclusive: croppedMaxX,
+        maxYExclusive: croppedMaxY,
         numResolutionLevelsToCut: level
     };
     
     var positionInImage = {
-        minX: minX * scaleX,
-        minY: minY * scaleY,
-        maxXExclusive: maxX * scaleX,
-        maxYExclusive: maxY * scaleY
+        minX: croppedMinX * scaleX,
+        minY: croppedMinY * scaleY,
+        maxXExclusive: croppedMaxX * scaleX,
+        maxYExclusive: croppedMaxY * scaleY
+    };
+    
+    var croppedScreen = {
+        minX : Math.floor((croppedMinX - minX) * imageParamsToScreenScaleX),
+        minY : Math.floor((croppedMinY - minY) * imageParamsToScreenScaleY),
+        maxXExclusive : Math.ceil((croppedMaxX - minX) * imageParamsToScreenScaleX),
+        maxYExclusive : Math.ceil((croppedMaxY - minY) * imageParamsToScreenScaleY)
     };
     
     return {
         imagePartParams: imagePartParams,
-        positionInImage: positionInImage
+        positionInImage: positionInImage,
+        croppedScreen: croppedScreen
     };
 }
 
 function getImageImplementation(imageImplementationClassName) {
-	try {
-		return window && window[imageImplementationClassName];
-	} catch(e) { }
+    try {
+        return window && window[imageImplementationClassName];
+    } catch(e) { }
 
-	try {
-		return globals && globals[imageImplementationClassName];
-	} catch(e) { }
+    try {
+        return globals && globals[imageImplementationClassName];
+    } catch(e) { }
 
-	try {
-		return self && self[imageImplementationClassName];
-	} catch(e) { }
+    try {
+        return self && self[imageImplementationClassName];
+    } catch(e) { }
 }
 
 function getScriptsForWorkerImport(imageImplementation, options) {
@@ -218,19 +236,19 @@ function getScriptsForWorkerImport(imageImplementation, options) {
 }
 
 function createInternalOptions(imageImplementationClassName, options) {
-	options = options || {};
-	
-	if (options.imageImplementationClassName &&
-		options.scriptsToImport) {
-			
-		return options;
-	}
-	
-	var imageImplementation = getImageImplementation(imageImplementationClassName);
-	
-	var optionsInternal = JSON.parse(JSON.stringify(options));
-	optionsInternal.imageImplementationClassName = options.imageImplementationClassName || imageImplementationClassName;
-	optionsInternal.scriptsToImport = options.scriptsToImport || getScriptsForWorkerImport(imageImplementation, options);
-	
-	return optionsInternal;
+    options = options || {};
+    
+    if (options.imageImplementationClassName &&
+        options.scriptsToImport) {
+            
+        return options;
+    }
+    
+    var imageImplementation = getImageImplementation(imageImplementationClassName);
+    
+    var optionsInternal = JSON.parse(JSON.stringify(options));
+    optionsInternal.imageImplementationClassName = options.imageImplementationClassName || imageImplementationClassName;
+    optionsInternal.scriptsToImport = options.scriptsToImport || getScriptsForWorkerImport(imageImplementation, options);
+    
+    return optionsInternal;
 }

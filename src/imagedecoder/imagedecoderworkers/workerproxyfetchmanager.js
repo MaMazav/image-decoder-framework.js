@@ -4,11 +4,14 @@ module.exports = WorkerProxyFetchManager;
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
+var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 function WorkerProxyFetchManager(options) {
+    ImageParamsRetrieverProxy.call(this, options.imageImplementationClassName);
+
     this._imageWidth = null;
     this._imageHeight = null;
-    this._sizesParams = null;
+    this._internalSizesParams = null;
     this._currentStatusCallbackWrapper = null;
     this._options = options;
     
@@ -21,6 +24,8 @@ function WorkerProxyFetchManager(options) {
     var boundUserDataHandler = this._userDataHandler.bind(this);
     this._workerHelper.setUserDataHandler(boundUserDataHandler);
 }
+
+WorkerProxyFetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
 WorkerProxyFetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
     if (this._currentStatusCallbackWrapper !== null) {
@@ -151,14 +156,10 @@ WorkerProxyFetchManager.prototype.reconnect = function reconnect() {
     this._workerHelper.callFunction('reconnect');
 };
 
-WorkerProxyFetchManager.prototype.getSizesParams = function getSizesParams() {
-    if (this._sizesParams === null) {
-        throw 'Image is not ready yet';
-    }
-    
-    return this._sizesParams;
+WorkerProxyFetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+    return this._internalSizesParams;
 };
 
-WorkerProxyFetchManager.prototype._userDataHandler = function userDataHandler(sizesParams) {
-    this._sizesParams = sizesParams;
+WorkerProxyFetchManager.prototype._userDataHandler = function userDataHandler(data) {
+    this._internalSizesParams = data.sizesParams;
 };

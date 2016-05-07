@@ -6,11 +6,14 @@ var WorkerProxyFetchManager = require('workerproxyfetchmanager.js');
 var imageHelperFunctions = require('imageHelperFunctions.js');
 var DecodeJobsPool = require('decodejobspool.js');
 var WorkerProxyPixelsDecoder = require('workerproxypixelsdecoder.js');
+var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 /* global console: false */
 /* global Promise: false */
 
 function ImageDecoder(imageImplementationClassName, options) {
+    ImageParamsRetrieverProxy.call(this, imageImplementationClassName);
+    
     this._options = options || {};
     var decodeWorkersLimit = this._options.workersLimit || 5;
     
@@ -23,14 +26,10 @@ function ImageDecoder(imageImplementationClassName, options) {
         throw 'showLog is not supported on this browser';
     }*/
 
-    this._sizesParams = null;
-    this._sizesCalculator = null;
     this._channelStates = [];
     this._decoders = [];
-    this._imageImplementationClassName = imageImplementationClassName;
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
 
-	var optionsFetchManager = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
+    var optionsFetchManager = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
     this._fetchManager = new WorkerProxyFetchManager(optionsFetchManager);
     
     var decodeScheduler = imageHelperFunctions.createScheduler(
@@ -57,9 +56,21 @@ function ImageDecoder(imageImplementationClassName, options) {
         /*onlyWaitForDataAndDecode=*/true);
 }
 
+ImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
+
 ImageDecoder.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
     this._statusCallback = statusCallback;
     this._fetchManager.setStatusCallback(statusCallback);
+};
+
+ImageDecoder.prototype.getTileWidth = function getTileWidth() {
+    this._validateSizesCalculator();
+    return this._tileWidth;
+};
+
+ImageDecoder.prototype.getTileHeight = function getTileHeight() {
+    this._validateSizesCalculator();
+    return this._tileHeight;
 };
     
 ImageDecoder.prototype.setServerRequestPrioritizerData =
@@ -98,50 +109,10 @@ ImageDecoder.prototype.close = function close(closedCallback) {
     this._fetchManager.close(closedCallback);
 };
 
-ImageDecoder.prototype.getLevelWidth = function getLevelWidth(numResolutionLevelsToCut) {
-    validateSizesCalculator(this);
-    var width = this._sizesCalculator.getLevelWidth(
-        numResolutionLevelsToCut);
-
-    return width;
-};
-
-ImageDecoder.prototype.getLevelHeight = function getLevelHeight(numResolutionLevelsToCut) {
-    validateSizesCalculator(this);
-    var height = this._sizesCalculator.getLevelHeight(
-        numResolutionLevelsToCut);
-
-    return height;
-};
-
-ImageDecoder.prototype.getTileWidth = function getTileWidth() {
-    validateSizesCalculator(this);
-    return this._tileWidth;
-};
-
-ImageDecoder.prototype.getTileHeight = function getTileHeight() {
-    validateSizesCalculator(this);
-    return this._tileHeight;
-};
-
-ImageDecoder.prototype.getDefaultNumResolutionLevels = function getDefaultNumResolutionLevels() {
-    validateSizesCalculator(this);
-    var numLevels = this._sizesCalculator.getDefaultNumResolutionLevels();
-    
-    return numLevels;
-};
-
-ImageDecoder.prototype.getDefaultNumQualityLayers = function getDefaultNumQualityLayers() {
-    validateSizesCalculator(this);
-    var numLayers = this._sizesCalculator.getDefaultNumQualityLayers();
-    
-    return numLayers;
-};
-
 ImageDecoder.prototype.createChannel = function createChannel(
     createdCallback) {
     
-    validateSizesCalculator(this);
+    this._validateSizesCalculator();
     
     var self = this;
     
@@ -158,7 +129,7 @@ ImageDecoder.prototype.createChannel = function createChannel(
 };
 
 ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
-    validateSizesCalculator(this);
+    this._validateSizesCalculator();
     
     var level = imagePartParams.numResolutionLevelsToCut;
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
@@ -204,7 +175,7 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     imagePartParamsNotNeeded,
     channelHandle) {
     
-    validateSizesCalculator(this);
+    this._validateSizesCalculator();
     
     var level = imagePartParams.numResolutionLevelsToCut;
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
@@ -235,10 +206,10 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
         
     if (channelHandle !== undefined) {
         if (channelState.decodeJobsListenerHandle !== null) {
-			// Unregister after forked new jobs, so no termination occurs meanwhile
-			decodeJobsPool.unregisterForkedJobs(
-				channelState.decodeJobsListenerHandle);
-		}
+            // Unregister after forked new jobs, so no termination occurs meanwhile
+            decodeJobsPool.unregisterForkedJobs(
+                channelState.decodeJobsListenerHandle);
+        }
         channelState.decodeJobsListenerHandle = listenerHandle;
         this._fetchManager.moveChannel(channelHandle, imagePartParams);
     }
@@ -248,22 +219,8 @@ ImageDecoder.prototype.reconnect = function reconnect() {
     this._fetchManager.reconnect();
 };
 
-ImageDecoder.prototype._getSizesCalculator = function getSizesCalculator() {
-    validateSizesCalculator(this);
-    
-    return this._sizesCalculator;
-};
-
-ImageDecoder.prototype._getSizesParams = function getSizesParams() {
-    if (this._sizesParams === null) {
-        this._sizesParams = {
-            imageParams: this._fetchManager.getSizesParams(),
-            applicativeTileWidth: this._tileWidth,
-            applicativeTileHeight:  this._tileHeight
-        };
-    }
-    
-    return this._sizesParams;
+ImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+    return this._fetchManager._getSizesParams();
 };
 
 ImageDecoder.prototype._createDecoder = function createDecoder() {
@@ -272,16 +229,6 @@ ImageDecoder.prototype._createDecoder = function createDecoder() {
     
     return decoder;
 };
-
-function validateSizesCalculator(self) {
-    if (self._sizesCalculator !== null) {
-        return;
-    }
-    
-    var sizesParams = self._getSizesParams();
-    self._sizesCalculator = self._imageImplementation.createImageParamsRetriever(
-        sizesParams.imageParams);
-}
 
 function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
     var bytesPerPixel = 4;
