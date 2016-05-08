@@ -415,7 +415,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         screenHeight: this._tileHeight
     }, this._image);
     
-    var level = alignedParams.imagePartParams.numResolutionLevelsToCut;
+    var level = alignedParams.imagePartParams.level;
     var levelWidth = this._image.getLevelWidth(level);
     var levelHeight = this._image.getLevelHeight(level);
     
@@ -498,7 +498,7 @@ ImageDecoderImageryProvider.prototype._setPriorityByFrustum =
     }
     
     frustumData.imageRectangle = this.getRectangle();
-    frustumData.exactNumResolutionLevelsToCut = null;
+    frustumData.exactlevel = null;
 
     this._image.setServerRequestPrioritizerData(frustumData);
     this._image.setDecodePrioritizerData(frustumData);

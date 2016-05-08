@@ -1064,7 +1064,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         screenHeight: this._tileHeight
     }, this._image);
     
-    var level = alignedParams.imagePartParams.numResolutionLevelsToCut;
+    var level = alignedParams.imagePartParams.level;
     var levelWidth = this._image.getLevelWidth(level);
     var levelHeight = this._image.getLevelHeight(level);
     
@@ -1147,7 +1147,7 @@ ImageDecoderImageryProvider.prototype._setPriorityByFrustum =
     }
     
     frustumData.imageRectangle = this.getRectangle();
-    frustumData.exactNumResolutionLevelsToCut = null;
+    frustumData.exactlevel = null;
 
     this._image.setServerRequestPrioritizerData(frustumData);
     this._image.setDecodePrioritizerData(frustumData);
@@ -1784,7 +1784,7 @@ ImageDecoder.prototype.createChannel = function createChannel(
 ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
     this._validateSizesCalculator();
     
-    var level = imagePartParams.numResolutionLevelsToCut;
+    var level = imagePartParams.level;
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
     var levelHeight = this._sizesCalculator.getLevelHeight(level);
     
@@ -1830,7 +1830,7 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     
     this._validateSizesCalculator();
     
-    var level = imagePartParams.numResolutionLevelsToCut;
+    var level = imagePartParams.level;
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
     var levelHeight = this._sizesCalculator.getLevelHeight(level);
     
@@ -2305,7 +2305,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     var minY = imagePartParams.minY;
     var maxX = imagePartParams.maxXExclusive;
     var maxY = imagePartParams.maxYExclusive;
-    var level = imagePartParams.numResolutionLevelsToCut || 0;
+    var level = imagePartParams.level || 0;
     var layer = imagePartParams.maxNumQualityLayers;
     var priorityData = imagePartParams.requestPriorityData;
                 
@@ -2368,7 +2368,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                     minY: y,
                     maxXExclusive: singleTileMaxX,
                     maxYExclusive: singleTileMaxY,
-                    numResolutionLevelsToCut: level,
+                    level: level,
                     maxNumQualityLayers: layer,
                     requestPriorityData: priorityData
                 };
@@ -3061,10 +3061,10 @@ FrustumRequestsPrioritizer.prototype._getPriorityInternal = function getPriority
         throw 'No imageRectangle information passed in setPrioritizerData';
     }
     
-    var exactFrustumLevel = this._frustumData.exactNumResolutionLevelsToCut;
+    var exactFrustumLevel = this._frustumData.exactlevel;
     
-    if (this._frustumData.exactNumResolutionLevelsToCut === undefined) {
-        throw 'No exactNumResolutionLevelsToCut information passed in ' +
+    if (this._frustumData.exactlevel === undefined) {
+        throw 'No exactlevel information passed in ' +
             'setPrioritizerData. Use null if unknown';
     }
     
@@ -3083,7 +3083,7 @@ FrustumRequestsPrioritizer.prototype._getPriorityInternal = function getPriority
         imagePartParams.maxYExclusive - imagePartParams.minY;
     
     var requestToFrustumResolutionRatio;
-    var tileLevel = imagePartParams.numResolutionLevelsToCut || 0;
+    var tileLevel = imagePartParams.level || 0;
     if (exactFrustumLevel === null) {
         var tileResolutionX = tilePixelsWidth / (tileEast - tileWest);
         var tileResolutionY = tilePixelsHeight / (tileNorth - tileSouth);
@@ -3138,7 +3138,7 @@ FrustumRequestsPrioritizer.prototype._pixelToCartographicX = function pixelToCar
     x, imagePartParams) {
     
     var relativeX = x / this._frustumData.image.getLevelWidth(
-        imagePartParams.numResolutionLevelsToCut);
+        imagePartParams.level);
     
     var imageRectangle = this._frustumData.imageRectangle;
     var rectangleWidth = imageRectangle.east - imageRectangle.west;
@@ -3151,7 +3151,7 @@ FrustumRequestsPrioritizer.prototype._pixelToCartographicY = function tileToCart
     y, imagePartParams, image) {
     
     var relativeY = y / this._frustumData.image.getLevelHeight(
-        imagePartParams.numResolutionLevelsToCut);
+        imagePartParams.level);
     
     var imageRectangle = this._frustumData.imageRectangle;
     var rectangleHeight = imageRectangle.north - imageRectangle.south;
@@ -3437,7 +3437,7 @@ function alignParamsToTilesAndLevel(
         minY: croppedMinY,
         maxXExclusive: croppedMaxX,
         maxYExclusive: croppedMaxY,
-        numResolutionLevelsToCut: level
+        level: level
     };
     
     var positionInImage = {
@@ -3650,18 +3650,18 @@ ImageParamsRetrieverProxy.prototype.getNumResolutionLevelsForLimittedViewer = fu
     return levels;
 };
 
-ImageParamsRetrieverProxy.prototype.getLevelWidth = function getLevelWidth(numResolutionLevelsToCut) {
+ImageParamsRetrieverProxy.prototype.getLevelWidth = function getLevelWidth(level) {
     this._validateSizesCalculator();
     var width = this._sizesCalculator.getLevelWidth(
-        numResolutionLevelsToCut);
+        level);
 
     return width;
 };
 
-ImageParamsRetrieverProxy.prototype.getLevelHeight = function getLevelHeight(numResolutionLevelsToCut) {
+ImageParamsRetrieverProxy.prototype.getLevelHeight = function getLevelHeight(level) {
     this._validateSizesCalculator();
     var height = this._sizesCalculator.getLevelHeight(
-        numResolutionLevelsToCut);
+        level);
 
     return height;
 };
@@ -4292,8 +4292,8 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
     }
     
     frustumData.imageRectangle = this._cartographicBoundsFixed;
-    frustumData.exactNumResolutionLevelsToCut =
-        alignedParams.imagePartParams.numResolutionLevelsToCut;
+    frustumData.exactlevel =
+        alignedParams.imagePartParams.level;
     
     this._image.setDecodePrioritizerData(frustumData);
     this._image.setServerRequestPrioritizerData(frustumData);
@@ -4316,7 +4316,7 @@ ViewerImageDecoder.prototype._isImagePartsEqual = function isImagePartsEqual(fir
         first.minY === second.minY &&
         first.maxXExclusive === second.maxXExclusive &&
         first.maxYExclusive === second.maxYExclusive &&
-        first.numResolutionLevelsToCut === second.numResolutionLevelsToCut;
+        first.level === second.level;
     
     return isEqual;
 };
@@ -4357,8 +4357,8 @@ ViewerImageDecoder.prototype._fetch = function fetch(
     
     var region = this._regions[regionId];
     if (region !== undefined) {
-        var newResolution = imagePartParams.numResolutionLevelsToCut;
-        var oldResolution = region.imagePartParams.numResolutionLevelsToCut;
+        var newResolution = imagePartParams.level;
+        var oldResolution = region.imagePartParams.level;
         
         canReuseOldData = newResolution === oldResolution;
         
@@ -4503,7 +4503,7 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
     region, newPartParams, newPosition) {
     
     var oldPartParams = region.imagePartParams;
-    var level = newPartParams.numResolutionLevelsToCut;
+    var level = newPartParams.level;
     
     var needReposition =
         oldPartParams === undefined ||
@@ -4511,7 +4511,7 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
         oldPartParams.minY !== newPartParams.minY ||
         oldPartParams.maxXExclusive !== newPartParams.maxXExclusive ||
         oldPartParams.maxYExclusive !== newPartParams.maxYExclusive ||
-        oldPartParams.numResolutionLevelsToCut !== level;
+        oldPartParams.level !== level;
     
     if (!needReposition) {
         return false;
@@ -4520,14 +4520,17 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
     var copyData;
     var intersection;
     var reuseOldData = false;
-    if (oldPartParams !== undefined &&
-        oldPartParams.numResolutionLevelsToCut === level) {
+    var scaleX;
+    var scaleY;
+    if (oldPartParams !== undefined) {
+        scaleX = this._image.getLevelWidth (level) / this._image.getLevelWidth (oldPartParams.level);
+        scaleY = this._image.getLevelHeight(level) / this._image.getLevelHeight(oldPartParams.level);
         
         intersection = {
-            minX: Math.max(oldPartParams.minX, newPartParams.minX),
-            minY: Math.max(oldPartParams.minY, newPartParams.minY),
-            maxX: Math.min(oldPartParams.maxXExclusive, newPartParams.maxXExclusive),
-            maxY: Math.min(oldPartParams.maxYExclusive, newPartParams.maxYExclusive)
+            minX: Math.max(oldPartParams.minX * scaleX, newPartParams.minX),
+            minY: Math.max(oldPartParams.minY * scaleY, newPartParams.minY),
+            maxX: Math.min(oldPartParams.maxXExclusive * scaleX, newPartParams.maxXExclusive),
+            maxY: Math.min(oldPartParams.maxYExclusive * scaleY, newPartParams.maxYExclusive)
         };
         reuseOldData =
             intersection.maxX > intersection.minX &&
@@ -4536,12 +4539,14 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
     
     if (reuseOldData) {
         copyData = {
-            fromX: intersection.minX - oldPartParams.minX,
-            fromY: intersection.minY - oldPartParams.minY,
+            fromX: intersection.minX / scaleX - oldPartParams.minX,
+            fromY: intersection.minY / scaleY - oldPartParams.minY,
+            fromWidth : (intersection.maxX - intersection.minX) / scaleX,
+            fromHeight: (intersection.maxY - intersection.minY) / scaleY,
             toX: intersection.minX - newPartParams.minX,
             toY: intersection.minY - newPartParams.minY,
-            width: intersection.maxX - intersection.minX,
-            height: intersection.maxY - intersection.minY
+            toWidth : intersection.maxX - intersection.minX,
+            toHeight: intersection.maxY - intersection.minY,
         };
     }
     
@@ -4636,8 +4641,25 @@ ViewerImageDecoder.prototype._repositionCanvas = function repositionCanvas(repos
     var context = region.canvas.getContext('2d');
     
     if (copyData !== undefined) {
-        imageDataToCopy = context.getImageData(
-            copyData.fromX, copyData.fromY, copyData.width, copyData.height);
+        if (copyData.fromWidth === copyData.toWidth && copyData.fromHeight === copyData.toHeight) {
+            imageDataToCopy = context.getImageData(
+                copyData.fromX, copyData.fromY, copyData.fromWidth, copyData.fromHeight);
+        } else {
+            if (!this._tmpCanvas) {
+                this._tmpCanvas = document.createElement('canvas');
+                this._tmpCanvasContext = this._tmpCanvas.getContext('2d');
+            }
+            
+            this._tmpCanvas.width  = copyData.toWidth;
+            this._tmpCanvas.height = copyData.toHeight;
+            this._tmpCanvasContext.drawImage(
+                region.canvas,
+                copyData.fromX, copyData.fromY, copyData.fromWidth, copyData.fromHeight,
+                0, 0, copyData.toWidth, copyData.toHeight);
+            
+            imageDataToCopy = this._tmpCanvasContext.getImageData(
+                0, 0, copyData.toWidth, copyData.toHeight);
+        }
     }
     
     region.canvas.width = pixelsWidth;

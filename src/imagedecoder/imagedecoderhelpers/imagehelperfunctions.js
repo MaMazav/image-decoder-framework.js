@@ -192,7 +192,7 @@ function alignParamsToTilesAndLevel(
         minY: croppedMinY,
         maxXExclusive: croppedMaxX,
         maxYExclusive: croppedMaxY,
-        numResolutionLevelsToCut: level
+        level: level
     };
     
     var positionInImage = {

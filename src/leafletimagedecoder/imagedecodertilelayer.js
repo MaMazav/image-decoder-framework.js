@@ -134,7 +134,7 @@ var ImageDecoderOverviewTileLayer = L.Class.extend({
             minY: 0,
             maxXExclusive: this._image.getLevelWidth(overviewLevel),
             maxYExclusive: this._image.getLevelHeight(overviewLevel),
-            numResolutionLevelsToCut: overviewLevel,
+            level: overviewLevel,
             maxNumQualityLayers: 1,
             requestPriorityData: { overrideHighestPriority: true }
         };

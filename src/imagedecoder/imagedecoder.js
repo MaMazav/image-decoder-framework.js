@@ -131,7 +131,7 @@ ImageDecoder.prototype.createChannel = function createChannel(
 ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
     this._validateSizesCalculator();
     
-    var level = imagePartParams.numResolutionLevelsToCut;
+    var level = imagePartParams.level;
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
     var levelHeight = this._sizesCalculator.getLevelHeight(level);
     
@@ -177,7 +177,7 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     
     this._validateSizesCalculator();
     
-    var level = imagePartParams.numResolutionLevelsToCut;
+    var level = imagePartParams.level;
     var levelWidth = this._sizesCalculator.getLevelWidth(level);
     var levelHeight = this._sizesCalculator.getLevelHeight(level);
     

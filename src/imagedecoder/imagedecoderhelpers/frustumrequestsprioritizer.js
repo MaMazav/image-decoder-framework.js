@@ -76,10 +76,10 @@ FrustumRequestsPrioritizer.prototype._getPriorityInternal = function getPriority
         throw 'No imageRectangle information passed in setPrioritizerData';
     }
     
-    var exactFrustumLevel = this._frustumData.exactNumResolutionLevelsToCut;
+    var exactFrustumLevel = this._frustumData.exactlevel;
     
-    if (this._frustumData.exactNumResolutionLevelsToCut === undefined) {
-        throw 'No exactNumResolutionLevelsToCut information passed in ' +
+    if (this._frustumData.exactlevel === undefined) {
+        throw 'No exactlevel information passed in ' +
             'setPrioritizerData. Use null if unknown';
     }
     
@@ -98,7 +98,7 @@ FrustumRequestsPrioritizer.prototype._getPriorityInternal = function getPriority
         imagePartParams.maxYExclusive - imagePartParams.minY;
     
     var requestToFrustumResolutionRatio;
-    var tileLevel = imagePartParams.numResolutionLevelsToCut || 0;
+    var tileLevel = imagePartParams.level || 0;
     if (exactFrustumLevel === null) {
         var tileResolutionX = tilePixelsWidth / (tileEast - tileWest);
         var tileResolutionY = tilePixelsHeight / (tileNorth - tileSouth);
@@ -153,7 +153,7 @@ FrustumRequestsPrioritizer.prototype._pixelToCartographicX = function pixelToCar
     x, imagePartParams) {
     
     var relativeX = x / this._frustumData.image.getLevelWidth(
-        imagePartParams.numResolutionLevelsToCut);
+        imagePartParams.level);
     
     var imageRectangle = this._frustumData.imageRectangle;
     var rectangleWidth = imageRectangle.east - imageRectangle.west;
@@ -166,7 +166,7 @@ FrustumRequestsPrioritizer.prototype._pixelToCartographicY = function tileToCart
     y, imagePartParams, image) {
     
     var relativeY = y / this._frustumData.image.getLevelHeight(
-        imagePartParams.numResolutionLevelsToCut);
+        imagePartParams.level);
     
     var imageRectangle = this._frustumData.imageRectangle;
     var rectangleHeight = imageRectangle.north - imageRectangle.south;

@@ -34,7 +34,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     var minY = imagePartParams.minY;
     var maxX = imagePartParams.maxXExclusive;
     var maxY = imagePartParams.maxYExclusive;
-    var level = imagePartParams.numResolutionLevelsToCut || 0;
+    var level = imagePartParams.level || 0;
     var layer = imagePartParams.maxNumQualityLayers;
     var priorityData = imagePartParams.requestPriorityData;
                 
@@ -97,7 +97,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                     minY: y,
                     maxXExclusive: singleTileMaxX,
                     maxYExclusive: singleTileMaxY,
-                    numResolutionLevelsToCut: level,
+                    level: level,
                     maxNumQualityLayers: layer,
                     requestPriorityData: priorityData
                 };
