@@ -2581,18 +2581,15 @@ FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
         throw 'Job expected to have resource on successful termination';
     }
     
-    if (this._isChannel) {
-        // Channel is not really terminated, but only fetches a new region
-        // (see moveChannel()).
+    // Channel is not really terminated, but only fetches a new region
+    // (see moveChannel()).
+    if (!this._isChannel) {
+        this._isTerminated = true;
         
-        return;
-    }
-    
-    this._isTerminated = true;
-    
-    for (var i = 0; i < this._terminatedListeners.length; ++i) {
-        this._terminatedListeners[i](
-            this._contextVars, this._imageDataContext, isAborted);
+        for (var i = 0; i < this._terminatedListeners.length; ++i) {
+            this._terminatedListeners[i](
+                this._contextVars, this._imageDataContext, isAborted);
+        }
     }
     
     if (this._imageDataContext !== null && !this._isFailure) {
@@ -3671,13 +3668,6 @@ ImageParamsRetrieverProxy.prototype.getLevel = function getLevel(regionLevel0) {
     var level = this._sizesCalculator.getLevel(regionLevel0);
     
     return level;
-};
-
-ImageParamsRetrieverProxy.prototype.getDefaultNumQualityLayers = function getDefaultNumQualityLayers() {
-    this._validateSizesCalculator();
-    var numLayers = this._sizesCalculator.getDefaultNumQualityLayers();
-    
-    return numLayers;
 };
 
 ImageParamsRetrieverProxy.prototype._getSizesCalculator = function getSizesCalculator() {
