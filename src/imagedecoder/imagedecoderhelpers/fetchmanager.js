@@ -53,8 +53,8 @@ FetchManager.prototype.close = function close(closedCallback) {
 FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
     requestId, isProgressive) {
     
-    var scheduledRequest = this._requestById[requestId];
-    if (scheduledRequest === undefined) {
+    var fetchJob = this._requestById[requestId];
+    if (fetchJob === undefined) {
         // This situation might occur if request has been terminated,
         // but user's terminatedCallback has not been called yet. It
         // happens on WorkerProxyFetchManager due to thread
@@ -63,7 +63,7 @@ FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveReques
         return null;
     }
     
-    return scheduledRequest.getContextVars();
+    fetchJob.setIsProgressive(isProgressive);
 };
 
 FetchManager.prototype.createChannel = function createChannel(
@@ -96,39 +96,41 @@ FetchManager.prototype.createRequest = function createRequest(
     
     var contextVars = {
         progressiveStagesDone: 0,
-        isProgressive: false,
-        isLastCallbackCalledWithoutLowQualityLayerLimit: false,
+        isLastCallbackCalledWithoutLowQualityLimit: false,
         callbackThis: callbackThis,
         callback: callback,
         terminatedCallback: terminatedCallback,
         requestId: requestId,
+        fetchJob: null,
         self: this
     };
     
     var fetchType = isOnlyWaitForData ?
         FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : FetchJob.FETCH_TYPE_REQUEST;
     
-    var scheduledRequest = new FetchJob(
+    var fetchJob = new FetchJob(
         this._fetchClient, this._scheduler, fetchType, contextVars);
+    
+    contextVars.fetchJob = fetchJob;
     
     if (this._requestById[requestId] !== undefined) {
         throw 'Duplication of requestId ' + requestId;
     } else if (requestId !== undefined) {
-        this._requestById[requestId] = scheduledRequest;
+        this._requestById[requestId] = fetchJob;
     }
     
-    scheduledRequest.on('data', internalCallback);
-    scheduledRequest.on('terminated', internalTerminatedCallback);
+    fetchJob.on('data', internalCallback);
+    fetchJob.on('terminated', internalTerminatedCallback);
     
-    scheduledRequest.fetch(fetchParams);
+    fetchJob.fetch(fetchParams);
 };
 
 FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
     requestId) {
     
-    var scheduledRequest = this._requestById[requestId];
+    var fetchJob = this._requestById[requestId];
     
-    if (scheduledRequest === undefined) {
+    if (fetchJob === undefined) {
         // This situation might occur if request has been terminated,
         // but user's terminatedCallback has not been called yet. It
         // happens on WorkerProxyFetchManager due to web worker
@@ -137,7 +139,7 @@ FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
         return;
     }
     
-    scheduledRequest.manualAbortRequest();
+    fetchJob.manualAbortRequest();
     delete this._requestById[requestId];
 };
 
@@ -165,35 +167,33 @@ FetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal
 };
 
 function internalCallback(contextVars, imageDataContext) {
-    var isLimitToLowQualityLayer = 
+    var isProgressive = contextVars.fetchJob.getIsProgressive();
+    var isLimitToLowQuality = 
         contextVars.progressiveStagesDone === 0;
     
     // See comment at internalTerminatedCallback method
-    contextVars.isLastCallbackCalledWithoutLowQualityLayerLimit |=
-        contextVars.isProgressive &&
-        !isLimitToLowQualityLayer;
+    contextVars.isLastCallbackCalledWithoutLowQualityLimit |=
+        isProgressive && !isLimitToLowQuality;
     
-    if (!contextVars.isProgressive) {
+    if (!isProgressive) {
         return;
     }
     
-    var maxNumQualityLayers =
-        isLimitToLowQualityLayer ? 1 : undefined;
+    var quality = isLimitToLowQuality ? contextVars.self.getLowestQuality() : undefined;
     
     ++contextVars.progressiveStagesDone;
     
-    extractDataAndCallCallback(
-        contextVars, imageDataContext, maxNumQualityLayers);
+    extractDataAndCallCallback(contextVars, imageDataContext, quality);
 }
 
 function internalTerminatedCallback(contextVars, imageDataContext, isAborted) {
-    if (!contextVars.isLastCallbackCalledWithoutLowQualityLayerLimit) {
+    if (!contextVars.isLastCallbackCalledWithoutLowQualityLimit) {
         // This condition come to check if another decoding should be done.
         // One situation it may happen is when the request is not
         // progressive, then the decoding is done only on termination.
         // Another situation is when only the first stage has been reached,
-        // thus the callback was called with only the first quality layer
-        // (for performance reasons). Thus another decoding should be done.
+        // thus the callback was called with only the first quality (for
+        // performance reasons). Thus another decoding should be done.
         
         extractDataAndCallCallback(contextVars, imageDataContext);
     }
@@ -204,10 +204,8 @@ function internalTerminatedCallback(contextVars, imageDataContext, isAborted) {
     delete contextVars.self._requestById[contextVars.requestId];
 }
 
-function extractDataAndCallCallback(
-    contextVars, imageDataContext, maxNumQualityLayers) {
-    
-    var dataForDecode = imageDataContext.getFetchedData(maxNumQualityLayers);
+function extractDataAndCallCallback(contextVars, imageDataContext, quality) {
+    var dataForDecode = imageDataContext.getFetchedData(quality);
     
     contextVars.callback.call(
         contextVars.callbackThis, dataForDecode);

@@ -35,7 +35,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     var maxX = imagePartParams.maxXExclusive;
     var maxY = imagePartParams.maxYExclusive;
     var level = imagePartParams.level || 0;
-    var layer = imagePartParams.maxNumQualityLayers;
+    var quality = imagePartParams.quality;
     var priorityData = imagePartParams.requestPriorityData;
                 
     var isMinAligned =
@@ -50,8 +50,8 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     }
     
     var requestsInLevel = getOrAddValue(this._activeRequests, level, []);
-    var requestsInQualityLayer = getOrAddValue(
-        requestsInLevel, imagePartParams.maxNumQualityLayers, []);
+    var requestsInQuality = getOrAddValue(
+        requestsInLevel, imagePartParams.quality, []);
         
     var numTilesX = Math.ceil((maxX - minX) / this._tileWidth);
     var numTilesY = Math.ceil((maxY - minY) / this._tileHeight);
@@ -69,7 +69,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     };
     
     for (var x = minX; x < maxX; x += this._tileWidth) {
-        var requestsInX = getOrAddValue(requestsInQualityLayer, x, []);
+        var requestsInX = getOrAddValue(requestsInQuality, x, []);
         var singleTileMaxX = Math.min(x + this._tileWidth, levelWidth);
         
         for (var y = minY; y < maxY; y += this._tileHeight) {
@@ -98,7 +98,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                     maxXExclusive: singleTileMaxX,
                     maxYExclusive: singleTileMaxY,
                     level: level,
-                    maxNumQualityLayers: layer,
+                    quality: quality,
                     requestPriorityData: priorityData
                 };
                 

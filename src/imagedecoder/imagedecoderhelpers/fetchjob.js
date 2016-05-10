@@ -84,6 +84,15 @@ FetchJob.prototype.on = function on(event, listener) {
     }
 };
 
+FetchJob.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
+    this._imageDataContext.setIsProgressive(isProgressive);
+    this._isProgressive = isProgressive;
+};
+
+FetchJob.prototype.getIsProgressive = function getIsProgressive() {
+    return this._isProgressive;
+};
+
 FetchJob.prototype._startFetch = function startFetch() {
     var imageDataContext = this._fetchClient.createImageDataContext(
         this._imagePartParams, this);
@@ -92,7 +101,7 @@ FetchJob.prototype._startFetch = function startFetch() {
 
     if (imageDataContext.isDone()) {
         for (var i = 0; i < this._dataListeners.length; ++i) {
-            this._dataListeners[i](this._contextVars, imageDataContext);
+            this._dataListeners[i].call(this, this._contextVars, imageDataContext);
         }
 
         this._fetchTerminated(/*isAborted=*/false);
@@ -103,7 +112,7 @@ FetchJob.prototype._startFetch = function startFetch() {
     
     if (imageDataContext.hasData()) {
         for (var j = 0; j < this._dataListeners.length; ++j) {
-            this._dataListeners[j](this._contextVars, imageDataContext);
+            this._dataListeners[j].call(this, this._contextVars, imageDataContext);
         }
     }
     
@@ -176,7 +185,7 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
         
         
         for (var i = 0; i < this._dataListeners.length; ++i) {
-            this._dataListeners[i](this._contextVars, imageDataContext);
+            this._dataListeners[i].call(this, this._contextVars, imageDataContext);
         }
         
         if (imageDataContext.isDone()) {

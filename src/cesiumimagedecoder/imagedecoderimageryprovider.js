@@ -37,7 +37,6 @@ function ImageDecoderImageryProvider(imageImplementationClassName, options) {
     this._adaptProportions = options.adaptProportions;
     this._rectangle = options.rectangle;
     this._proxy = options.proxy;
-    this._maxNumQualityLayers = options.maxNumQualityLayers;
     this._updateFrustumInterval = 1000 || options.updateFrustumInterval;
     this._credit = options.credit;
     
@@ -438,7 +437,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
     var tempContext = tempCanvas.getContext('2d');
     tempContext.clearRect(0, 0, tempPixelWidth, tempPixelHeight);
     
-    alignedParams.imagePartParams.maxNumQualityLayers = this._maxNumQualityLayers;
+    alignedParams.imagePartParams.quality = this._quality;
     alignedParams.imagePartParams.requestPriorityData = {
         imageRectangle: this._rectangle
     };
@@ -536,8 +535,8 @@ ImageDecoderImageryProvider.prototype._statusCallback =
     this._ready = status.isReady;
     
     // This is wrong if COD or COC exists besides main header COD
-    this._maxNumQualityLayers = this._maxNumQualityLayers;
     this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
+    this._quality = this._image.getHighestQuality();
     var maximumCesiumLevel = this._numResolutionLevels - 1;
         
     this._tileWidth = this._image.getTileWidth();

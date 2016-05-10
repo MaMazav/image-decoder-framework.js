@@ -209,7 +209,7 @@ DecodeJob.prototype._pixelsDecodedCallback = function pixelsDecodedCallback(
     
     var lastFinished = this._lastFinishedJobSequenceId;
     if (lastFinished > jobSequenceId) {
-        // Do not refresh pixels with lower quality layer than
+        // Do not refresh pixels with lower quality than
         // what was already returned
         
         this._checkIfAllTerminated();

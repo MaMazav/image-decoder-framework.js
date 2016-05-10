@@ -18,7 +18,6 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
     
     this._adaptProportions = options.adaptProportions;
     this._cartographicBounds = options.cartographicBounds;
-    this._maxNumQualityLayers = options.maxNumQualityLayers;
     this._isMainImageOnUi = options.isMainImageOnUi;
     this._showLog = options.showLog;
     this._allowMultipleChannelsInSession =
@@ -117,7 +116,7 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
         return;
     }
     
-    alignedParams.imagePartParams.maxNumQualityLayers = this._maxNumQualityLayers;
+    alignedParams.imagePartParams.quality = this._quality;
 
     var isSameRegion =
         this._dynamicFetchParams !== undefined &&
@@ -583,6 +582,7 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
     var level = this._image.getImageLevel();
     var imageWidth = this._image.getLevelWidth(level);
     var imageHeight = this._image.getLevelHeight(level);
+    this._quality = this._image.getHighestQuality();
 
     var rectangleWidth = fixedBounds.east - fixedBounds.west;
     var rectangleHeight = fixedBounds.north - fixedBounds.south;
@@ -609,7 +609,7 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         overviewAlignedParams.imagePartParams.requestPriorityData || {};
     
     overviewAlignedParams.imagePartParams.requestPriorityData.overrideHighestPriority = true;
-    overviewAlignedParams.imagePartParams.maxNumQualityLayers = 1;
+    overviewAlignedParams.imagePartParams.quality = this._image.getLowestQuality();
     
     var startDynamicRegionOnTermination =
         !this._allowMultipleChannelsInSession;

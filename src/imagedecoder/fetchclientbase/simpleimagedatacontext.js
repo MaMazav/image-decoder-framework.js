@@ -63,6 +63,10 @@ SimpleImageDataContext.prototype.release = function release() {
     this._subscribeHandles = [];
 };
 
+SimpleImageDataContext.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
+    // Do nothing
+};
+
 SimpleImageDataContext.prototype._dataFetched = function dataFetched(key, data) {
     if (this._dataByKey.tryAdd(key, function() {}).isNew) {
         ++this._dataKeysFetchedCount;

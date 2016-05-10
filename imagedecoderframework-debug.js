@@ -32,6 +32,15 @@ AsyncProxyMaster.prototype["terminate"]=AsyncProxyMaster.prototype.terminate;Asy
 ScriptsToImportPool.prototype["getScriptsForWorkerImport"]=ScriptsToImportPool.prototype.getScriptsForWorkerImport}asyncProxyScriptBlob.addMember(ExportAsyncProxySymbolsClosure,"ExportAsyncProxySymbols");asyncProxyScriptBlob.addStatement("ExportAsyncProxySymbols(SubWorkerEmulationForChrome, AsyncProxySlaveSingleton, AsyncProxyMaster, ScriptsToImportPool);");asyncProxyScriptBlob.addStatement("self['AsyncProxy']['AsyncProxySlaveSingleton'] = AsyncProxySlaveSingleton;");asyncProxyScriptBlob.addStatement("self['AsyncProxy']['AsyncProxyMaster'] = AsyncProxyMaster;");
 asyncProxyScriptBlob.addStatement("self['AsyncProxy']['ScriptsToImportPool'] = ScriptsToImportPool;");return ExportAsyncProxySymbols}ExportAsyncProxySymbolsClosure()(SubWorkerEmulationForChrome,AsyncProxySlaveSingleton,AsyncProxyMaster,ScriptsToImportPool);self["AsyncProxy"]["AsyncProxySlaveSingleton"]=AsyncProxySlaveSingleton;self["AsyncProxy"]["AsyncProxyMaster"]=AsyncProxyMaster;self["AsyncProxy"]["ScriptsToImportPool"]=ScriptsToImportPool;
 
+var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
+return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
+1:++e[g])}f=b}f=null;null!==c&&(f=q(a,c),--a.j);if(a.e){b=c="";void 0!==a.c&&(c=a.c+"'s ",b=a.c+"'s ");c+="Jobs list:";for(m=0;m<e.length;++m)void 0!==e[m]&&(c+=e[m]+" jobs of priority "+m+";");console.log(c);null!==f&&console.log(b+(" dequeued new job of priority "+d))}k(a);return f}function g(a,h,c){++a.j;var d=a.a.C();a.a.add(h,d);t(a);a.e&&(h="",void 0!==a.c&&(h=a.c+"'s "),console.log(h+(" enqueued job of priority "+c)));a.a.h<=a.u||(c=a.a.L(),c=q(a,c),l(a,c));k(a)}function l(a,h){var c=a.k.getPriority(h.f);
+0>c?(--a.j,h.s(h.f)):(void 0===a.b[c]&&(a.b[c]=[]),a.b[c].push(h))}function v(a,h){++a.d;var c=a.d<=a.H?a.I:0;--a.d;c=e(a,c);if(null!==c)k(a),r(a,c,h);else if(a.j>a.a.h)a.l.push(h),++a.d;else{for(var d,b=a.b.length-1;0<=b;--b){var f=a.b[b];if(void 0!==f&&0!==f.length){for(var g=f.length-1;0<=g;--g){c=f[g];d=a.k.getPriority(c.f);if(d>=b){f.length=g;break}else 0>d?(--a.j,c.s(c.f)):(void 0===a.b[d]&&(a.b[d]=[]),a.b[d].push(c));c=null}if(null!==c)break;f.length=0}}null===c?(a.l.push(h),++a.d):(a.e&&(b=
+"",void 0!==a.c&&(b=a.c+"'s "),console.log(b+(" dequeued old job of priority "+d))),--a.j,k(a),r(a,c,h))}k(a)}function r(a,h,c){++a.A;if(a.A>=a.J){a.A=0;var d=a.b,b=a.a;if(0!==d.length){a.b=[];a.a=new p;for(var f=0;f<d.length;++f)if(void 0!==d[f])for(var e=0;e<d[f].length;++e)l(a,d[f][e]);for(f=b.C();null!==f;)d=b.D(f),l(a,d),f=b.r(f);b="";void 0!==a.c&&(b=a.c+"'s ");b+="rerank: ";for(f=a.b.length-1;0<=f;--f)if(d=a.b[f],void 0!==d){for(a.e&&(b+=d.length+" jobs in priority "+f+";");0<d.length&&a.a.h<
+a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
+a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
+if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
+
 var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
 jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
 newNode;return newNode};LinkedList.prototype.remove=function remove(iterator){this._validateIteratorOfThis(iterator);--this._count;iterator._prev._next=iterator._next;iterator._next._prev=iterator._prev;iterator._parent=null};LinkedList.prototype.getValue=function getValue(iterator){this._validateIteratorOfThis(iterator);return iterator._value};LinkedList.prototype.getFirstIterator=function getFirstIterator(){var iterator=this.getNextIterator(this._first);return iterator};LinkedList.prototype.getLastIterator=
@@ -56,15 +65,6 @@ new LinkedList}function addJobToLinkedList(self,job,addBefore){self._newPendingJ
 iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCount!==self._newPendingJobsLinkedList.getCount())throw"Unexpected count of new jobs";}function ensurePendingJobsCount(self){if(!self._showLog)return;var oldJobsCount=0;for(var i=0;i<self._oldPendingJobsByPriority.length;++i){var jobs=self._oldPendingJobsByPriority[i];if(jobs!==undefined)oldJobsCount+=jobs.length}var expectedCount=oldJobsCount+self._newPendingJobsLinkedList.getCount();if(expectedCount!==self._pendingJobsCount)throw"Unexpected count of jobs";
 }function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
 LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
-
-var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
-return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
-1:++e[g])}f=b}f=null;null!==c&&(f=q(a,c),--a.j);if(a.e){b=c="";void 0!==a.c&&(c=a.c+"'s ",b=a.c+"'s ");c+="Jobs list:";for(m=0;m<e.length;++m)void 0!==e[m]&&(c+=e[m]+" jobs of priority "+m+";");console.log(c);null!==f&&console.log(b+(" dequeued new job of priority "+d))}k(a);return f}function g(a,h,c){++a.j;var d=a.a.C();a.a.add(h,d);t(a);a.e&&(h="",void 0!==a.c&&(h=a.c+"'s "),console.log(h+(" enqueued job of priority "+c)));a.a.h<=a.u||(c=a.a.L(),c=q(a,c),l(a,c));k(a)}function l(a,h){var c=a.k.getPriority(h.f);
-0>c?(--a.j,h.s(h.f)):(void 0===a.b[c]&&(a.b[c]=[]),a.b[c].push(h))}function v(a,h){++a.d;var c=a.d<=a.H?a.I:0;--a.d;c=e(a,c);if(null!==c)k(a),r(a,c,h);else if(a.j>a.a.h)a.l.push(h),++a.d;else{for(var d,b=a.b.length-1;0<=b;--b){var f=a.b[b];if(void 0!==f&&0!==f.length){for(var g=f.length-1;0<=g;--g){c=f[g];d=a.k.getPriority(c.f);if(d>=b){f.length=g;break}else 0>d?(--a.j,c.s(c.f)):(void 0===a.b[d]&&(a.b[d]=[]),a.b[d].push(c));c=null}if(null!==c)break;f.length=0}}null===c?(a.l.push(h),++a.d):(a.e&&(b=
-"",void 0!==a.c&&(b=a.c+"'s "),console.log(b+(" dequeued old job of priority "+d))),--a.j,k(a),r(a,c,h))}k(a)}function r(a,h,c){++a.A;if(a.A>=a.J){a.A=0;var d=a.b,b=a.a;if(0!==d.length){a.b=[];a.a=new p;for(var f=0;f<d.length;++f)if(void 0!==d[f])for(var e=0;e<d[f].length;++e)l(a,d[f][e]);for(f=b.C();null!==f;)d=b.D(f),l(a,d),f=b.r(f);b="";void 0!==a.c&&(b=a.c+"'s ");b+="rerank: ";for(f=a.b.length-1;0<=f;--f)if(d=a.b[f],void 0!==d){for(a.e&&(b+=d.length+" jobs in priority "+f+";");0<d.length&&a.a.h<
-a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
-a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
-if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
 
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.imageDecoderFramework = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
@@ -686,7 +686,6 @@ function ImageDecoderImageryProvider(imageImplementationClassName, options) {
     this._adaptProportions = options.adaptProportions;
     this._rectangle = options.rectangle;
     this._proxy = options.proxy;
-    this._maxNumQualityLayers = options.maxNumQualityLayers;
     this._updateFrustumInterval = 1000 || options.updateFrustumInterval;
     this._credit = options.credit;
     
@@ -1087,7 +1086,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
     var tempContext = tempCanvas.getContext('2d');
     tempContext.clearRect(0, 0, tempPixelWidth, tempPixelHeight);
     
-    alignedParams.imagePartParams.maxNumQualityLayers = this._maxNumQualityLayers;
+    alignedParams.imagePartParams.quality = this._quality;
     alignedParams.imagePartParams.requestPriorityData = {
         imageRectangle: this._rectangle
     };
@@ -1185,8 +1184,8 @@ ImageDecoderImageryProvider.prototype._statusCallback =
     this._ready = status.isReady;
     
     // This is wrong if COD or COC exists besides main header COD
-    this._maxNumQualityLayers = this._maxNumQualityLayers;
     this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
+    this._quality = this._image.getHighestQuality();
     var maximumCesiumLevel = this._numResolutionLevels - 1;
         
     this._tileWidth = this._image.getTileWidth();
@@ -1605,6 +1604,10 @@ SimpleImageDataContext.prototype.release = function release() {
     }
     
     this._subscribeHandles = [];
+};
+
+SimpleImageDataContext.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
+    // Do nothing
 };
 
 SimpleImageDataContext.prototype._dataFetched = function dataFetched(key, data) {
@@ -2136,7 +2139,7 @@ DecodeJob.prototype._pixelsDecodedCallback = function pixelsDecodedCallback(
     
     var lastFinished = this._lastFinishedJobSequenceId;
     if (lastFinished > jobSequenceId) {
-        // Do not refresh pixels with lower quality layer than
+        // Do not refresh pixels with lower quality than
         // what was already returned
         
         this._checkIfAllTerminated();
@@ -2306,7 +2309,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     var maxX = imagePartParams.maxXExclusive;
     var maxY = imagePartParams.maxYExclusive;
     var level = imagePartParams.level || 0;
-    var layer = imagePartParams.maxNumQualityLayers;
+    var quality = imagePartParams.quality;
     var priorityData = imagePartParams.requestPriorityData;
                 
     var isMinAligned =
@@ -2321,8 +2324,8 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     }
     
     var requestsInLevel = getOrAddValue(this._activeRequests, level, []);
-    var requestsInQualityLayer = getOrAddValue(
-        requestsInLevel, imagePartParams.maxNumQualityLayers, []);
+    var requestsInQuality = getOrAddValue(
+        requestsInLevel, imagePartParams.quality, []);
         
     var numTilesX = Math.ceil((maxX - minX) / this._tileWidth);
     var numTilesY = Math.ceil((maxY - minY) / this._tileHeight);
@@ -2340,7 +2343,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     };
     
     for (var x = minX; x < maxX; x += this._tileWidth) {
-        var requestsInX = getOrAddValue(requestsInQualityLayer, x, []);
+        var requestsInX = getOrAddValue(requestsInQuality, x, []);
         var singleTileMaxX = Math.min(x + this._tileWidth, levelWidth);
         
         for (var y = minY; y < maxY; y += this._tileHeight) {
@@ -2369,7 +2372,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                     maxXExclusive: singleTileMaxX,
                     maxYExclusive: singleTileMaxY,
                     level: level,
-                    maxNumQualityLayers: layer,
+                    quality: quality,
                     requestPriorityData: priorityData
                 };
                 
@@ -2531,6 +2534,15 @@ FetchJob.prototype.on = function on(event, listener) {
     }
 };
 
+FetchJob.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
+    this._imageDataContext.setIsProgressive(isProgressive);
+    this._isProgressive = isProgressive;
+};
+
+FetchJob.prototype.getIsProgressive = function getIsProgressive() {
+    return this._isProgressive;
+};
+
 FetchJob.prototype._startFetch = function startFetch() {
     var imageDataContext = this._fetchClient.createImageDataContext(
         this._imagePartParams, this);
@@ -2539,7 +2551,7 @@ FetchJob.prototype._startFetch = function startFetch() {
 
     if (imageDataContext.isDone()) {
         for (var i = 0; i < this._dataListeners.length; ++i) {
-            this._dataListeners[i](this._contextVars, imageDataContext);
+            this._dataListeners[i].call(this, this._contextVars, imageDataContext);
         }
 
         this._fetchTerminated(/*isAborted=*/false);
@@ -2550,7 +2562,7 @@ FetchJob.prototype._startFetch = function startFetch() {
     
     if (imageDataContext.hasData()) {
         for (var j = 0; j < this._dataListeners.length; ++j) {
-            this._dataListeners[j](this._contextVars, imageDataContext);
+            this._dataListeners[j].call(this, this._contextVars, imageDataContext);
         }
     }
     
@@ -2623,7 +2635,7 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
         
         
         for (var i = 0; i < this._dataListeners.length; ++i) {
-            this._dataListeners[i](this._contextVars, imageDataContext);
+            this._dataListeners[i].call(this, this._contextVars, imageDataContext);
         }
         
         if (imageDataContext.isDone()) {
@@ -2816,8 +2828,8 @@ FetchManager.prototype.close = function close(closedCallback) {
 FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
     requestId, isProgressive) {
     
-    var scheduledRequest = this._requestById[requestId];
-    if (scheduledRequest === undefined) {
+    var fetchJob = this._requestById[requestId];
+    if (fetchJob === undefined) {
         // This situation might occur if request has been terminated,
         // but user's terminatedCallback has not been called yet. It
         // happens on WorkerProxyFetchManager due to thread
@@ -2826,7 +2838,7 @@ FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveReques
         return null;
     }
     
-    return scheduledRequest.getContextVars();
+    fetchJob.setIsProgressive(isProgressive);
 };
 
 FetchManager.prototype.createChannel = function createChannel(
@@ -2859,39 +2871,41 @@ FetchManager.prototype.createRequest = function createRequest(
     
     var contextVars = {
         progressiveStagesDone: 0,
-        isProgressive: false,
-        isLastCallbackCalledWithoutLowQualityLayerLimit: false,
+        isLastCallbackCalledWithoutLowQualityLimit: false,
         callbackThis: callbackThis,
         callback: callback,
         terminatedCallback: terminatedCallback,
         requestId: requestId,
+        fetchJob: null,
         self: this
     };
     
     var fetchType = isOnlyWaitForData ?
         FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : FetchJob.FETCH_TYPE_REQUEST;
     
-    var scheduledRequest = new FetchJob(
+    var fetchJob = new FetchJob(
         this._fetchClient, this._scheduler, fetchType, contextVars);
+    
+    contextVars.fetchJob = fetchJob;
     
     if (this._requestById[requestId] !== undefined) {
         throw 'Duplication of requestId ' + requestId;
     } else if (requestId !== undefined) {
-        this._requestById[requestId] = scheduledRequest;
+        this._requestById[requestId] = fetchJob;
     }
     
-    scheduledRequest.on('data', internalCallback);
-    scheduledRequest.on('terminated', internalTerminatedCallback);
+    fetchJob.on('data', internalCallback);
+    fetchJob.on('terminated', internalTerminatedCallback);
     
-    scheduledRequest.fetch(fetchParams);
+    fetchJob.fetch(fetchParams);
 };
 
 FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
     requestId) {
     
-    var scheduledRequest = this._requestById[requestId];
+    var fetchJob = this._requestById[requestId];
     
-    if (scheduledRequest === undefined) {
+    if (fetchJob === undefined) {
         // This situation might occur if request has been terminated,
         // but user's terminatedCallback has not been called yet. It
         // happens on WorkerProxyFetchManager due to web worker
@@ -2900,7 +2914,7 @@ FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
         return;
     }
     
-    scheduledRequest.manualAbortRequest();
+    fetchJob.manualAbortRequest();
     delete this._requestById[requestId];
 };
 
@@ -2928,35 +2942,33 @@ FetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal
 };
 
 function internalCallback(contextVars, imageDataContext) {
-    var isLimitToLowQualityLayer = 
+    var isProgressive = contextVars.fetchJob.getIsProgressive();
+    var isLimitToLowQuality = 
         contextVars.progressiveStagesDone === 0;
     
     // See comment at internalTerminatedCallback method
-    contextVars.isLastCallbackCalledWithoutLowQualityLayerLimit |=
-        contextVars.isProgressive &&
-        !isLimitToLowQualityLayer;
+    contextVars.isLastCallbackCalledWithoutLowQualityLimit |=
+        isProgressive && !isLimitToLowQuality;
     
-    if (!contextVars.isProgressive) {
+    if (!isProgressive) {
         return;
     }
     
-    var maxNumQualityLayers =
-        isLimitToLowQualityLayer ? 1 : undefined;
+    var quality = isLimitToLowQuality ? contextVars.self.getLowestQuality() : undefined;
     
     ++contextVars.progressiveStagesDone;
     
-    extractDataAndCallCallback(
-        contextVars, imageDataContext, maxNumQualityLayers);
+    extractDataAndCallCallback(contextVars, imageDataContext, quality);
 }
 
 function internalTerminatedCallback(contextVars, imageDataContext, isAborted) {
-    if (!contextVars.isLastCallbackCalledWithoutLowQualityLayerLimit) {
+    if (!contextVars.isLastCallbackCalledWithoutLowQualityLimit) {
         // This condition come to check if another decoding should be done.
         // One situation it may happen is when the request is not
         // progressive, then the decoding is done only on termination.
         // Another situation is when only the first stage has been reached,
-        // thus the callback was called with only the first quality layer
-        // (for performance reasons). Thus another decoding should be done.
+        // thus the callback was called with only the first quality (for
+        // performance reasons). Thus another decoding should be done.
         
         extractDataAndCallCallback(contextVars, imageDataContext);
     }
@@ -2967,10 +2979,8 @@ function internalTerminatedCallback(contextVars, imageDataContext, isAborted) {
     delete contextVars.self._requestById[contextVars.requestId];
 }
 
-function extractDataAndCallCallback(
-    contextVars, imageDataContext, maxNumQualityLayers) {
-    
-    var dataForDecode = imageDataContext.getFetchedData(maxNumQualityLayers);
+function extractDataAndCallCallback(contextVars, imageDataContext, quality) {
+    var dataForDecode = imageDataContext.getFetchedData(quality);
     
     contextVars.callback.call(
         contextVars.callbackThis, dataForDecode);
@@ -3670,6 +3680,20 @@ ImageParamsRetrieverProxy.prototype.getLevel = function getLevel(regionLevel0) {
     return level;
 };
 
+ImageParamsRetrieverProxy.prototype.getLowestQuality = function getLowestQuality() {
+    this._validateSizesCalculator();
+    var quality = this._sizesCalculator.getLowestQuality();
+    
+    return quality;
+};
+
+ImageParamsRetrieverProxy.prototype.getHighestQuality = function getHighestQuality() {
+    this._validateSizesCalculator();
+    var quality = this._sizesCalculator.getHighestQuality();
+
+    return quality;
+};
+
 ImageParamsRetrieverProxy.prototype._getSizesCalculator = function getSizesCalculator() {
     this._validateSizesCalculator(this);
     
@@ -4170,7 +4194,6 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
     
     this._adaptProportions = options.adaptProportions;
     this._cartographicBounds = options.cartographicBounds;
-    this._maxNumQualityLayers = options.maxNumQualityLayers;
     this._isMainImageOnUi = options.isMainImageOnUi;
     this._showLog = options.showLog;
     this._allowMultipleChannelsInSession =
@@ -4269,7 +4292,7 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
         return;
     }
     
-    alignedParams.imagePartParams.maxNumQualityLayers = this._maxNumQualityLayers;
+    alignedParams.imagePartParams.quality = this._quality;
 
     var isSameRegion =
         this._dynamicFetchParams !== undefined &&
@@ -4735,6 +4758,7 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
     var level = this._image.getImageLevel();
     var imageWidth = this._image.getLevelWidth(level);
     var imageHeight = this._image.getLevelHeight(level);
+    this._quality = this._image.getHighestQuality();
 
     var rectangleWidth = fixedBounds.east - fixedBounds.west;
     var rectangleHeight = fixedBounds.north - fixedBounds.south;
@@ -4761,7 +4785,7 @@ ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(s
         overviewAlignedParams.imagePartParams.requestPriorityData || {};
     
     overviewAlignedParams.imagePartParams.requestPriorityData.overrideHighestPriority = true;
-    overviewAlignedParams.imagePartParams.maxNumQualityLayers = 1;
+    overviewAlignedParams.imagePartParams.quality = this._image.getLowestQuality();
     
     var startDynamicRegionOnTermination =
         !this._allowMultipleChannelsInSession;

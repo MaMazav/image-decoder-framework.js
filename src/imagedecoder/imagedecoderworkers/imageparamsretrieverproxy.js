@@ -47,6 +47,20 @@ ImageParamsRetrieverProxy.prototype.getLevel = function getLevel(regionLevel0) {
     return level;
 };
 
+ImageParamsRetrieverProxy.prototype.getLowestQuality = function getLowestQuality() {
+    this._validateSizesCalculator();
+    var quality = this._sizesCalculator.getLowestQuality();
+    
+    return quality;
+};
+
+ImageParamsRetrieverProxy.prototype.getHighestQuality = function getHighestQuality() {
+    this._validateSizesCalculator();
+    var quality = this._sizesCalculator.getHighestQuality();
+
+    return quality;
+};
+
 ImageParamsRetrieverProxy.prototype._getSizesCalculator = function getSizesCalculator() {
     this._validateSizesCalculator(this);
     
