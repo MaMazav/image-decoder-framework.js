@@ -1,3 +1,37 @@
+var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
+jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
+newNode;return newNode};LinkedList.prototype.remove=function remove(iterator){this._validateIteratorOfThis(iterator);--this._count;iterator._prev._next=iterator._next;iterator._next._prev=iterator._prev;iterator._parent=null};LinkedList.prototype.getValue=function getValue(iterator){this._validateIteratorOfThis(iterator);return iterator._value};LinkedList.prototype.getFirstIterator=function getFirstIterator(){var iterator=this.getNextIterator(this._first);return iterator};LinkedList.prototype.getLastIterator=
+function getFirstIterator(){var iterator=this.getPrevIterator(this._last);return iterator};LinkedList.prototype.getNextIterator=function getNextIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._next===this._last)return null;return iterator._next};LinkedList.prototype.getPrevIterator=function getPrevIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._prev===this._first)return null;return iterator._prev};LinkedList.prototype.getCount=function getCount(){return this._count};
+LinkedList.prototype._validateIteratorOfThis=function validateIteratorOfThis(iterator){if(iterator._parent!==this)throw"iterator must be of the current LinkedList";};return LinkedList}();var PriorityScheduler=function PrioritySchedulerClosure(){function PriorityScheduler(createResource,jobsLimit,prioritizer,options){options=options||{};this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._prioritizer=prioritizer;this._showLog=options["showLog"];this._schedulerName=options["schedulerName"];this._numNewJobs=options["numNewJobs"]||20;this._numJobsBeforeRerankOldPriorities=options["numJobsBeforeRerankOldPriorities"]||20;this._freeResourcesCount=this._jobsLimit;this._freeResources=
+new Array(this._jobsLimit);this._resourcesGuaranteedForHighPriority=options["resourcesGuaranteedForHighPriority"]||0;this._highPriorityToGuaranteeResource=options["highPriorityToGuaranteeResource"]||0;this._pendingJobsCount=0;this._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(this);this._schedulesCounter=0}PriorityScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext,jobAbortedFunc){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);
+return}var job={jobFunc:jobFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};var minPriority=getMinimalPriorityToSchedule(self);var resource=null;if(priority>=minPriority)resource=tryGetFreeResource(this);if(resource!==null){schedule(this,job,resource);return}enqueueNewJob(this,job,priority);ensurePendingJobsCount(self)},jobDone:function jobDone(resource,jobContext){if(this._showLog){var message="";if(this._schedulerName!==undefined)message=this._schedulerName+"'s ";var priority=this._prioritizer["getPriority"](jobContext);
+message+=" job done of priority "+priority;console.log(message)}resourceFreed(this,resource);ensurePendingJobsCount(self)},tryYield:function tryYield(jobContinueFunc,jobContext,jobAbortedFunc,jobYieldedFunc,resource){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);resourceFreed(this,resource);return true}var higherPriorityJob=tryDequeueNewJobWithHigherPriority(this,priority);ensurePendingJobsCount(self);if(higherPriorityJob===null)return false;jobYieldedFunc(jobContext);
+var job={jobFunc:jobContinueFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};enqueueNewJob(this,job,priority);ensurePendingJobsCount(self);schedule(this,higherPriorityJob,resource);ensurePendingJobsCount(self);return true}};function tryDequeueNewJobWithHigherPriority(self,lowPriority){var jobToScheduleNode=null;var highestPriorityFound=lowPriority;var countedPriorities=[];var currentNode=self._newPendingJobsLinkedList.getFirstIterator();while(currentNode!==null){var nextNode=self._newPendingJobsLinkedList.getNextIterator(currentNode);
+var job=self._newPendingJobsLinkedList.getValue(currentNode);var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){extractJobFromLinkedList(self,currentNode);--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);currentNode=nextNode;continue}if(highestPriorityFound===undefined||priority>highestPriorityFound){highestPriorityFound=priority;jobToScheduleNode=currentNode}if(!self._showLog){currentNode=nextNode;continue}if(countedPriorities[priority]===undefined)countedPriorities[priority]=
+1;else++countedPriorities[priority];currentNode=nextNode}var jobToSchedule=null;if(jobToScheduleNode!==null){jobToSchedule=extractJobFromLinkedList(self,jobToScheduleNode);--self._pendingJobsCount}if(self._showLog){var jobsListMessage="";var jobDequeuedMessage="";if(self._schedulerName!==undefined){jobsListMessage=self._schedulerName+"'s ";jobDequeuedMessage=self._schedulerName+"'s "}jobsListMessage+="Jobs list:";for(var i=0;i<countedPriorities.length;++i)if(countedPriorities[i]!==undefined)jobsListMessage+=
+countedPriorities[i]+" jobs of priority "+i+";";console.log(jobsListMessage);if(jobToSchedule!==null){jobDequeuedMessage+=" dequeued new job of priority "+highestPriorityFound;console.log(jobDequeuedMessage)}}ensurePendingJobsCount(self);return jobToSchedule}function tryGetFreeResource(self){if(self._freeResourcesCount===0)return null;--self._freeResourcesCount;var resource=self._freeResources.pop();if(resource===undefined)resource=self._resourceCreator();ensurePendingJobsCount(self);return resource}
+function enqueueNewJob(self,job,priority){++self._pendingJobsCount;var firstIterator=self._newPendingJobsLinkedList.getFirstIterator();addJobToLinkedList(self,job,firstIterator);if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" enqueued job of priority "+priority;console.log(message)}if(self._newPendingJobsLinkedList.getCount()<=self._numNewJobs){ensurePendingJobsCount(self);return}var lastIterator=self._newPendingJobsLinkedList.getLastIterator();
+var oldJob=extractJobFromLinkedList(self,lastIterator);enqueueOldJob(self,oldJob);ensurePendingJobsCount(self)}function enqueueOldJob(self,job){var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);return}if(self._oldPendingJobsByPriority[priority]===undefined)self._oldPendingJobsByPriority[priority]=[];self._oldPendingJobsByPriority[priority].push(job)}function rerankPriorities(self){var originalOldsArray=self._oldPendingJobsByPriority;
+var originalNewsList=self._newPendingJobsLinkedList;if(originalOldsArray.length===0)return;self._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(self);for(var i=0;i<originalOldsArray.length;++i){if(originalOldsArray[i]===undefined)continue;for(var j=0;j<originalOldsArray[i].length;++j)enqueueOldJob(self,originalOldsArray[i][j])}var iterator=originalNewsList.getFirstIterator();while(iterator!==null){var value=originalNewsList.getValue(iterator);enqueueOldJob(self,value);iterator=originalNewsList.getNextIterator(iterator)}var message=
+"";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+="rerank: ";for(var i=self._oldPendingJobsByPriority.length-1;i>=0;--i){var highPriorityJobs=self._oldPendingJobsByPriority[i];if(highPriorityJobs===undefined)continue;if(self._showLog)message+=highPriorityJobs.length+" jobs in priority "+i+";";while(highPriorityJobs.length>0&&self._newPendingJobsLinkedList.getCount()<self._numNewJobs){var job=highPriorityJobs.pop();addJobToLinkedList(self,job)}if(self._newPendingJobsLinkedList.getCount()>=
+self._numNewJobs&&!self._showLog)break}if(self._showLog)console.log(message);ensurePendingJobsCount(self)}function resourceFreed(self,resource){++self._freeResourcesCount;var minPriority=getMinimalPriorityToSchedule(self);--self._freeResourcesCount;var job=tryDequeueNewJobWithHigherPriority(self,minPriority);if(job!==null){ensurePendingJobsCount(self);schedule(self,job,resource);ensurePendingJobsCount(self);return}var hasOldJobs=self._pendingJobsCount>self._newPendingJobsLinkedList.getCount();if(hasOldJobs){self._freeResources.push(resource);
+++self._freeResourcesCount;ensurePendingJobsCount(self);return}var numPriorities=self._oldPendingJobsByPriority.length;var jobPriority;for(var priority=numPriorities-1;priority>=0;--priority){var jobs=self._oldPendingJobsByPriority[priority];if(jobs===undefined||jobs.length===0)continue;for(var i=jobs.length-1;i>=0;--i){job=jobs[i];jobPriority=self._prioritizer["getPriority"](job.jobContext);if(jobPriority>=priority){jobs.length=i;break}else if(jobPriority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext)}else{if(self._oldPendingJobsByPriority[jobPriority]===
+undefined)self._oldPendingJobsByPriority[jobPriority]=[];self._oldPendingJobsByPriority[jobPriority].push(job)}job=null}if(job!==null)break;jobs.length=0}if(job===null){self._freeResources.push(resource);++self._freeResourcesCount;ensurePendingJobsCount(self);return}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" dequeued old job of priority "+jobPriority;console.log(message)}--self._pendingJobsCount;ensurePendingJobsCount(self);schedule(self,
+job,resource);ensurePendingJobsCount(self)}function schedule(self,job,resource){++self._schedulesCounter;if(self._schedulesCounter>=self._numJobsBeforeRerankOldPriorities){self._schedulesCounter=0;rerankPriorities(self)}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";var priority=self._prioritizer["getPriority"](job.jobContext);message+=" scheduled job of priority "+priority;console.log(message)}job.jobFunc(resource,job.jobContext)}function initializeNewPendingJobsLinkedList(self){self._newPendingJobsLinkedList=
+new LinkedList}function addJobToLinkedList(self,job,addBefore){self._newPendingJobsLinkedList.add(job,addBefore);ensureNumberOfNodes(self)}function extractJobFromLinkedList(self,iterator){var value=self._newPendingJobsLinkedList.getValue(iterator);self._newPendingJobsLinkedList.remove(iterator);ensureNumberOfNodes(self);return value}function ensureNumberOfNodes(self){if(!self._showLog)return;var iterator=self._newPendingJobsLinkedList.getIterator();var expectedCount=0;while(iterator!==null){++expectedCount;
+iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCount!==self._newPendingJobsLinkedList.getCount())throw"Unexpected count of new jobs";}function ensurePendingJobsCount(self){if(!self._showLog)return;var oldJobsCount=0;for(var i=0;i<self._oldPendingJobsByPriority.length;++i){var jobs=self._oldPendingJobsByPriority[i];if(jobs!==undefined)oldJobsCount+=jobs.length}var expectedCount=oldJobsCount+self._newPendingJobsLinkedList.getCount();if(expectedCount!==self._pendingJobsCount)throw"Unexpected count of jobs";
+}function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
+LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
+
+var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
+return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
+1:++e[g])}f=b}f=null;null!==c&&(f=q(a,c),--a.j);if(a.e){b=c="";void 0!==a.c&&(c=a.c+"'s ",b=a.c+"'s ");c+="Jobs list:";for(m=0;m<e.length;++m)void 0!==e[m]&&(c+=e[m]+" jobs of priority "+m+";");console.log(c);null!==f&&console.log(b+(" dequeued new job of priority "+d))}k(a);return f}function g(a,h,c){++a.j;var d=a.a.C();a.a.add(h,d);t(a);a.e&&(h="",void 0!==a.c&&(h=a.c+"'s "),console.log(h+(" enqueued job of priority "+c)));a.a.h<=a.u||(c=a.a.L(),c=q(a,c),l(a,c));k(a)}function l(a,h){var c=a.k.getPriority(h.f);
+0>c?(--a.j,h.s(h.f)):(void 0===a.b[c]&&(a.b[c]=[]),a.b[c].push(h))}function v(a,h){++a.d;var c=a.d<=a.H?a.I:0;--a.d;c=e(a,c);if(null!==c)k(a),r(a,c,h);else if(a.j>a.a.h)a.l.push(h),++a.d;else{for(var d,b=a.b.length-1;0<=b;--b){var f=a.b[b];if(void 0!==f&&0!==f.length){for(var g=f.length-1;0<=g;--g){c=f[g];d=a.k.getPriority(c.f);if(d>=b){f.length=g;break}else 0>d?(--a.j,c.s(c.f)):(void 0===a.b[d]&&(a.b[d]=[]),a.b[d].push(c));c=null}if(null!==c)break;f.length=0}}null===c?(a.l.push(h),++a.d):(a.e&&(b=
+"",void 0!==a.c&&(b=a.c+"'s "),console.log(b+(" dequeued old job of priority "+d))),--a.j,k(a),r(a,c,h))}k(a)}function r(a,h,c){++a.A;if(a.A>=a.J){a.A=0;var d=a.b,b=a.a;if(0!==d.length){a.b=[];a.a=new p;for(var f=0;f<d.length;++f)if(void 0!==d[f])for(var e=0;e<d[f].length;++e)l(a,d[f][e]);for(f=b.C();null!==f;)d=b.D(f),l(a,d),f=b.r(f);b="";void 0!==a.c&&(b=a.c+"'s ");b+="rerank: ";for(f=a.b.length-1;0<=f;--f)if(d=a.b[f],void 0!==d){for(a.e&&(b+=d.length+" jobs in priority "+f+";");0<d.length&&a.a.h<
+a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
+a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
+if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
+
 var BlobScriptGenerator=BlobScriptGeneratorClosure();self["asyncProxyScriptBlob"]=new BlobScriptGenerator;
 function BlobScriptGeneratorClosure(){function BlobScriptGenerator(){var that=this;that._blobChunks=["'use strict';"];that._blob=null;that._blobUrl=null;that._namespaces={};that.addMember(BlobScriptGeneratorClosure,"BlobScriptGenerator");that.addStatement("var asyncProxyScriptBlob = new BlobScriptGenerator();")}BlobScriptGenerator.prototype.addMember=function addMember(closureFunction,memberName,namespace){if(this._blob)throw new Error("Cannot add member to AsyncProxyScriptBlob after blob was used");
 if(memberName){if(namespace){this._namespaces[namespace]=true;this._blobChunks.push(namespace);this._blobChunks.push(".")}else this._blobChunks.push("var ");this._blobChunks.push(memberName);this._blobChunks.push(" = ")}this._blobChunks.push("(");this._blobChunks.push(closureFunction.toString());this._blobChunks.push(")();")};BlobScriptGenerator.prototype.addStatement=function addStatement(statement){if(this._blob)throw new Error("Cannot add statement to AsyncProxyScriptBlob after blob was used");
@@ -32,46 +66,12 @@ AsyncProxyMaster.prototype["terminate"]=AsyncProxyMaster.prototype.terminate;Asy
 ScriptsToImportPool.prototype["getScriptsForWorkerImport"]=ScriptsToImportPool.prototype.getScriptsForWorkerImport}asyncProxyScriptBlob.addMember(ExportAsyncProxySymbolsClosure,"ExportAsyncProxySymbols");asyncProxyScriptBlob.addStatement("ExportAsyncProxySymbols(SubWorkerEmulationForChrome, AsyncProxySlaveSingleton, AsyncProxyMaster, ScriptsToImportPool);");asyncProxyScriptBlob.addStatement("self['AsyncProxy']['AsyncProxySlaveSingleton'] = AsyncProxySlaveSingleton;");asyncProxyScriptBlob.addStatement("self['AsyncProxy']['AsyncProxyMaster'] = AsyncProxyMaster;");
 asyncProxyScriptBlob.addStatement("self['AsyncProxy']['ScriptsToImportPool'] = ScriptsToImportPool;");return ExportAsyncProxySymbols}ExportAsyncProxySymbolsClosure()(SubWorkerEmulationForChrome,AsyncProxySlaveSingleton,AsyncProxyMaster,ScriptsToImportPool);self["AsyncProxy"]["AsyncProxySlaveSingleton"]=AsyncProxySlaveSingleton;self["AsyncProxy"]["AsyncProxyMaster"]=AsyncProxyMaster;self["AsyncProxy"]["ScriptsToImportPool"]=ScriptsToImportPool;
 
-var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
-return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
-1:++e[g])}f=b}f=null;null!==c&&(f=q(a,c),--a.j);if(a.e){b=c="";void 0!==a.c&&(c=a.c+"'s ",b=a.c+"'s ");c+="Jobs list:";for(m=0;m<e.length;++m)void 0!==e[m]&&(c+=e[m]+" jobs of priority "+m+";");console.log(c);null!==f&&console.log(b+(" dequeued new job of priority "+d))}k(a);return f}function g(a,h,c){++a.j;var d=a.a.C();a.a.add(h,d);t(a);a.e&&(h="",void 0!==a.c&&(h=a.c+"'s "),console.log(h+(" enqueued job of priority "+c)));a.a.h<=a.u||(c=a.a.L(),c=q(a,c),l(a,c));k(a)}function l(a,h){var c=a.k.getPriority(h.f);
-0>c?(--a.j,h.s(h.f)):(void 0===a.b[c]&&(a.b[c]=[]),a.b[c].push(h))}function v(a,h){++a.d;var c=a.d<=a.H?a.I:0;--a.d;c=e(a,c);if(null!==c)k(a),r(a,c,h);else if(a.j>a.a.h)a.l.push(h),++a.d;else{for(var d,b=a.b.length-1;0<=b;--b){var f=a.b[b];if(void 0!==f&&0!==f.length){for(var g=f.length-1;0<=g;--g){c=f[g];d=a.k.getPriority(c.f);if(d>=b){f.length=g;break}else 0>d?(--a.j,c.s(c.f)):(void 0===a.b[d]&&(a.b[d]=[]),a.b[d].push(c));c=null}if(null!==c)break;f.length=0}}null===c?(a.l.push(h),++a.d):(a.e&&(b=
-"",void 0!==a.c&&(b=a.c+"'s "),console.log(b+(" dequeued old job of priority "+d))),--a.j,k(a),r(a,c,h))}k(a)}function r(a,h,c){++a.A;if(a.A>=a.J){a.A=0;var d=a.b,b=a.a;if(0!==d.length){a.b=[];a.a=new p;for(var f=0;f<d.length;++f)if(void 0!==d[f])for(var e=0;e<d[f].length;++e)l(a,d[f][e]);for(f=b.C();null!==f;)d=b.D(f),l(a,d),f=b.r(f);b="";void 0!==a.c&&(b=a.c+"'s ");b+="rerank: ";for(f=a.b.length-1;0<=f;--f)if(d=a.b[f],void 0!==d){for(a.e&&(b+=d.length+" jobs in priority "+f+";");0<d.length&&a.a.h<
-a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
-a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
-if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
-
-var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
-jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
-newNode;return newNode};LinkedList.prototype.remove=function remove(iterator){this._validateIteratorOfThis(iterator);--this._count;iterator._prev._next=iterator._next;iterator._next._prev=iterator._prev;iterator._parent=null};LinkedList.prototype.getValue=function getValue(iterator){this._validateIteratorOfThis(iterator);return iterator._value};LinkedList.prototype.getFirstIterator=function getFirstIterator(){var iterator=this.getNextIterator(this._first);return iterator};LinkedList.prototype.getLastIterator=
-function getFirstIterator(){var iterator=this.getPrevIterator(this._last);return iterator};LinkedList.prototype.getNextIterator=function getNextIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._next===this._last)return null;return iterator._next};LinkedList.prototype.getPrevIterator=function getPrevIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._prev===this._first)return null;return iterator._prev};LinkedList.prototype.getCount=function getCount(){return this._count};
-LinkedList.prototype._validateIteratorOfThis=function validateIteratorOfThis(iterator){if(iterator._parent!==this)throw"iterator must be of the current LinkedList";};return LinkedList}();var PriorityScheduler=function PrioritySchedulerClosure(){function PriorityScheduler(createResource,jobsLimit,prioritizer,options){options=options||{};this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._prioritizer=prioritizer;this._showLog=options["showLog"];this._schedulerName=options["schedulerName"];this._numNewJobs=options["numNewJobs"]||20;this._numJobsBeforeRerankOldPriorities=options["numJobsBeforeRerankOldPriorities"]||20;this._freeResourcesCount=this._jobsLimit;this._freeResources=
-new Array(this._jobsLimit);this._resourcesGuaranteedForHighPriority=options["resourcesGuaranteedForHighPriority"]||0;this._highPriorityToGuaranteeResource=options["highPriorityToGuaranteeResource"]||0;this._pendingJobsCount=0;this._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(this);this._schedulesCounter=0}PriorityScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext,jobAbortedFunc){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);
-return}var job={jobFunc:jobFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};var minPriority=getMinimalPriorityToSchedule(self);var resource=null;if(priority>=minPriority)resource=tryGetFreeResource(this);if(resource!==null){schedule(this,job,resource);return}enqueueNewJob(this,job,priority);ensurePendingJobsCount(self)},jobDone:function jobDone(resource,jobContext){if(this._showLog){var message="";if(this._schedulerName!==undefined)message=this._schedulerName+"'s ";var priority=this._prioritizer["getPriority"](jobContext);
-message+=" job done of priority "+priority;console.log(message)}resourceFreed(this,resource);ensurePendingJobsCount(self)},tryYield:function tryYield(jobContinueFunc,jobContext,jobAbortedFunc,jobYieldedFunc,resource){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);resourceFreed(this,resource);return true}var higherPriorityJob=tryDequeueNewJobWithHigherPriority(this,priority);ensurePendingJobsCount(self);if(higherPriorityJob===null)return false;jobYieldedFunc(jobContext);
-var job={jobFunc:jobContinueFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};enqueueNewJob(this,job,priority);ensurePendingJobsCount(self);schedule(this,higherPriorityJob,resource);ensurePendingJobsCount(self);return true}};function tryDequeueNewJobWithHigherPriority(self,lowPriority){var jobToScheduleNode=null;var highestPriorityFound=lowPriority;var countedPriorities=[];var currentNode=self._newPendingJobsLinkedList.getFirstIterator();while(currentNode!==null){var nextNode=self._newPendingJobsLinkedList.getNextIterator(currentNode);
-var job=self._newPendingJobsLinkedList.getValue(currentNode);var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){extractJobFromLinkedList(self,currentNode);--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);currentNode=nextNode;continue}if(highestPriorityFound===undefined||priority>highestPriorityFound){highestPriorityFound=priority;jobToScheduleNode=currentNode}if(!self._showLog){currentNode=nextNode;continue}if(countedPriorities[priority]===undefined)countedPriorities[priority]=
-1;else++countedPriorities[priority];currentNode=nextNode}var jobToSchedule=null;if(jobToScheduleNode!==null){jobToSchedule=extractJobFromLinkedList(self,jobToScheduleNode);--self._pendingJobsCount}if(self._showLog){var jobsListMessage="";var jobDequeuedMessage="";if(self._schedulerName!==undefined){jobsListMessage=self._schedulerName+"'s ";jobDequeuedMessage=self._schedulerName+"'s "}jobsListMessage+="Jobs list:";for(var i=0;i<countedPriorities.length;++i)if(countedPriorities[i]!==undefined)jobsListMessage+=
-countedPriorities[i]+" jobs of priority "+i+";";console.log(jobsListMessage);if(jobToSchedule!==null){jobDequeuedMessage+=" dequeued new job of priority "+highestPriorityFound;console.log(jobDequeuedMessage)}}ensurePendingJobsCount(self);return jobToSchedule}function tryGetFreeResource(self){if(self._freeResourcesCount===0)return null;--self._freeResourcesCount;var resource=self._freeResources.pop();if(resource===undefined)resource=self._resourceCreator();ensurePendingJobsCount(self);return resource}
-function enqueueNewJob(self,job,priority){++self._pendingJobsCount;var firstIterator=self._newPendingJobsLinkedList.getFirstIterator();addJobToLinkedList(self,job,firstIterator);if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" enqueued job of priority "+priority;console.log(message)}if(self._newPendingJobsLinkedList.getCount()<=self._numNewJobs){ensurePendingJobsCount(self);return}var lastIterator=self._newPendingJobsLinkedList.getLastIterator();
-var oldJob=extractJobFromLinkedList(self,lastIterator);enqueueOldJob(self,oldJob);ensurePendingJobsCount(self)}function enqueueOldJob(self,job){var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);return}if(self._oldPendingJobsByPriority[priority]===undefined)self._oldPendingJobsByPriority[priority]=[];self._oldPendingJobsByPriority[priority].push(job)}function rerankPriorities(self){var originalOldsArray=self._oldPendingJobsByPriority;
-var originalNewsList=self._newPendingJobsLinkedList;if(originalOldsArray.length===0)return;self._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(self);for(var i=0;i<originalOldsArray.length;++i){if(originalOldsArray[i]===undefined)continue;for(var j=0;j<originalOldsArray[i].length;++j)enqueueOldJob(self,originalOldsArray[i][j])}var iterator=originalNewsList.getFirstIterator();while(iterator!==null){var value=originalNewsList.getValue(iterator);enqueueOldJob(self,value);iterator=originalNewsList.getNextIterator(iterator)}var message=
-"";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+="rerank: ";for(var i=self._oldPendingJobsByPriority.length-1;i>=0;--i){var highPriorityJobs=self._oldPendingJobsByPriority[i];if(highPriorityJobs===undefined)continue;if(self._showLog)message+=highPriorityJobs.length+" jobs in priority "+i+";";while(highPriorityJobs.length>0&&self._newPendingJobsLinkedList.getCount()<self._numNewJobs){var job=highPriorityJobs.pop();addJobToLinkedList(self,job)}if(self._newPendingJobsLinkedList.getCount()>=
-self._numNewJobs&&!self._showLog)break}if(self._showLog)console.log(message);ensurePendingJobsCount(self)}function resourceFreed(self,resource){++self._freeResourcesCount;var minPriority=getMinimalPriorityToSchedule(self);--self._freeResourcesCount;var job=tryDequeueNewJobWithHigherPriority(self,minPriority);if(job!==null){ensurePendingJobsCount(self);schedule(self,job,resource);ensurePendingJobsCount(self);return}var hasOldJobs=self._pendingJobsCount>self._newPendingJobsLinkedList.getCount();if(hasOldJobs){self._freeResources.push(resource);
-++self._freeResourcesCount;ensurePendingJobsCount(self);return}var numPriorities=self._oldPendingJobsByPriority.length;var jobPriority;for(var priority=numPriorities-1;priority>=0;--priority){var jobs=self._oldPendingJobsByPriority[priority];if(jobs===undefined||jobs.length===0)continue;for(var i=jobs.length-1;i>=0;--i){job=jobs[i];jobPriority=self._prioritizer["getPriority"](job.jobContext);if(jobPriority>=priority){jobs.length=i;break}else if(jobPriority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext)}else{if(self._oldPendingJobsByPriority[jobPriority]===
-undefined)self._oldPendingJobsByPriority[jobPriority]=[];self._oldPendingJobsByPriority[jobPriority].push(job)}job=null}if(job!==null)break;jobs.length=0}if(job===null){self._freeResources.push(resource);++self._freeResourcesCount;ensurePendingJobsCount(self);return}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" dequeued old job of priority "+jobPriority;console.log(message)}--self._pendingJobsCount;ensurePendingJobsCount(self);schedule(self,
-job,resource);ensurePendingJobsCount(self)}function schedule(self,job,resource){++self._schedulesCounter;if(self._schedulesCounter>=self._numJobsBeforeRerankOldPriorities){self._schedulesCounter=0;rerankPriorities(self)}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";var priority=self._prioritizer["getPriority"](job.jobContext);message+=" scheduled job of priority "+priority;console.log(message)}job.jobFunc(resource,job.jobContext)}function initializeNewPendingJobsLinkedList(self){self._newPendingJobsLinkedList=
-new LinkedList}function addJobToLinkedList(self,job,addBefore){self._newPendingJobsLinkedList.add(job,addBefore);ensureNumberOfNodes(self)}function extractJobFromLinkedList(self,iterator){var value=self._newPendingJobsLinkedList.getValue(iterator);self._newPendingJobsLinkedList.remove(iterator);ensureNumberOfNodes(self);return value}function ensureNumberOfNodes(self){if(!self._showLog)return;var iterator=self._newPendingJobsLinkedList.getIterator();var expectedCount=0;while(iterator!==null){++expectedCount;
-iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCount!==self._newPendingJobsLinkedList.getCount())throw"Unexpected count of new jobs";}function ensurePendingJobsCount(self){if(!self._showLog)return;var oldJobsCount=0;for(var i=0;i<self._oldPendingJobsByPriority.length;++i){var jobs=self._oldPendingJobsByPriority[i];if(jobs!==undefined)oldJobsCount+=jobs.length}var expectedCount=oldJobsCount+self._newPendingJobsLinkedList.getCount();if(expectedCount!==self._pendingJobsCount)throw"Unexpected count of jobs";
-}function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
-LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
-
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.imageDecoderFramework = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
 
 module.exports.ViewerImageDecoder = require('viewerimagedecoder.js');
 module.exports.ImageDecoder = require('imagedecoder.js');
-module.exports.FetchClientBase = require('fetchclientbase.js');
+module.exports.SimpleFetcherBase = require('simplefetcherbase.js');
 module.exports.SimplePixelsDecoderBase = require('simplepixelsdecoderbase.js');
 module.exports.CesiumImageDecoderLayerManager = require('_cesiumimagedecoderlayermanager.js');
 module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
@@ -79,7 +79,7 @@ module.exports.ImageDecoderRegionLayer = require('imagedecoderregionlayer.js');
 module.exports.Internals = {
     FetchManager: require('fetchmanager.js')
 };
-},{"_cesiumimagedecoderlayermanager.js":3,"fetchclientbase.js":7,"fetchmanager.js":15,"imagedecoder.js":11,"imagedecoderimageryprovider.js":5,"imagedecoderregionlayer.js":28,"simplepixelsdecoderbase.js":10,"viewerimagedecoder.js":27}],2:[function(require,module,exports){
+},{"_cesiumimagedecoderlayermanager.js":3,"fetchmanager.js":15,"imagedecoder.js":11,"imagedecoderimageryprovider.js":5,"imagedecoderregionlayer.js":28,"simplefetcherbase.js":7,"simplepixelsdecoderbase.js":10,"viewerimagedecoder.js":27}],2:[function(require,module,exports){
 'use strict';
 
 module.exports = calculateFrustum;
@@ -944,8 +944,9 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
             'needed for frustum calculation for the priority mechanism');
     }
     
-    this._image.setStatusCallback(this._statusCallback.bind(this));
-    this._image.open(this._url);
+    this._image.open(this._url)
+		.then(this._opened.bind(this))
+		.catch(this._onException.bind(this));
     
     this._cesiumWidget = widgetOrViewer;
     
@@ -1170,18 +1171,18 @@ ImageDecoderImageryProvider.prototype.pickFeatures = function() {
         return undefined;
 };
 
-ImageDecoderImageryProvider.prototype._statusCallback =
-    function internalStatusCallback(status) {
-    
-    if (status.exception !== null && this._exceptionCallback !== null) {
-        this._exceptionCallback(status.exception);
+ImageDecoderImageryProvider.prototype._onException = function onException(reason) {
+    if (this._exceptionCallback !== null) {
+		this._exceptionCallback(reason);
     }
+};
 
-    if (!status.isReady || this._ready) {
-        return;
+ImageDecoderImageryProvider.prototype._opened = function opened() {
+    if (this._ready) {
+        throw 'ImageDecoderImageryProvider error: opened() was called more than once!';
     }
     
-    this._ready = status.isReady;
+    this._ready = true;
     
     // This is wrong if COD or COC exists besides main header COD
     this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
@@ -1322,142 +1323,96 @@ DataPublisher.prototype.isKeyNeedFetch = function isKeyNeedFetch(key) {
 },{"hashmap.js":17,"linkedlist.js":20}],7:[function(require,module,exports){
 'use strict';
 
-module.exports = FetchClientBase;
+module.exports = SimpleFetcherBase;
 
 var SimpleImageDataContext = require('simpleimagedatacontext.js');
-var SimpleFetcher = require('simplefetcher.js');
+var SimpleFetchHandle = require('simplefetchhandle.js');
 var DataPublisher = require('datapublisher.js');
 
-function FetchClientBase(options) {
-    this._statusCallback = null;
+/* global Promise: false */
+
+function SimpleFetcherBase(options) {
     this._url = null;
+    this._isReady = true;
     this._options = options;
     this._isReady = false;
-    this._sizesParams = null;
     this._dataPublisher = this.createDataPublisherInternal(this);
 }
 
 // Methods for implementor
 
-FetchClientBase.prototype.openInternal = function openInternal(url) {
-    throw 'FetchClientBase error: openInternal is not implemented';
+SimpleFetcherBase.prototype.fetchInternal = function fetch(dataKey) {
+    throw 'SimpleFetcherBase error: fetchInternal is not implemented';
 };
 
-FetchClientBase.prototype.fetchInternal = function fetch(dataKey) {
-    throw 'FetchClientBase error: fetchInternal is not implemented';
+SimpleFetcherBase.prototype.getDataKeysInternal = function getDataKeysInternal(imagePartParams) {
+    throw 'SimpleFetcherBase error: getDataKeysInternal is not implemented';
 };
 
-FetchClientBase.prototype.getDataKeysInternal = function getDataKeysInternal(imagePartParams) {
-    throw 'FetchClientBase error: getDataKeysInternal is not implemented';
-};
-
-FetchClientBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
+SimpleFetcherBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
     return new DataPublisher(this);
 };
 
-FetchClientBase.prototype.getHashCode = function getHashCode(tileKey) {
-    throw 'FetchClientBase error: getHashCode is not implemented';
+SimpleFetcherBase.prototype.getHashCode = function getHashCode(tileKey) {
+    throw 'SimpleFetcherBase error: getHashCode is not implemented';
 };
 
-FetchClientBase.prototype.isEqual = function getHashCode(key1, key2) {
-    throw 'FetchClientBase error: isEqual is not implemented';
+SimpleFetcherBase.prototype.isEqual = function getHashCode(key1, key2) {
+    throw 'SimpleFetcherBase error: isEqual is not implemented';
 };
 
 // FetchClient implementation
 
-FetchClientBase.prototype.setStatusCallback = function setStatusCallback(
-    statusCallback) {
-    
-    this._statusCallback = statusCallback;
-};
-
-FetchClientBase.prototype.open = function open(url) {
-    if (this._url || this._isReady) {
-        throw 'FetchClientBase error: Cannot open twice';
-    }
-    
-    if (!url) {
-        throw 'FetchClientBase error: no URL provided';
-    }
-    
-    this._url = url;
-    this.openInternal(url)
-        .then(this._opened.bind(this))
-        .catch(this._onError.bind(this));
-};
-
-FetchClientBase.prototype.createImageDataContext = function createImageDataContext(
+SimpleFetcherBase.prototype.createImageDataContext = function createImageDataContext(
     imagePartParams, contextVars) {
     
     var dataKeys = this.getDataKeysInternal(imagePartParams);
     return new SimpleImageDataContext(contextVars, dataKeys, imagePartParams, this._dataPublisher, this);
 };
 
-FetchClientBase.prototype.createRequestFetcher = function createRequestFetcher() {
-    return new SimpleFetcher(this, /*isChannel=*/false, this._dataPublisher, this._options);
-};
-
-FetchClientBase.prototype.createChannelFetcher = function createChannelFetcher() {
-    return new SimpleFetcher(this, /*isChannel=*/true, this._dataPublisher, this._options);
-};
-
-FetchClientBase.prototype.close = function close(closedCallback) {
-    this._ensureReady();
-    
-    this._isReady = false;
-    
-    if (this._statusCallback) {
-        this._statusCallback({
-            isReady: true,
-            exception: null
-        });
+SimpleFetcherBase.prototype.fetch = function fetch(imageDataContext, fetchChannelState) {
+    var fetchHandle;
+    if (!fetchChannelState) {
+        fetchHandle = new SimpleFetchHandle(this, /*isChannel=*/false, this._dataPublisher, this._options);
+    } else if (fetchChannelState.fetchHandle) {
+        fetchHandle = fetchChannelState.fetchHandle;
+    } else {
+        fetchHandle = new SimpleFetchHandle(this, /*isChannel=*/true, this._dataPublisher, this._options);
+        fetchChannelState.fetchHandle = fetchHandle;
     }
-    
-    if (closedCallback) {
-        closedCallback();
-    }
+    fetchHandle.fetch(imageDataContext);
+    return fetchHandle;
 };
 
-FetchClientBase.prototype.getSizesParams = function getSizesParams(closedCallback) {
-    this._ensureReady();
-    return this._sizesParams;
+SimpleFetcherBase.prototype.close = function close(closedCallback) {
+    return new Promise(function(resolve, reject) {
+        // NOTE: Wait for all fetchHandles to finish?
+        this._ensureReady();
+        this._isReady = false;
+        resolve();
+    });
 };
 
-FetchClientBase.prototype.reconnect = function reconnect() {
+SimpleFetcherBase.prototype.reconnect = function reconnect() {
     return this.reconnectInternal();
 };
 
-FetchClientBase.prototype._ensureReady = function ensureReady() {
+SimpleFetcherBase.prototype._ensureReady = function ensureReady() {
     if (!this._isReady) {
-        throw 'FetchClientBase error: fetch client is not opened';
+        throw 'SimpleFetcherBase error: fetch client is not opened';
     }
 };
-
-FetchClientBase.prototype._opened = function opened(sizesParams) {
-    this._isReady = true;
-    this._sizesParams = sizesParams;
-    
-    if (this._statusCallback) {
-        this._statusCallback({
-            isReady: true,
-            exception: null
-        });
-    }
-};
-
-FetchClientBase.prototype._onError = function onError(error) {
-    // NOTE: Should define API between ImageDecoderFramework and FetchClient for error notifications
-};
-},{"datapublisher.js":6,"simplefetcher.js":8,"simpleimagedatacontext.js":9}],8:[function(require,module,exports){
+},{"datapublisher.js":6,"simplefetchhandle.js":8,"simpleimagedatacontext.js":9}],8:[function(require,module,exports){
 'use strict';
 
-module.exports = SimpleFetcher;
+module.exports = SimpleFetchHandle;
 
-function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
+/* global Promise: false */
+
+function SimpleFetchHandle(fetchClient, isChannel, dataPublisher, options) {
     this._fetchClient = fetchClient;
     this._dataPublisher = dataPublisher;
     this._isChannel = isChannel;
-    this._stopListeners = [];
     this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
     this._keysToFetch = null;
     this._nextKeyToFetch = 0;
@@ -1465,11 +1420,12 @@ function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
     this._activeFetchesCount = 0;
     this._isAborted = false;
     this._isStoppedCalled = false;
+    this._resolveAbort = null;
 }
 
-SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
+SimpleFetchHandle.prototype.fetch = function fetch(imageDataContext) {
     if (!this._isChannel && this._keysToFetch !== null) {
-        throw 'SimpleFetcher error: Request fetcher can fetch only one region';
+        throw 'SimpleFetchHandle error: Request fetcher can fetch only one region';
     }
     
     this._keysToFetch = imageDataContext.getDataKeys();
@@ -1481,26 +1437,22 @@ SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
     }
 };
 
-SimpleFetcher.prototype.on = function on(event, listener) {
-    if (event !== 'stop') {
-        throw 'SimpleFetcher error: Unexpected event ' + event;
-    }
-    
-    this._stopListeners.push(listener);
-};
-
-SimpleFetcher.prototype.abortAsync = function abortAsync() {
+SimpleFetchHandle.prototype.abortAsync = function abortAsync() {
     if (this._isChannel) {
-        throw 'SimpleFetcher error: cannot abort channel fetcher';
+        throw 'SimpleFetchHandle error: cannot abort channel fetcher';
     }
     
-    if (this._keysToFetch !== null && this._nextKeyToFetch < this._keysToFetch.length) {
-        this._isAborted = true;
-    }
-    this._onAborted(/*isAborted=*/true);
+    var self = this;
+    return new Promise(function(resolve, reject) {
+        if (self._activeFetchesCount === 0) {
+            resolve();
+        } else {
+            this._resolveAbort = resolve;
+        }
+    });
 };
 
-SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
+SimpleFetchHandle.prototype._fetchSingleKey = function fetchSingleKey() {
     var key;
     do {
         if (this._nextKeyToFetch >= this._keysToFetch.length) {
@@ -1525,19 +1477,15 @@ SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
     return true;
 };
 
-SimpleFetcher.prototype._fetchEnded = function fetchEnded(error, key, result) {
+SimpleFetchHandle.prototype._fetchEnded = function fetchEnded(error, key, result) {
     delete this._activeFetches[key];
     --this._activeFetchesCount;
     
-    this._fetchSingleKey();
-};
-
-SimpleFetcher.prototype._onAborted = function onStopped(isAborted) {
-    if (this._activeFetchesCount === 0 && !this._isStoppedCalled) {
-        this._isStoppedCalled = true;
-        for (var i = 0; i < this._stopListeners.length; ++i) {
-            this._stopListeners[i].call(this, isAborted);
-        }
+    if (!this._resolveAbort) {
+        this._fetchSingleKey();
+    } else if (this._activeFetchesCount === 0) {
+        this._resolveAbort();
+        this._resolveAbort = null;
     }
 };
 },{}],9:[function(require,module,exports){
@@ -1714,11 +1662,6 @@ function ImageDecoder(imageImplementationClassName, options) {
 
 ImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
-ImageDecoder.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    this._statusCallback = statusCallback;
-    this._fetchManager.setStatusCallback(statusCallback);
-};
-
 ImageDecoder.prototype.getTileWidth = function getTileWidth() {
     this._validateSizesCalculator();
     return this._tileWidth;
@@ -1754,15 +1697,23 @@ ImageDecoder.prototype.setDecodePrioritizerData =
 };
 
 ImageDecoder.prototype.open = function open(url) {
-    this._fetchManager.open(url);
+    var self = this;
+    return this._fetchManager.open(url).then(function (sizesParams) {
+        self._internalSizesParams = sizesParams;
+        return {
+            sizesParams: sizesParams,
+            applicativeTileWidth : self.getTileWidth(),
+            applicativeTileHeight: self.getTileHeight()
+        };
+    });
 };
 
-ImageDecoder.prototype.close = function close(closedCallback) {
+ImageDecoder.prototype.close = function close() {
     for (var i = 0; i < this._decoders.length; ++i) {
         this._decoders[i].terminate();
     }
 
-    this._fetchManager.close(closedCallback);
+    return this._fetchManager.close();
 };
 
 ImageDecoder.prototype.createChannel = function createChannel(
@@ -1876,7 +1827,7 @@ ImageDecoder.prototype.reconnect = function reconnect() {
 };
 
 ImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
-    return this._fetchManager._getSizesParams();
+    return this._internalSizesParams;
 };
 
 ImageDecoder.prototype._createDecoder = function createDecoder() {
@@ -2456,8 +2407,8 @@ FetchJob.FETCH_TYPE_REQUEST = 1;
 FetchJob.FETCH_TYPE_CHANNEL = 2;
 FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA = 3;
 
-function FetchJob(fetchClient, scheduler, fetchType, contextVars) {
-    this._fetchClient = fetchClient;
+function FetchJob(fetcher, scheduler, fetchType, contextVars) {
+    this._fetcher = fetcher;
     this._scheduler = scheduler;
     
     this._dataListeners = [];
@@ -2475,15 +2426,14 @@ function FetchJob(fetchClient, scheduler, fetchType, contextVars) {
     this._isOnlyWaitForData = fetchType === FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA;
     this._useScheduler = fetchType === FetchJob.FETCH_TYPE_REQUEST;
     this._imageDataContext = null;
-    this._fetcher = null;
     this._resource = null;
-    this._fetchStoppedByFetchClientBound = this._fetchStoppedByFetchClient.bind(this);
+    this._abortedBound = this._aborted.bind(this);
     //this._alreadyTerminatedWhenAllDataArrived = false;
     
     if (fetchType === FetchJob.FETCH_TYPE_CHANNEL) {
-        this._fetcher = this._fetchClient.createChannelFetcher();
+        this._fetchChannelState = {};
     } else {
-        this._fetcher = null;
+        this._fetchChannelState = null;
     }
 }
 
@@ -2512,8 +2462,8 @@ FetchJob.prototype.manualAbortRequest = function manualAbortRequest() {
     this._isManuallyAborted = true;
     this._isTerminated = true;
     
-    if (this._fetcher !== null) {
-        this._fetcher.abortAsync();
+    if (this._fetchHandle !== null) {
+        this._fetchHandle.abortAsync().then(this._abortedBound);
     }
 };
 
@@ -2544,8 +2494,8 @@ FetchJob.prototype.getIsProgressive = function getIsProgressive() {
 };
 
 FetchJob.prototype._startFetch = function startFetch() {
-    var imageDataContext = this._fetchClient.createImageDataContext(
-        this._imagePartParams, this);
+    var imageDataContext = this._fetcher.createImageDataContext(
+        this._imagePartParams);
     
     this._imageDataContext = imageDataContext;
 
@@ -2572,7 +2522,7 @@ FetchJob.prototype._startFetch = function startFetch() {
     });
     
     if (!this._isOnlyWaitForData) {
-        this._fetcher.fetch(imageDataContext);
+        this._fetchHandle = this._fetcher.fetch(imageDataContext, this._fetchChannelState);
     }
 };
 
@@ -2614,11 +2564,7 @@ FetchJob.prototype._continueFetch = function continueFetch() {
         throw 'Unexpected call to continueFetch on channel';
     }
     
-    var fetcher = this._fetchClient.createRequestFetcher();
-    
-    this._fetcher = fetcher;
-    fetcher.on('stop', this._fetchStoppedByFetchClientBound);
-    fetcher.fetch(this._imageDataContext);
+    this._fetchHandle = this._fetcher.fetch(this._imageDataContext, this._fetchChannelState);
 };
 
 FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
@@ -2652,7 +2598,7 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
             var scheduler = this._scheduler;
             
             if (scheduler.shouldYieldOrAbort(this)) {
-                this._fetcher.abortAsync();
+                this._fetchHandle.abortAsync().then(this._abortedBound);
             }
         }
     } catch (e) {
@@ -2661,7 +2607,9 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
     }
 };
 
-FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClient(isAborted) {
+FetchJob.prototype._aborted = function aborted() {
+    // TODO: It seems that this function is totally historical code. Should review it.
+    
     //if (this._alreadyTerminatedWhenAllDataArrived) {
     //    // Resources were already released ASAP
     //    return;
@@ -2672,11 +2620,12 @@ FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClie
     }
     
     if (this._isOnlyWaitForData ||
-        this._fetcher === null) {
+        this._fetchHandle === null) {
         
         throw 'Unexpected request type on stopped';
     }
     
+    /*
     if (!isAborted) {
         if (!this._isTerminated) {
             throw '"stopped" listener was called with isAborted=false but ' +
@@ -2685,6 +2634,7 @@ FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClie
         
         return;
     }
+    //*/
     
     var scheduler = this._scheduler;
     
@@ -2696,6 +2646,7 @@ FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClie
         this._resource);
     
     if (isYielded || this._isTerminated) {
+        this._fetchHandle = null;
         scheduler.jobDone(this._resource, this);
         
         return;
@@ -2732,11 +2683,6 @@ function startRequest(resource, self) {
     }
     
     self._resource = resource;
-    
-    if (!self._isOnlyWaitForData) {
-        self._fetcher = self._fetchClient.createRequestFetcher();
-        self._fetcher.on('stop', self._fetchStoppedByFetchClientBound);
-    }
     
     self._startFetch();
 }
@@ -2788,7 +2734,8 @@ function FetchManager(options) {
 
     var serverRequestsLimit = options.serverRequestsLimit || 5;
     
-    this._fetchClient = this._imageImplementation.createFetchClient();
+    this._fetcher = null;
+    this._internalSizesParams = null;
     this._showLog = options.showLog;
     
     if (this._showLog) {
@@ -2813,16 +2760,18 @@ function FetchManager(options) {
 
 FetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
-FetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    this._fetchClient.setStatusCallback(statusCallback);
-};
-
 FetchManager.prototype.open = function open(url) {
-    this._fetchClient.open(url);
+    var promise = this._imageImplementation.createFetcher(url, {isReturnPromise: true});
+    var self = this;
+    return promise.then(function(result) {
+        self._fetcher = result.fetcher;
+        self._internalSizesParams = result.sizesParams;
+        return result.sizesParams;
+    });
 };
 
-FetchManager.prototype.close = function close(closedCallback) {
-    this._fetchClient.close(closedCallback);
+FetchManager.prototype.close = function close() {
+    return this._fetcher.close({isReturnPromise: true});
 };
 
 FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
@@ -2846,7 +2795,7 @@ FetchManager.prototype.createChannel = function createChannel(
     
     var channelHandle = ++this._channelHandleCounter;
     this._channelHandles[channelHandle] = new FetchJob(
-        this._fetchClient,
+        this._fetcher,
         this._scheduler,
         FetchJob.FETCH_TYPE_CHANNEL,
         /*contextVars=*/null);
@@ -2884,7 +2833,7 @@ FetchManager.prototype.createRequest = function createRequest(
         FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : FetchJob.FETCH_TYPE_REQUEST;
     
     var fetchJob = new FetchJob(
-        this._fetchClient, this._scheduler, fetchType, contextVars);
+        this._fetcher, this._scheduler, fetchType, contextVars);
     
     contextVars.fetchJob = fetchJob;
     
@@ -2919,7 +2868,7 @@ FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
 };
 
 FetchManager.prototype.reconnect = function reconnect() {
-    this._fetchClient.reconnect();
+    this._fetcher.reconnect();
 };
 
 FetchManager.prototype.setServerRequestPrioritizerData =
@@ -2937,8 +2886,7 @@ FetchManager.prototype.setServerRequestPrioritizerData =
     };
 
 FetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
-    var sizesParams = this._fetchClient.getSizesParams();
-    return sizesParams;
+    return this._internalSizesParams;
 };
 
 function internalCallback(contextVars, imageDataContext) {
@@ -3786,7 +3734,6 @@ function WorkerProxyFetchManager(options) {
     this._imageWidth = null;
     this._imageHeight = null;
     this._internalSizesParams = null;
-    this._currentStatusCallbackWrapper = null;
     this._options = options;
     
     var ctorArgs = [options];
@@ -3801,37 +3748,12 @@ function WorkerProxyFetchManager(options) {
 
 WorkerProxyFetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
-WorkerProxyFetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    if (this._currentStatusCallbackWrapper !== null) {
-        this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
-    }
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        statusCallback, 'statusCallback', { isMultipleTimeCallback: true });
-    
-    this._currentStatusCallbackWrapper = callbackWrapper;
-    this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
-};
-
 WorkerProxyFetchManager.prototype.open = function open(url) {
-    this._workerHelper.callFunction('open', [url]);
+    return this._workerHelper.callFunction('open', [url], { isReturnPromise: true });
 };
 
-WorkerProxyFetchManager.prototype.close = function close(closedCallback) {
-    var self = this;
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        internalClosedCallback, 'closedCallback');
-        
-    this._workerHelper.callFunction('close', [callbackWrapper]);
-    
-    function internalClosedCallback() {
-        self._workerHelper.terminate();
-        
-        if (closedCallback !== undefined) {
-            closedCallback();
-        }
-    }
+WorkerProxyFetchManager.prototype.close = function close() {
+    return this._workerHelper.callFunction('close', [], { isReturnPromise: true });
 };
 
 WorkerProxyFetchManager.prototype.createChannel = function createChannel(
@@ -3954,7 +3876,6 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._imageHeight = null;
     this._tileWidth = 0;
     this._tileHeight = 0;
-    this._currentStatusCallbackWrapper = null;
     this._sizesCalculator = null;
     
     var optionsInternal = imageHelperFunctions.createInternalOptions(imageImplementationClassName, options);
@@ -3969,23 +3890,11 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
         scriptsToImport, 'imageDecoderFramework.ImageDecoder', ctorArgs);
     
-    var boundUserDataHandler = this._userDataHandler.bind(this);
-    this._workerHelper.setUserDataHandler(boundUserDataHandler);
+    var boundImageOpened = this._imageOpened.bind(this);
+    this._workerHelper.setUserDataHandler(boundImageOpened);
 }
 
 WorkerProxyImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
-
-WorkerProxyImageDecoder.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    if (this._currentStatusCallbackWrapper !== null) {
-        this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
-    }
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        statusCallback, 'statusCallback', { isMultipleTimeCallback: true });
-    
-    this._currentStatusCallbackWrapper = callbackWrapper;
-    this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
-};
 
 WorkerProxyImageDecoder.prototype.getTileWidth = function getTileWidth() {
     this._validateSizesCalculator();
@@ -3998,24 +3907,16 @@ WorkerProxyImageDecoder.prototype.getTileHeight = function getTileHeight() {
 };
 
 WorkerProxyImageDecoder.prototype.open = function open(url) {
-    this._workerHelper.callFunction('open', [url]);
+    var self = this;
+    return this._workerHelper.callFunction('open', [url], { isReturnPromise: true })
+        .then(function(imageParams) {
+            self._imageOpened(imageParams);
+            return imageParams;
+        });
 };
 
-WorkerProxyImageDecoder.prototype.close = function close(closedCallback) {
-    var self = this;
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        internalClosedCallback, 'closedCallback');
-        
-    this._workerHelper.callFunction('close', [callbackWrapper]);
-    
-    function internalClosedCallback() {
-        self._workerHelper.terminate();
-        
-        if (closedCallback !== undefined) {
-            closedCallback();
-        }
-    }
+WorkerProxyImageDecoder.prototype.close = function close() {
+    return this._workerHelper.callFunction('close', [], { isReturnPromise: true });
 };
 
 WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
@@ -4110,7 +4011,7 @@ WorkerProxyImageDecoder.prototype.reconnect = function reconnect() {
     this._workerHelper.callFunction('reconnect');
 };
 
-WorkerProxyImageDecoder.prototype._userDataHandler = function userDataHandler(data) {
+WorkerProxyImageDecoder.prototype._imageOpened = function imageOpened(data) {
     this._internalSizesParams = data.sizesParams;
     this._tileWidth = data.applicativeTileWidth;
     this._tileHeight = data.applicativeTileHeight;
@@ -4213,7 +4114,6 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
     
     this._pendingCallbacksIntervalHandle = 0;
     this._pendingCallbackCalls = [];
-    this._exceptionCallback = null;
     this._canShowDynamicRegion = false;
     
     if (this._cartographicBounds === undefined) {
@@ -4237,23 +4137,26 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
         decodePrioritizer: 'frustumOnly',
         showLog: this._showLog
         });
-    
-    this._image.setStatusCallback(this._internalStatusCallback.bind(this));
 }
 
 ViewerImageDecoder.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
-    this._exceptionCallback = exceptionCallback;
+    // TODO: Support exceptionCallback in every place needed
+	this._exceptionCallback = exceptionCallback;
 };
     
 ViewerImageDecoder.prototype.open = function open(url) {
-    this._image.open(url);
+    this._image.open(url)
+        .then(this._opened.bind(this))
+        .catch(this._exceptionCallback);
 };
 
 ViewerImageDecoder.prototype.close = function close() {
-    this._image.close();
+    var promise = this._image.close();
+    promise.catch(this._exceptionCallback);
     this._isReady = false;
     this._canShowDynamicRegion = false;
     this._targetCanvas = null;
+	return promise;
 };
 
 ViewerImageDecoder.prototype.setTargetCanvas = function setTargetCanvas(canvas) {
@@ -4734,15 +4637,7 @@ ViewerImageDecoder.prototype._copyOverviewToCanvas = function copyOverviewToCanv
         0, 0, canvasPixelsWidth, canvasPixelsHeight);
 };
 
-ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(status) {
-    if (this._exceptionCallback !== null && status.exception !== null) {
-        this._exceptionCallback(status.exception);
-    }
-
-    if (this._isReady || !status.isReady) {
-        return;
-    }
-    
+ViewerImageDecoder.prototype._opened = function opened() {
     this._isReady = true;
     
     var fixedBounds = {

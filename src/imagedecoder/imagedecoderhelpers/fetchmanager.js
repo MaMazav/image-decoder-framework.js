@@ -13,7 +13,8 @@ function FetchManager(options) {
 
     var serverRequestsLimit = options.serverRequestsLimit || 5;
     
-    this._fetchClient = this._imageImplementation.createFetchClient();
+    this._fetcher = null;
+    this._internalSizesParams = null;
     this._showLog = options.showLog;
     
     if (this._showLog) {
@@ -38,16 +39,18 @@ function FetchManager(options) {
 
 FetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
-FetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    this._fetchClient.setStatusCallback(statusCallback);
-};
-
 FetchManager.prototype.open = function open(url) {
-    this._fetchClient.open(url);
+    var promise = this._imageImplementation.createFetcher(url, {isReturnPromise: true});
+    var self = this;
+    return promise.then(function(result) {
+        self._fetcher = result.fetcher;
+        self._internalSizesParams = result.sizesParams;
+        return result.sizesParams;
+    });
 };
 
-FetchManager.prototype.close = function close(closedCallback) {
-    this._fetchClient.close(closedCallback);
+FetchManager.prototype.close = function close() {
+    return this._fetcher.close({isReturnPromise: true});
 };
 
 FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
@@ -71,7 +74,7 @@ FetchManager.prototype.createChannel = function createChannel(
     
     var channelHandle = ++this._channelHandleCounter;
     this._channelHandles[channelHandle] = new FetchJob(
-        this._fetchClient,
+        this._fetcher,
         this._scheduler,
         FetchJob.FETCH_TYPE_CHANNEL,
         /*contextVars=*/null);
@@ -109,7 +112,7 @@ FetchManager.prototype.createRequest = function createRequest(
         FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : FetchJob.FETCH_TYPE_REQUEST;
     
     var fetchJob = new FetchJob(
-        this._fetchClient, this._scheduler, fetchType, contextVars);
+        this._fetcher, this._scheduler, fetchType, contextVars);
     
     contextVars.fetchJob = fetchJob;
     
@@ -144,7 +147,7 @@ FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
 };
 
 FetchManager.prototype.reconnect = function reconnect() {
-    this._fetchClient.reconnect();
+    this._fetcher.reconnect();
 };
 
 FetchManager.prototype.setServerRequestPrioritizerData =
@@ -162,8 +165,7 @@ FetchManager.prototype.setServerRequestPrioritizerData =
     };
 
 FetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
-    var sizesParams = this._fetchClient.getSizesParams();
-    return sizesParams;
+    return this._internalSizesParams;
 };
 
 function internalCallback(contextVars, imageDataContext) {

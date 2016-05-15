@@ -12,7 +12,6 @@ function WorkerProxyFetchManager(options) {
     this._imageWidth = null;
     this._imageHeight = null;
     this._internalSizesParams = null;
-    this._currentStatusCallbackWrapper = null;
     this._options = options;
     
     var ctorArgs = [options];
@@ -27,37 +26,12 @@ function WorkerProxyFetchManager(options) {
 
 WorkerProxyFetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
-WorkerProxyFetchManager.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    if (this._currentStatusCallbackWrapper !== null) {
-        this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
-    }
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        statusCallback, 'statusCallback', { isMultipleTimeCallback: true });
-    
-    this._currentStatusCallbackWrapper = callbackWrapper;
-    this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
-};
-
 WorkerProxyFetchManager.prototype.open = function open(url) {
-    this._workerHelper.callFunction('open', [url]);
+    return this._workerHelper.callFunction('open', [url], { isReturnPromise: true });
 };
 
-WorkerProxyFetchManager.prototype.close = function close(closedCallback) {
-    var self = this;
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        internalClosedCallback, 'closedCallback');
-        
-    this._workerHelper.callFunction('close', [callbackWrapper]);
-    
-    function internalClosedCallback() {
-        self._workerHelper.terminate();
-        
-        if (closedCallback !== undefined) {
-            closedCallback();
-        }
-    }
+WorkerProxyFetchManager.prototype.close = function close() {
+    return this._workerHelper.callFunction('close', [], { isReturnPromise: true });
 };
 
 WorkerProxyFetchManager.prototype.createChannel = function createChannel(

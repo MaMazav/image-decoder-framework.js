@@ -29,9 +29,9 @@ var sources = [
     './src/imagedecoder/imagedecoderworkers/workerproxypixelsdecoder.js',
     './src/imagedecoder/fetchclientbase/datapublisher.js',
     './src/imagedecoder/fetchclientbase/simpleimagedatacontext.js',
-    './src/imagedecoder/fetchclientbase/simplefetcher.js',
+    './src/imagedecoder/fetchclientbase/simplefetchhandle.js',
     './src/imagedecoder/fetchclientbase/simplepixelsdecoderbase.js',
-    './src/imagedecoder/fetchclientbase/fetchclientbase.js',
+    './src/imagedecoder/fetchclientbase/simplefetcherbase.js',
     './src/imagedecoder/imagedecoder.js',
     './src/imagedecoder/viewerimagedecoder.js',
 

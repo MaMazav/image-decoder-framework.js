@@ -37,7 +37,6 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
     
     this._pendingCallbacksIntervalHandle = 0;
     this._pendingCallbackCalls = [];
-    this._exceptionCallback = null;
     this._canShowDynamicRegion = false;
     
     if (this._cartographicBounds === undefined) {
@@ -61,23 +60,26 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
         decodePrioritizer: 'frustumOnly',
         showLog: this._showLog
         });
-    
-    this._image.setStatusCallback(this._internalStatusCallback.bind(this));
 }
 
 ViewerImageDecoder.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
-    this._exceptionCallback = exceptionCallback;
+    // TODO: Support exceptionCallback in every place needed
+	this._exceptionCallback = exceptionCallback;
 };
     
 ViewerImageDecoder.prototype.open = function open(url) {
-    this._image.open(url);
+    this._image.open(url)
+        .then(this._opened.bind(this))
+        .catch(this._exceptionCallback);
 };
 
 ViewerImageDecoder.prototype.close = function close() {
-    this._image.close();
+    var promise = this._image.close();
+    promise.catch(this._exceptionCallback);
     this._isReady = false;
     this._canShowDynamicRegion = false;
     this._targetCanvas = null;
+	return promise;
 };
 
 ViewerImageDecoder.prototype.setTargetCanvas = function setTargetCanvas(canvas) {
@@ -558,15 +560,7 @@ ViewerImageDecoder.prototype._copyOverviewToCanvas = function copyOverviewToCanv
         0, 0, canvasPixelsWidth, canvasPixelsHeight);
 };
 
-ViewerImageDecoder.prototype._internalStatusCallback = function statusCallback(status) {
-    if (this._exceptionCallback !== null && status.exception !== null) {
-        this._exceptionCallback(status.exception);
-    }
-
-    if (this._isReady || !status.isReady) {
-        return;
-    }
-    
+ViewerImageDecoder.prototype._opened = function opened() {
     this._isReady = true;
     
     var fixedBounds = {

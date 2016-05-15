@@ -295,8 +295,9 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
             'needed for frustum calculation for the priority mechanism');
     }
     
-    this._image.setStatusCallback(this._statusCallback.bind(this));
-    this._image.open(this._url);
+    this._image.open(this._url)
+		.then(this._opened.bind(this))
+		.catch(this._onException.bind(this));
     
     this._cesiumWidget = widgetOrViewer;
     
@@ -521,18 +522,18 @@ ImageDecoderImageryProvider.prototype.pickFeatures = function() {
         return undefined;
 };
 
-ImageDecoderImageryProvider.prototype._statusCallback =
-    function internalStatusCallback(status) {
-    
-    if (status.exception !== null && this._exceptionCallback !== null) {
-        this._exceptionCallback(status.exception);
+ImageDecoderImageryProvider.prototype._onException = function onException(reason) {
+    if (this._exceptionCallback !== null) {
+		this._exceptionCallback(reason);
     }
+};
 
-    if (!status.isReady || this._ready) {
-        return;
+ImageDecoderImageryProvider.prototype._opened = function opened() {
+    if (this._ready) {
+        throw 'ImageDecoderImageryProvider error: opened() was called more than once!';
     }
     
-    this._ready = status.isReady;
+    this._ready = true;
     
     // This is wrong if COD or COC exists besides main header COD
     this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();

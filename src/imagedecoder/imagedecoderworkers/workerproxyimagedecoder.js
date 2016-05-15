@@ -14,7 +14,6 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._imageHeight = null;
     this._tileWidth = 0;
     this._tileHeight = 0;
-    this._currentStatusCallbackWrapper = null;
     this._sizesCalculator = null;
     
     var optionsInternal = imageHelperFunctions.createInternalOptions(imageImplementationClassName, options);
@@ -29,23 +28,11 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
         scriptsToImport, 'imageDecoderFramework.ImageDecoder', ctorArgs);
     
-    var boundUserDataHandler = this._userDataHandler.bind(this);
-    this._workerHelper.setUserDataHandler(boundUserDataHandler);
+    var boundImageOpened = this._imageOpened.bind(this);
+    this._workerHelper.setUserDataHandler(boundImageOpened);
 }
 
 WorkerProxyImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
-
-WorkerProxyImageDecoder.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    if (this._currentStatusCallbackWrapper !== null) {
-        this._workerHelper.freeCallback(this._currentStatusCallbackWrapper);
-    }
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        statusCallback, 'statusCallback', { isMultipleTimeCallback: true });
-    
-    this._currentStatusCallbackWrapper = callbackWrapper;
-    this._workerHelper.callFunction('setStatusCallback', [callbackWrapper]);
-};
 
 WorkerProxyImageDecoder.prototype.getTileWidth = function getTileWidth() {
     this._validateSizesCalculator();
@@ -58,24 +45,16 @@ WorkerProxyImageDecoder.prototype.getTileHeight = function getTileHeight() {
 };
 
 WorkerProxyImageDecoder.prototype.open = function open(url) {
-    this._workerHelper.callFunction('open', [url]);
+    var self = this;
+    return this._workerHelper.callFunction('open', [url], { isReturnPromise: true })
+        .then(function(imageParams) {
+            self._imageOpened(imageParams);
+            return imageParams;
+        });
 };
 
-WorkerProxyImageDecoder.prototype.close = function close(closedCallback) {
-    var self = this;
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        internalClosedCallback, 'closedCallback');
-        
-    this._workerHelper.callFunction('close', [callbackWrapper]);
-    
-    function internalClosedCallback() {
-        self._workerHelper.terminate();
-        
-        if (closedCallback !== undefined) {
-            closedCallback();
-        }
-    }
+WorkerProxyImageDecoder.prototype.close = function close() {
+    return this._workerHelper.callFunction('close', [], { isReturnPromise: true });
 };
 
 WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
@@ -170,7 +149,7 @@ WorkerProxyImageDecoder.prototype.reconnect = function reconnect() {
     this._workerHelper.callFunction('reconnect');
 };
 
-WorkerProxyImageDecoder.prototype._userDataHandler = function userDataHandler(data) {
+WorkerProxyImageDecoder.prototype._imageOpened = function imageOpened(data) {
     this._internalSizesParams = data.sizesParams;
     this._tileWidth = data.applicativeTileWidth;
     this._tileHeight = data.applicativeTileHeight;

@@ -6,8 +6,8 @@ FetchJob.FETCH_TYPE_REQUEST = 1;
 FetchJob.FETCH_TYPE_CHANNEL = 2;
 FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA = 3;
 
-function FetchJob(fetchClient, scheduler, fetchType, contextVars) {
-    this._fetchClient = fetchClient;
+function FetchJob(fetcher, scheduler, fetchType, contextVars) {
+    this._fetcher = fetcher;
     this._scheduler = scheduler;
     
     this._dataListeners = [];
@@ -25,15 +25,14 @@ function FetchJob(fetchClient, scheduler, fetchType, contextVars) {
     this._isOnlyWaitForData = fetchType === FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA;
     this._useScheduler = fetchType === FetchJob.FETCH_TYPE_REQUEST;
     this._imageDataContext = null;
-    this._fetcher = null;
     this._resource = null;
-    this._fetchStoppedByFetchClientBound = this._fetchStoppedByFetchClient.bind(this);
+    this._abortedBound = this._aborted.bind(this);
     //this._alreadyTerminatedWhenAllDataArrived = false;
     
     if (fetchType === FetchJob.FETCH_TYPE_CHANNEL) {
-        this._fetcher = this._fetchClient.createChannelFetcher();
+        this._fetchChannelState = {};
     } else {
-        this._fetcher = null;
+        this._fetchChannelState = null;
     }
 }
 
@@ -62,8 +61,8 @@ FetchJob.prototype.manualAbortRequest = function manualAbortRequest() {
     this._isManuallyAborted = true;
     this._isTerminated = true;
     
-    if (this._fetcher !== null) {
-        this._fetcher.abortAsync();
+    if (this._fetchHandle !== null) {
+        this._fetchHandle.abortAsync().then(this._abortedBound);
     }
 };
 
@@ -94,8 +93,8 @@ FetchJob.prototype.getIsProgressive = function getIsProgressive() {
 };
 
 FetchJob.prototype._startFetch = function startFetch() {
-    var imageDataContext = this._fetchClient.createImageDataContext(
-        this._imagePartParams, this);
+    var imageDataContext = this._fetcher.createImageDataContext(
+        this._imagePartParams);
     
     this._imageDataContext = imageDataContext;
 
@@ -122,7 +121,7 @@ FetchJob.prototype._startFetch = function startFetch() {
     });
     
     if (!this._isOnlyWaitForData) {
-        this._fetcher.fetch(imageDataContext);
+        this._fetchHandle = this._fetcher.fetch(imageDataContext, this._fetchChannelState);
     }
 };
 
@@ -164,11 +163,7 @@ FetchJob.prototype._continueFetch = function continueFetch() {
         throw 'Unexpected call to continueFetch on channel';
     }
     
-    var fetcher = this._fetchClient.createRequestFetcher();
-    
-    this._fetcher = fetcher;
-    fetcher.on('stop', this._fetchStoppedByFetchClientBound);
-    fetcher.fetch(this._imageDataContext);
+    this._fetchHandle = this._fetcher.fetch(this._imageDataContext, this._fetchChannelState);
 };
 
 FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
@@ -202,7 +197,7 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
             var scheduler = this._scheduler;
             
             if (scheduler.shouldYieldOrAbort(this)) {
-                this._fetcher.abortAsync();
+                this._fetchHandle.abortAsync().then(this._abortedBound);
             }
         }
     } catch (e) {
@@ -211,7 +206,9 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
     }
 };
 
-FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClient(isAborted) {
+FetchJob.prototype._aborted = function aborted() {
+    // TODO: It seems that this function is totally historical code. Should review it.
+    
     //if (this._alreadyTerminatedWhenAllDataArrived) {
     //    // Resources were already released ASAP
     //    return;
@@ -222,11 +219,12 @@ FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClie
     }
     
     if (this._isOnlyWaitForData ||
-        this._fetcher === null) {
+        this._fetchHandle === null) {
         
         throw 'Unexpected request type on stopped';
     }
     
+    /*
     if (!isAborted) {
         if (!this._isTerminated) {
             throw '"stopped" listener was called with isAborted=false but ' +
@@ -235,6 +233,7 @@ FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClie
         
         return;
     }
+    //*/
     
     var scheduler = this._scheduler;
     
@@ -246,6 +245,7 @@ FetchJob.prototype._fetchStoppedByFetchClient = function fetchStoppedByFetchClie
         this._resource);
     
     if (isYielded || this._isTerminated) {
+        this._fetchHandle = null;
         scheduler.jobDone(this._resource, this);
         
         return;
@@ -282,11 +282,6 @@ function startRequest(resource, self) {
     }
     
     self._resource = resource;
-    
-    if (!self._isOnlyWaitForData) {
-        self._fetcher = self._fetchClient.createRequestFetcher();
-        self._fetcher.on('stop', self._fetchStoppedByFetchClientBound);
-    }
     
     self._startFetch();
 }

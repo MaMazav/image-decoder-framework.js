@@ -58,11 +58,6 @@ function ImageDecoder(imageImplementationClassName, options) {
 
 ImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
-ImageDecoder.prototype.setStatusCallback = function setStatusCallback(statusCallback) {
-    this._statusCallback = statusCallback;
-    this._fetchManager.setStatusCallback(statusCallback);
-};
-
 ImageDecoder.prototype.getTileWidth = function getTileWidth() {
     this._validateSizesCalculator();
     return this._tileWidth;
@@ -98,15 +93,23 @@ ImageDecoder.prototype.setDecodePrioritizerData =
 };
 
 ImageDecoder.prototype.open = function open(url) {
-    this._fetchManager.open(url);
+    var self = this;
+    return this._fetchManager.open(url).then(function (sizesParams) {
+        self._internalSizesParams = sizesParams;
+        return {
+            sizesParams: sizesParams,
+            applicativeTileWidth : self.getTileWidth(),
+            applicativeTileHeight: self.getTileHeight()
+        };
+    });
 };
 
-ImageDecoder.prototype.close = function close(closedCallback) {
+ImageDecoder.prototype.close = function close() {
     for (var i = 0; i < this._decoders.length; ++i) {
         this._decoders[i].terminate();
     }
 
-    this._fetchManager.close(closedCallback);
+    return this._fetchManager.close();
 };
 
 ImageDecoder.prototype.createChannel = function createChannel(
@@ -220,7 +223,7 @@ ImageDecoder.prototype.reconnect = function reconnect() {
 };
 
 ImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
-    return this._fetchManager._getSizesParams();
+    return this._internalSizesParams;
 };
 
 ImageDecoder.prototype._createDecoder = function createDecoder() {

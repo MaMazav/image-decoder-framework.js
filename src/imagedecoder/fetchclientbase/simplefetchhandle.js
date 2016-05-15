@@ -1,12 +1,13 @@
 'use strict';
 
-module.exports = SimpleFetcher;
+module.exports = SimpleFetchHandle;
 
-function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
+/* global Promise: false */
+
+function SimpleFetchHandle(fetchClient, isChannel, dataPublisher, options) {
     this._fetchClient = fetchClient;
     this._dataPublisher = dataPublisher;
     this._isChannel = isChannel;
-    this._stopListeners = [];
     this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
     this._keysToFetch = null;
     this._nextKeyToFetch = 0;
@@ -14,11 +15,12 @@ function SimpleFetcher(fetchClient, isChannel, dataPublisher, options) {
     this._activeFetchesCount = 0;
     this._isAborted = false;
     this._isStoppedCalled = false;
+    this._resolveAbort = null;
 }
 
-SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
+SimpleFetchHandle.prototype.fetch = function fetch(imageDataContext) {
     if (!this._isChannel && this._keysToFetch !== null) {
-        throw 'SimpleFetcher error: Request fetcher can fetch only one region';
+        throw 'SimpleFetchHandle error: Request fetcher can fetch only one region';
     }
     
     this._keysToFetch = imageDataContext.getDataKeys();
@@ -30,26 +32,22 @@ SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
     }
 };
 
-SimpleFetcher.prototype.on = function on(event, listener) {
-    if (event !== 'stop') {
-        throw 'SimpleFetcher error: Unexpected event ' + event;
-    }
-    
-    this._stopListeners.push(listener);
-};
-
-SimpleFetcher.prototype.abortAsync = function abortAsync() {
+SimpleFetchHandle.prototype.abortAsync = function abortAsync() {
     if (this._isChannel) {
-        throw 'SimpleFetcher error: cannot abort channel fetcher';
+        throw 'SimpleFetchHandle error: cannot abort channel fetcher';
     }
     
-    if (this._keysToFetch !== null && this._nextKeyToFetch < this._keysToFetch.length) {
-        this._isAborted = true;
-    }
-    this._onAborted(/*isAborted=*/true);
+    var self = this;
+    return new Promise(function(resolve, reject) {
+        if (self._activeFetchesCount === 0) {
+            resolve();
+        } else {
+            this._resolveAbort = resolve;
+        }
+    });
 };
 
-SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
+SimpleFetchHandle.prototype._fetchSingleKey = function fetchSingleKey() {
     var key;
     do {
         if (this._nextKeyToFetch >= this._keysToFetch.length) {
@@ -74,18 +72,14 @@ SimpleFetcher.prototype._fetchSingleKey = function fetchSingleKey() {
     return true;
 };
 
-SimpleFetcher.prototype._fetchEnded = function fetchEnded(error, key, result) {
+SimpleFetchHandle.prototype._fetchEnded = function fetchEnded(error, key, result) {
     delete this._activeFetches[key];
     --this._activeFetchesCount;
     
-    this._fetchSingleKey();
-};
-
-SimpleFetcher.prototype._onAborted = function onStopped(isAborted) {
-    if (this._activeFetchesCount === 0 && !this._isStoppedCalled) {
-        this._isStoppedCalled = true;
-        for (var i = 0; i < this._stopListeners.length; ++i) {
-            this._stopListeners[i].call(this, isAborted);
-        }
+    if (!this._resolveAbort) {
+        this._fetchSingleKey();
+    } else if (this._activeFetchesCount === 0) {
+        this._resolveAbort();
+        this._resolveAbort = null;
     }
 };
