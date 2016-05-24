@@ -97,6 +97,22 @@ DecodeJob.prototype._dataReadyForDecode = function dataReadyForDecode(dataForDec
         return;
     }
     
+	// Implementation idea:
+	// 1. We have at most one active decode per DecodeJob. Thus if already
+	//    active decode is done, we put the new data in a "pendingDecodeInput"
+	//    variable which will be decoded when current decode is done.
+	// 2. When we have more than a single decode we need to decode only last
+	//    fetched data (because it is of highest quality). Thus older pending
+	//    data is overriden by last one.
+	// 3. The only case that older data should be decoded is the lowest quality
+	//    (which is the first fetched data arrived). This is because we want to
+	//    show a primary image ASAP, and the the lowest quality is easier to
+	//    than others decode.
+	// The idea described below is correct for JPIP, and I guess for other
+	// heavy-decoded image types. One may add options to the ImageDecoder
+	// library in order to configure another behavior, and change the
+	// implementation in the DecodeJob class accordingly.
+	
     if (this._isFirstStage) {
         this._firstDecodeInput = {
             dataForDecode: dataForDecode
@@ -159,25 +175,6 @@ DecodeJob.prototype._startDecode = function startDecode(decoder, jobContext) {
     var height = params.maxYExclusive - params.minY;
 
     decoder.decode(decodeInput.dataForDecode).then(pixelsDecodedCallbackInClosure);
-    
-    //var regionToParse = {
-    //    left: dataForDecode.headersCodestream.offsetX,
-    //    top: dataForDecode.headersCodestream.offsetY,
-    //    right: dataForDecode.headersCodestream.offsetX + width,
-    //    bottom: dataForDecode.headersCodestream.offsetY + height
-    //};
-    //
-    //jpxImageResource.parseCodestreamAsync(
-    //    jpxHeaderParseEndedCallback,
-    //    dataForDecode.headersCodestream.codestream,
-    //    0,
-    //    dataForDecode.headersCodestream.codestream.length,
-    //    { isOnlyParseHeaders: true });
-    //
-    //jpxImageResource.addPacketsDataToCurrentContext(dataForDecode.packetsData);
-    //
-    //jpxImageResource.decodeCurrentContextAsync(
-    //    pixelsDecodedCallbackInClosure, { regionToParse: regionToParse });
         
     var self = this;
     
@@ -298,10 +295,6 @@ DecodeJob.prototype._isAbortedNoTermination = function _isAbortedNoTermination()
     
     return this._isAborted;
 };
-
-//function jpxHeaderParseEndedCallback() {
-//    // Do nothing
-//}
 
 DecodeJob.prototype._checkIfAllTerminated = function checkIfAllTerminated() {
     if (this._activeSubJobs < 0) {

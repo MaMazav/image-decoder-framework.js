@@ -11,7 +11,7 @@ var DataPublisher = require('datapublisher.js');
 function SimpleFetcherBase(options) {
     this._url = null;
     this._isReady = true;
-    this._options = options;
+    this._options = options || {};
     this._isReady = false;
     this._dataPublisher = this.createDataPublisherInternal(this);
 }
@@ -26,39 +26,63 @@ SimpleFetcherBase.prototype.getDataKeysInternal = function getDataKeysInternal(i
     throw 'SimpleFetcherBase error: getDataKeysInternal is not implemented';
 };
 
+SimpleFetcherBase.prototype.getHashCodeInternal = function getHashCodeInternal(dataKey) {
+    throw 'SimpleFetcherBase error: getHashCode is not implemented';
+};
+
+SimpleFetcherBase.prototype.isEqualInternal = function isEqualInternal(dataKey1, dataKey2) {
+    throw 'SimpleFetcherBase error: isEqual is not implemented';
+};
+
 SimpleFetcherBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
     return new DataPublisher(this);
 };
 
-SimpleFetcherBase.prototype.getHashCode = function getHashCode(tileKey) {
-    throw 'SimpleFetcherBase error: getHashCode is not implemented';
-};
-
-SimpleFetcherBase.prototype.isEqual = function getHashCode(key1, key2) {
-    throw 'SimpleFetcherBase error: isEqual is not implemented';
+SimpleFetcherBase.prototype.fetchProgressiveInternal = function fetchProgressiveInternal(dataKeys, dataCallback, queryIsKeyNeedFetch) {
+    var fetchHandle = new SimpleFetchHandle(this, dataCallback, queryIsKeyNeedFetch, this._options);
+	fetchHandle.fetch(dataKeys);
+	return fetchHandle;
 };
 
 // FetchClient implementation
 
 SimpleFetcherBase.prototype.createImageDataContext = function createImageDataContext(
-    imagePartParams, contextVars) {
+    imagePartParams) {
     
     var dataKeys = this.getDataKeysInternal(imagePartParams);
-    return new SimpleImageDataContext(contextVars, dataKeys, imagePartParams, this._dataPublisher, this);
+    return new SimpleImageDataContext(dataKeys, imagePartParams, this._dataPublisher, this);
 };
 
-SimpleFetcherBase.prototype.fetch = function fetch(imageDataContext, fetchChannelState) {
-    var fetchHandle;
-    if (!fetchChannelState) {
-        fetchHandle = new SimpleFetchHandle(this, /*isChannel=*/false, this._dataPublisher, this._options);
-    } else if (fetchChannelState.fetchHandle) {
-        fetchHandle = fetchChannelState.fetchHandle;
-    } else {
-        fetchHandle = new SimpleFetchHandle(this, /*isChannel=*/true, this._dataPublisher, this._options);
-        fetchChannelState.fetchHandle = fetchHandle;
-    }
-    fetchHandle.fetch(imageDataContext);
-    return fetchHandle;
+SimpleFetcherBase.prototype.fetch = function fetch(imageDataContext) {
+	var maxQuality = imageDataContext.getMaxQuality();
+	var self = this;
+	
+	function dataCallback(dataKey, data, isFetchEnded) {
+		var key = {
+			dataKey: dataKey,
+			maxQuality: maxQuality
+		};
+		self._dataPublisher.publish(key, data, isFetchEnded);
+	}
+	
+	function queryIsKeyNeedFetch(dataKey) {
+		var key = {
+			dataKey: dataKey,
+			maxQuality: maxQuality
+		};
+		return self._dataPublisher.isKeyNeedFetch(key);
+	}
+	
+	return this.fetchProgressiveInternal(imageDataContext.getDataKeys(), dataCallback, queryIsKeyNeedFetch, maxQuality);
+};
+
+SimpleFetcherBase.prototype.startMovableFetch = function startMovableFetch(imageDataContext, movableFetchState) {
+	movableFetchState.fetchHandle = this.fetch(imageDataContext);
+};
+
+SimpleFetcherBase.prototype.moveFetch = function moveFetch(imageDataContext, movableFetchState) {
+	movableFetchState.fetchHandle.abortAsync();
+	movableFetchState.fetchHandle = this.fetch(imageDataContext);
 };
 
 SimpleFetcherBase.prototype.close = function close(closedCallback) {
@@ -78,4 +102,15 @@ SimpleFetcherBase.prototype._ensureReady = function ensureReady() {
     if (!this._isReady) {
         throw 'SimpleFetcherBase error: fetch client is not opened';
     }
+};
+
+// Hasher implementation
+
+SimpleFetcherBase.prototype.getHashCode = function getHashCode(key) {
+    return this.getHashCodeInternal(key.dataKey);
+};
+
+SimpleFetcherBase.prototype.isEqual = function isEqual(key1, key2) {
+    return key1.maxQuality == key2.maxQuality &&
+		this.isEqualInternal(key1.dataKey, key2.dataKey);
 };

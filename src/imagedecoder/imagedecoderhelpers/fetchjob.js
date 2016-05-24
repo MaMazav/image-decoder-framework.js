@@ -3,7 +3,7 @@
 module.exports = FetchJob;
 
 FetchJob.FETCH_TYPE_REQUEST = 1;
-FetchJob.FETCH_TYPE_CHANNEL = 2;
+FetchJob.FETCH_TYPE_CHANNEL = 2; // movable
 FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA = 3;
 
 function FetchJob(fetcher, scheduler, fetchType, contextVars) {
@@ -21,18 +21,20 @@ function FetchJob(fetcher, scheduler, fetchType, contextVars) {
     this._isTerminated = false;
     this._isManuallyAborted = false;
     this._isChannel = fetchType === FetchJob.FETCH_TYPE_CHANNEL;
+	this._isChannelStartedFetch = false;
     this._contextVars = contextVars;
     this._isOnlyWaitForData = fetchType === FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA;
     this._useScheduler = fetchType === FetchJob.FETCH_TYPE_REQUEST;
     this._imageDataContext = null;
     this._resource = null;
     this._abortedBound = this._aborted.bind(this);
+	this._fetchHandle = null;
     //this._alreadyTerminatedWhenAllDataArrived = false;
     
     if (fetchType === FetchJob.FETCH_TYPE_CHANNEL) {
-        this._fetchChannelState = {};
+        this._movableFetchState = {};
     } else {
-        this._fetchChannelState = null;
+        this._movableFetchState = null;
     }
 }
 
@@ -84,8 +86,10 @@ FetchJob.prototype.on = function on(event, listener) {
 };
 
 FetchJob.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
-    this._imageDataContext.setIsProgressive(isProgressive);
     this._isProgressive = isProgressive;
+	if (this._imageDataContext !== null) {
+		this._imageDataContext.setIsProgressive(isProgressive);
+	}
 };
 
 FetchJob.prototype.getIsProgressive = function getIsProgressive() {
@@ -97,6 +101,7 @@ FetchJob.prototype._startFetch = function startFetch() {
         this._imagePartParams);
     
     this._imageDataContext = imageDataContext;
+	this._imageDataContext.setIsProgressive(this._isProgressive);
 
     if (imageDataContext.isDone()) {
         for (var i = 0; i < this._dataListeners.length; ++i) {
@@ -121,7 +126,14 @@ FetchJob.prototype._startFetch = function startFetch() {
     });
     
     if (!this._isOnlyWaitForData) {
-        this._fetchHandle = this._fetcher.fetch(imageDataContext, this._fetchChannelState);
+		if (!this._isChannel) {
+			this._fetchHandle = this._fetcher.fetch(imageDataContext);
+		} else if (this._isChannelStartedFetch) {
+			this._fetcher.moveFetch(imageDataContext, this._movableFetchState);
+		} else {
+			this._fetcher.startMovableFetch(imageDataContext, this._movableFetchState);
+			this._isChannelStartedFetch = true;
+		}
     }
 };
 
@@ -163,7 +175,7 @@ FetchJob.prototype._continueFetch = function continueFetch() {
         throw 'Unexpected call to continueFetch on channel';
     }
     
-    this._fetchHandle = this._fetcher.fetch(this._imageDataContext, this._fetchChannelState);
+    this._fetchHandle = this._fetcher.fetch(this._imageDataContext);
 };
 
 FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
@@ -194,9 +206,14 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
                 throw 'No resource allocated but fetch callback called';
             }
             
-            var scheduler = this._scheduler;
+			var isYielded = this._scheduler.tryYield(
+				continueYieldedRequest,
+				this,
+				fetchAbortedByScheduler,
+				fetchYieldedByScheduler,
+				this._resource);
             
-            if (scheduler.shouldYieldOrAbort(this)) {
+			if (isYielded) {
                 this._fetchHandle.abortAsync().then(this._abortedBound);
             }
         }
