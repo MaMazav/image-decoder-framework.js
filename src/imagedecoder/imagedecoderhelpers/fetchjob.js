@@ -40,6 +40,9 @@ function FetchJob(fetcher, scheduler, fetchType, contextVars) {
 
 FetchJob.prototype.fetch = function fetch(imagePartParams) {
     if (this._isChannel) {
+		if (this._imageDataContext !== null) {
+			this._imageDataContext.dispose();
+		}
         this._imagePartParams = imagePartParams;
         this._startFetch();
         return;
@@ -65,7 +68,9 @@ FetchJob.prototype.manualAbortRequest = function manualAbortRequest() {
     
     if (this._fetchHandle !== null) {
         this._fetchHandle.abortAsync().then(this._abortedBound);
-    }
+    } else {
+		this._imageDataContext.dispose();
+	}
 };
 
 FetchJob.prototype.getContextVars = function getContextVars(requestId) {
@@ -166,7 +171,7 @@ FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
     }
     
     if (this._imageDataContext !== null && !this._isFailure) {
-        this._imageDataContext.release();
+        this._imageDataContext.dispose();
     }
 };
 

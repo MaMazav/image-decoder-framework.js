@@ -17,6 +17,7 @@ function SimpleImageDataContext(dataKeys, imagePartParams, dataPublisher, hasher
     this._dataKeys = dataKeys;
     this._dataPublisher = dataPublisher;
 	this._isProgressive = false;
+	this._isDisposed = false;
     
     this._subscribeHandles = [];
     
@@ -52,6 +53,9 @@ SimpleImageDataContext.prototype.getFetchedData = function getFetchedData() {
 };
 
 SimpleImageDataContext.prototype.on = function on(event, listener) {
+	if (this._isDisposed) {
+		throw 'Cannot register to event on disposed ImageDataContext';
+	}
     if (event !== 'data') {
         throw 'SimpleImageDataContext error: Unexpected event ' + event;
     }
@@ -63,12 +67,14 @@ SimpleImageDataContext.prototype.isDone = function isDone() {
     return this._fetchEndedCount === this._dataKeys.length;
 };
 
-SimpleImageDataContext.prototype.release = function release() {
+SimpleImageDataContext.prototype.dispose = function dispose() {
+	this._isDisposed = true;
     for (var i = 0; i < this._subscribeHandles.length; ++i) {
         this._dataPublisher.unsubscribe(this._subscribeHandles[i]);
     }
     
     this._subscribeHandles = [];
+	this._dataListeners = [];
 };
 
 SimpleImageDataContext.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
@@ -82,6 +88,10 @@ SimpleImageDataContext.prototype.setIsProgressive = function setIsProgressive(is
 };
 
 SimpleImageDataContext.prototype._dataFetched = function dataFetched(key, data, fetchEnded) {
+	if (this._isDisposed) {
+		throw 'Unexpected dataFetched listener call on disposed ImageDataContext';
+	}
+
 	var self = this;
 	var added = this._dataByKey.tryAdd(key, function() {
 		// Executed if new item

@@ -201,8 +201,8 @@ ViewerImageDecoder.prototype._fetch = function fetch(
         
         canReuseOldData = newResolution === oldResolution;
         
-        if (canReuseOldData && region.isDone) {
-            fetchParamsNotNeeded = [ region.imagePartParams ];
+        if (canReuseOldData && region.donePartParams) {
+            fetchParamsNotNeeded = [ region.donePartParams ];
         }
 
         if (regionId !== REGION_OVERVIEW) {
@@ -272,6 +272,9 @@ ViewerImageDecoder.prototype._fetchTerminatedCallback = function fetchTerminated
     }
     
     region.isDone = !isAborted && this._isReady;
+	if (region.isDone) {
+		region.donePartParams = region.imagePartParams;
+	}
     
     if (startDynamicRegionOnTermination) {
         this._image.createChannel(
@@ -342,6 +345,7 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
     region, newPartParams, newPosition) {
     
     var oldPartParams = region.imagePartParams;
+	var oldDonePartParams = region.donePartParams;
     var level = newPartParams.level;
     
     var needReposition =
@@ -358,6 +362,7 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
     
     var copyData;
     var intersection;
+	var newDonePartParams;
     var reuseOldData = false;
     var scaleX;
     var scaleY;
@@ -387,7 +392,16 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
             toWidth : intersection.maxX - intersection.minX,
             toHeight: intersection.maxY - intersection.minY,
         };
-    }
+	
+		if (oldDonePartParams && oldPartParams.level === level) {
+			newDonePartParams = {
+				minX: Math.max(oldDonePartParams.minX, newPartParams.minX),
+				minY: Math.max(oldDonePartParams.minY, newPartParams.minY),
+				maxXExclusive: Math.min(oldDonePartParams.maxXExclusive, newPartParams.maxXExclusive),
+				maxYExclusive: Math.min(oldDonePartParams.maxYExclusive, newPartParams.maxYExclusive)
+			};
+		}
+	}
     
     region.imagePartParams = newPartParams;
     region.isDone = false;
@@ -397,6 +411,7 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
         type: PENDING_CALL_TYPE_REPOSITION,
         region: region,
         position: newPosition,
+		donePartParams: newDonePartParams,
         copyData: copyData,
         pixelsWidth: newPartParams.maxXExclusive - newPartParams.minX,
         pixelsHeight: newPartParams.maxYExclusive - newPartParams.minY
@@ -472,6 +487,7 @@ ViewerImageDecoder.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdat
 ViewerImageDecoder.prototype._repositionCanvas = function repositionCanvas(repositionArgs) {
     var region = repositionArgs.region;
     var position = repositionArgs.position;
+	var donePartParams = repositionArgs.donePartParams;
     var copyData = repositionArgs.copyData;
     var pixelsWidth = repositionArgs.pixelsWidth;
     var pixelsHeight = repositionArgs.pixelsHeight;
@@ -514,6 +530,7 @@ ViewerImageDecoder.prototype._repositionCanvas = function repositionCanvas(repos
     }
     
     region.position = position;
+	region.donePartParams = donePartParams;
 };
 
 ViewerImageDecoder.prototype._copyOverviewToCanvas = function copyOverviewToCanvas(
