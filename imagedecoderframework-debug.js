@@ -1,3 +1,28 @@
+var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
+jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
+newNode;return newNode};LinkedList.prototype.remove=function remove(iterator){this._validateIteratorOfThis(iterator);--this._count;iterator._prev._next=iterator._next;iterator._next._prev=iterator._prev;iterator._parent=null};LinkedList.prototype.getValue=function getValue(iterator){this._validateIteratorOfThis(iterator);return iterator._value};LinkedList.prototype.getFirstIterator=function getFirstIterator(){var iterator=this.getNextIterator(this._first);return iterator};LinkedList.prototype.getLastIterator=
+function getFirstIterator(){var iterator=this.getPrevIterator(this._last);return iterator};LinkedList.prototype.getNextIterator=function getNextIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._next===this._last)return null;return iterator._next};LinkedList.prototype.getPrevIterator=function getPrevIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._prev===this._first)return null;return iterator._prev};LinkedList.prototype.getCount=function getCount(){return this._count};
+LinkedList.prototype._validateIteratorOfThis=function validateIteratorOfThis(iterator){if(iterator._parent!==this)throw"iterator must be of the current LinkedList";};return LinkedList}();var PriorityScheduler=function PrioritySchedulerClosure(){function PriorityScheduler(createResource,jobsLimit,prioritizer,options){options=options||{};this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._prioritizer=prioritizer;this._showLog=options["showLog"];this._schedulerName=options["schedulerName"];this._numNewJobs=options["numNewJobs"]||20;this._numJobsBeforeRerankOldPriorities=options["numJobsBeforeRerankOldPriorities"]||20;this._freeResourcesCount=this._jobsLimit;this._freeResources=
+new Array(this._jobsLimit);this._resourcesGuaranteedForHighPriority=options["resourcesGuaranteedForHighPriority"]||0;this._highPriorityToGuaranteeResource=options["highPriorityToGuaranteeResource"]||0;this._pendingJobsCount=0;this._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(this);this._schedulesCounter=0}PriorityScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext,jobAbortedFunc){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);
+return}var job={jobFunc:jobFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};var minPriority=getMinimalPriorityToSchedule(self);var resource=null;if(priority>=minPriority)resource=tryGetFreeResource(this);if(resource!==null){schedule(this,job,resource);return}enqueueNewJob(this,job,priority);ensurePendingJobsCount(self)},jobDone:function jobDone(resource,jobContext){if(this._showLog){var message="";if(this._schedulerName!==undefined)message=this._schedulerName+"'s ";var priority=this._prioritizer["getPriority"](jobContext);
+message+=" job done of priority "+priority;console.log(message)}resourceFreed(this,resource);ensurePendingJobsCount(self)},tryYield:function tryYield(jobContinueFunc,jobContext,jobAbortedFunc,jobYieldedFunc,resource){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);resourceFreed(this,resource);return true}var higherPriorityJob=tryDequeueNewJobWithHigherPriority(this,priority);ensurePendingJobsCount(self);if(higherPriorityJob===null)return false;jobYieldedFunc(jobContext);
+var job={jobFunc:jobContinueFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};enqueueNewJob(this,job,priority);ensurePendingJobsCount(self);schedule(this,higherPriorityJob,resource);ensurePendingJobsCount(self);return true}};function tryDequeueNewJobWithHigherPriority(self,lowPriority){var jobToScheduleNode=null;var highestPriorityFound=lowPriority;var countedPriorities=[];var currentNode=self._newPendingJobsLinkedList.getFirstIterator();while(currentNode!==null){var nextNode=self._newPendingJobsLinkedList.getNextIterator(currentNode);
+var job=self._newPendingJobsLinkedList.getValue(currentNode);var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){extractJobFromLinkedList(self,currentNode);--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);currentNode=nextNode;continue}if(highestPriorityFound===undefined||priority>highestPriorityFound){highestPriorityFound=priority;jobToScheduleNode=currentNode}if(!self._showLog){currentNode=nextNode;continue}if(countedPriorities[priority]===undefined)countedPriorities[priority]=
+1;else++countedPriorities[priority];currentNode=nextNode}var jobToSchedule=null;if(jobToScheduleNode!==null){jobToSchedule=extractJobFromLinkedList(self,jobToScheduleNode);--self._pendingJobsCount}if(self._showLog){var jobsListMessage="";var jobDequeuedMessage="";if(self._schedulerName!==undefined){jobsListMessage=self._schedulerName+"'s ";jobDequeuedMessage=self._schedulerName+"'s "}jobsListMessage+="Jobs list:";for(var i=0;i<countedPriorities.length;++i)if(countedPriorities[i]!==undefined)jobsListMessage+=
+countedPriorities[i]+" jobs of priority "+i+";";console.log(jobsListMessage);if(jobToSchedule!==null){jobDequeuedMessage+=" dequeued new job of priority "+highestPriorityFound;console.log(jobDequeuedMessage)}}ensurePendingJobsCount(self);return jobToSchedule}function tryGetFreeResource(self){if(self._freeResourcesCount===0)return null;--self._freeResourcesCount;var resource=self._freeResources.pop();if(resource===undefined)resource=self._resourceCreator();ensurePendingJobsCount(self);return resource}
+function enqueueNewJob(self,job,priority){++self._pendingJobsCount;var firstIterator=self._newPendingJobsLinkedList.getFirstIterator();addJobToLinkedList(self,job,firstIterator);if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" enqueued job of priority "+priority;console.log(message)}if(self._newPendingJobsLinkedList.getCount()<=self._numNewJobs){ensurePendingJobsCount(self);return}var lastIterator=self._newPendingJobsLinkedList.getLastIterator();
+var oldJob=extractJobFromLinkedList(self,lastIterator);enqueueOldJob(self,oldJob);ensurePendingJobsCount(self)}function enqueueOldJob(self,job){var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);return}if(self._oldPendingJobsByPriority[priority]===undefined)self._oldPendingJobsByPriority[priority]=[];self._oldPendingJobsByPriority[priority].push(job)}function rerankPriorities(self){var originalOldsArray=self._oldPendingJobsByPriority;
+var originalNewsList=self._newPendingJobsLinkedList;if(originalOldsArray.length===0)return;self._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(self);for(var i=0;i<originalOldsArray.length;++i){if(originalOldsArray[i]===undefined)continue;for(var j=0;j<originalOldsArray[i].length;++j)enqueueOldJob(self,originalOldsArray[i][j])}var iterator=originalNewsList.getFirstIterator();while(iterator!==null){var value=originalNewsList.getValue(iterator);enqueueOldJob(self,value);iterator=originalNewsList.getNextIterator(iterator)}var message=
+"";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+="rerank: ";for(var i=self._oldPendingJobsByPriority.length-1;i>=0;--i){var highPriorityJobs=self._oldPendingJobsByPriority[i];if(highPriorityJobs===undefined)continue;if(self._showLog)message+=highPriorityJobs.length+" jobs in priority "+i+";";while(highPriorityJobs.length>0&&self._newPendingJobsLinkedList.getCount()<self._numNewJobs){var job=highPriorityJobs.pop();addJobToLinkedList(self,job)}if(self._newPendingJobsLinkedList.getCount()>=
+self._numNewJobs&&!self._showLog)break}if(self._showLog)console.log(message);ensurePendingJobsCount(self)}function resourceFreed(self,resource){++self._freeResourcesCount;var minPriority=getMinimalPriorityToSchedule(self);--self._freeResourcesCount;var job=tryDequeueNewJobWithHigherPriority(self,minPriority);if(job!==null){ensurePendingJobsCount(self);schedule(self,job,resource);ensurePendingJobsCount(self);return}var hasOldJobs=self._pendingJobsCount>self._newPendingJobsLinkedList.getCount();if(hasOldJobs){self._freeResources.push(resource);
+++self._freeResourcesCount;ensurePendingJobsCount(self);return}var numPriorities=self._oldPendingJobsByPriority.length;var jobPriority;for(var priority=numPriorities-1;priority>=0;--priority){var jobs=self._oldPendingJobsByPriority[priority];if(jobs===undefined||jobs.length===0)continue;for(var i=jobs.length-1;i>=0;--i){job=jobs[i];jobPriority=self._prioritizer["getPriority"](job.jobContext);if(jobPriority>=priority){jobs.length=i;break}else if(jobPriority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext)}else{if(self._oldPendingJobsByPriority[jobPriority]===
+undefined)self._oldPendingJobsByPriority[jobPriority]=[];self._oldPendingJobsByPriority[jobPriority].push(job)}job=null}if(job!==null)break;jobs.length=0}if(job===null){self._freeResources.push(resource);++self._freeResourcesCount;ensurePendingJobsCount(self);return}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" dequeued old job of priority "+jobPriority;console.log(message)}--self._pendingJobsCount;ensurePendingJobsCount(self);schedule(self,
+job,resource);ensurePendingJobsCount(self)}function schedule(self,job,resource){++self._schedulesCounter;if(self._schedulesCounter>=self._numJobsBeforeRerankOldPriorities){self._schedulesCounter=0;rerankPriorities(self)}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";var priority=self._prioritizer["getPriority"](job.jobContext);message+=" scheduled job of priority "+priority;console.log(message)}job.jobFunc(resource,job.jobContext)}function initializeNewPendingJobsLinkedList(self){self._newPendingJobsLinkedList=
+new LinkedList}function addJobToLinkedList(self,job,addBefore){self._newPendingJobsLinkedList.add(job,addBefore);ensureNumberOfNodes(self)}function extractJobFromLinkedList(self,iterator){var value=self._newPendingJobsLinkedList.getValue(iterator);self._newPendingJobsLinkedList.remove(iterator);ensureNumberOfNodes(self);return value}function ensureNumberOfNodes(self){if(!self._showLog)return;var iterator=self._newPendingJobsLinkedList.getIterator();var expectedCount=0;while(iterator!==null){++expectedCount;
+iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCount!==self._newPendingJobsLinkedList.getCount())throw"Unexpected count of new jobs";}function ensurePendingJobsCount(self){if(!self._showLog)return;var oldJobsCount=0;for(var i=0;i<self._oldPendingJobsByPriority.length;++i){var jobs=self._oldPendingJobsByPriority[i];if(jobs!==undefined)oldJobsCount+=jobs.length}var expectedCount=oldJobsCount+self._newPendingJobsLinkedList.getCount();if(expectedCount!==self._pendingJobsCount)throw"Unexpected count of jobs";
+}function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
+LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
+
 var BlobScriptGenerator=BlobScriptGeneratorClosure();self["asyncProxyScriptBlob"]=new BlobScriptGenerator;
 function BlobScriptGeneratorClosure(){function BlobScriptGenerator(){var that=this;that._blobChunks=["'use strict';"];that._blob=null;that._blobUrl=null;that._namespaces={};that.addMember(BlobScriptGeneratorClosure,"BlobScriptGenerator");that.addStatement("var asyncProxyScriptBlob = new BlobScriptGenerator();")}BlobScriptGenerator.prototype.addMember=function addMember(closureFunction,memberName,namespace){if(this._blob)throw new Error("Cannot add member to AsyncProxyScriptBlob after blob was used");
 if(memberName){if(namespace){this._namespaces[namespace]=true;this._blobChunks.push(namespace);this._blobChunks.push(".")}else this._blobChunks.push("var ");this._blobChunks.push(memberName);this._blobChunks.push(" = ")}this._blobChunks.push("(");this._blobChunks.push(closureFunction.toString());this._blobChunks.push(")();")};BlobScriptGenerator.prototype.addStatement=function addStatement(statement){if(this._blob)throw new Error("Cannot add statement to AsyncProxyScriptBlob after blob was used");
@@ -40,31 +65,6 @@ return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===t
 a.u;){var e=d.pop(),g=a;g.a.add(e,void 0);t(g)}if(a.a.h>=a.u&&!a.e)break}a.e&&console.log(b);k(a)}}a.e&&(f="",void 0!==a.c&&(f=a.c+"'s "),a=a.k.getPriority(h.f),console.log(f+(" scheduled job of priority "+a)));h.t(c,h.f)}function q(a,b){var c=a.a.D(b);a.a.remove(b);t(a);return c}function t(a){if(a.e){for(var b=a.a.N(),c=0;null!==b;)++c,b=a.a.r(b);if(c!==a.a.h)throw"Unexpected count of new jobs";}}function k(a){if(a.e){for(var b=0,c=0;c<a.b.length;++c){var d=a.b[c];void 0!==d&&(b+=d.length)}if(b+
 a.a.h!==a.j)throw"Unexpected count of jobs";}}b.prototype={B:function(a,b,c){var d=this.k.getPriority(b);0>d?c(b):(a={t:a,s:c,f:b},b=null,d>=(self.d<=self.H?self.I:0)&&(0===this.d?b=null:(--this.d,b=this.l.pop(),void 0===b&&(b=this.w()),k(this))),null!==b?r(this,a,b):(g(this,a,d),k(self)))},F:function(a,b){if(this.e){var c="";void 0!==this.c&&(c=this.c+"'s ");var d=this.k.getPriority(b);console.log(c+(" job done of priority "+d))}v(this,a);k(self)},G:function(a,b,c,d,l){var f=this.k.getPriority(b);
 if(0>f)return c(b),v(this,l),!0;var q=e(this,f);k(self);if(null===q)return!1;d(b);g(this,{t:a,s:c,f:b},f);k(self);r(this,q,l);k(self);return!0}};return b}();self.ResourceScheduler={};self.ResourceScheduler.PriorityScheduler=u;self.ResourceScheduler.LifoScheduler=n;u.prototype.enqueueJob=u.prototype.B;u.prototype.tryYield=u.prototype.G;u.prototype.jobDone=u.prototype.F;n.prototype.enqueueJob=n.prototype.B;n.prototype.tryYield=n.prototype.G;n.prototype.jobDone=n.prototype.F;
-
-var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
-jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
-newNode;return newNode};LinkedList.prototype.remove=function remove(iterator){this._validateIteratorOfThis(iterator);--this._count;iterator._prev._next=iterator._next;iterator._next._prev=iterator._prev;iterator._parent=null};LinkedList.prototype.getValue=function getValue(iterator){this._validateIteratorOfThis(iterator);return iterator._value};LinkedList.prototype.getFirstIterator=function getFirstIterator(){var iterator=this.getNextIterator(this._first);return iterator};LinkedList.prototype.getLastIterator=
-function getFirstIterator(){var iterator=this.getPrevIterator(this._last);return iterator};LinkedList.prototype.getNextIterator=function getNextIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._next===this._last)return null;return iterator._next};LinkedList.prototype.getPrevIterator=function getPrevIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._prev===this._first)return null;return iterator._prev};LinkedList.prototype.getCount=function getCount(){return this._count};
-LinkedList.prototype._validateIteratorOfThis=function validateIteratorOfThis(iterator){if(iterator._parent!==this)throw"iterator must be of the current LinkedList";};return LinkedList}();var PriorityScheduler=function PrioritySchedulerClosure(){function PriorityScheduler(createResource,jobsLimit,prioritizer,options){options=options||{};this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._prioritizer=prioritizer;this._showLog=options["showLog"];this._schedulerName=options["schedulerName"];this._numNewJobs=options["numNewJobs"]||20;this._numJobsBeforeRerankOldPriorities=options["numJobsBeforeRerankOldPriorities"]||20;this._freeResourcesCount=this._jobsLimit;this._freeResources=
-new Array(this._jobsLimit);this._resourcesGuaranteedForHighPriority=options["resourcesGuaranteedForHighPriority"]||0;this._highPriorityToGuaranteeResource=options["highPriorityToGuaranteeResource"]||0;this._pendingJobsCount=0;this._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(this);this._schedulesCounter=0}PriorityScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext,jobAbortedFunc){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);
-return}var job={jobFunc:jobFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};var minPriority=getMinimalPriorityToSchedule(self);var resource=null;if(priority>=minPriority)resource=tryGetFreeResource(this);if(resource!==null){schedule(this,job,resource);return}enqueueNewJob(this,job,priority);ensurePendingJobsCount(self)},jobDone:function jobDone(resource,jobContext){if(this._showLog){var message="";if(this._schedulerName!==undefined)message=this._schedulerName+"'s ";var priority=this._prioritizer["getPriority"](jobContext);
-message+=" job done of priority "+priority;console.log(message)}resourceFreed(this,resource);ensurePendingJobsCount(self)},tryYield:function tryYield(jobContinueFunc,jobContext,jobAbortedFunc,jobYieldedFunc,resource){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);resourceFreed(this,resource);return true}var higherPriorityJob=tryDequeueNewJobWithHigherPriority(this,priority);ensurePendingJobsCount(self);if(higherPriorityJob===null)return false;jobYieldedFunc(jobContext);
-var job={jobFunc:jobContinueFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};enqueueNewJob(this,job,priority);ensurePendingJobsCount(self);schedule(this,higherPriorityJob,resource);ensurePendingJobsCount(self);return true}};function tryDequeueNewJobWithHigherPriority(self,lowPriority){var jobToScheduleNode=null;var highestPriorityFound=lowPriority;var countedPriorities=[];var currentNode=self._newPendingJobsLinkedList.getFirstIterator();while(currentNode!==null){var nextNode=self._newPendingJobsLinkedList.getNextIterator(currentNode);
-var job=self._newPendingJobsLinkedList.getValue(currentNode);var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){extractJobFromLinkedList(self,currentNode);--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);currentNode=nextNode;continue}if(highestPriorityFound===undefined||priority>highestPriorityFound){highestPriorityFound=priority;jobToScheduleNode=currentNode}if(!self._showLog){currentNode=nextNode;continue}if(countedPriorities[priority]===undefined)countedPriorities[priority]=
-1;else++countedPriorities[priority];currentNode=nextNode}var jobToSchedule=null;if(jobToScheduleNode!==null){jobToSchedule=extractJobFromLinkedList(self,jobToScheduleNode);--self._pendingJobsCount}if(self._showLog){var jobsListMessage="";var jobDequeuedMessage="";if(self._schedulerName!==undefined){jobsListMessage=self._schedulerName+"'s ";jobDequeuedMessage=self._schedulerName+"'s "}jobsListMessage+="Jobs list:";for(var i=0;i<countedPriorities.length;++i)if(countedPriorities[i]!==undefined)jobsListMessage+=
-countedPriorities[i]+" jobs of priority "+i+";";console.log(jobsListMessage);if(jobToSchedule!==null){jobDequeuedMessage+=" dequeued new job of priority "+highestPriorityFound;console.log(jobDequeuedMessage)}}ensurePendingJobsCount(self);return jobToSchedule}function tryGetFreeResource(self){if(self._freeResourcesCount===0)return null;--self._freeResourcesCount;var resource=self._freeResources.pop();if(resource===undefined)resource=self._resourceCreator();ensurePendingJobsCount(self);return resource}
-function enqueueNewJob(self,job,priority){++self._pendingJobsCount;var firstIterator=self._newPendingJobsLinkedList.getFirstIterator();addJobToLinkedList(self,job,firstIterator);if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" enqueued job of priority "+priority;console.log(message)}if(self._newPendingJobsLinkedList.getCount()<=self._numNewJobs){ensurePendingJobsCount(self);return}var lastIterator=self._newPendingJobsLinkedList.getLastIterator();
-var oldJob=extractJobFromLinkedList(self,lastIterator);enqueueOldJob(self,oldJob);ensurePendingJobsCount(self)}function enqueueOldJob(self,job){var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);return}if(self._oldPendingJobsByPriority[priority]===undefined)self._oldPendingJobsByPriority[priority]=[];self._oldPendingJobsByPriority[priority].push(job)}function rerankPriorities(self){var originalOldsArray=self._oldPendingJobsByPriority;
-var originalNewsList=self._newPendingJobsLinkedList;if(originalOldsArray.length===0)return;self._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(self);for(var i=0;i<originalOldsArray.length;++i){if(originalOldsArray[i]===undefined)continue;for(var j=0;j<originalOldsArray[i].length;++j)enqueueOldJob(self,originalOldsArray[i][j])}var iterator=originalNewsList.getFirstIterator();while(iterator!==null){var value=originalNewsList.getValue(iterator);enqueueOldJob(self,value);iterator=originalNewsList.getNextIterator(iterator)}var message=
-"";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+="rerank: ";for(var i=self._oldPendingJobsByPriority.length-1;i>=0;--i){var highPriorityJobs=self._oldPendingJobsByPriority[i];if(highPriorityJobs===undefined)continue;if(self._showLog)message+=highPriorityJobs.length+" jobs in priority "+i+";";while(highPriorityJobs.length>0&&self._newPendingJobsLinkedList.getCount()<self._numNewJobs){var job=highPriorityJobs.pop();addJobToLinkedList(self,job)}if(self._newPendingJobsLinkedList.getCount()>=
-self._numNewJobs&&!self._showLog)break}if(self._showLog)console.log(message);ensurePendingJobsCount(self)}function resourceFreed(self,resource){++self._freeResourcesCount;var minPriority=getMinimalPriorityToSchedule(self);--self._freeResourcesCount;var job=tryDequeueNewJobWithHigherPriority(self,minPriority);if(job!==null){ensurePendingJobsCount(self);schedule(self,job,resource);ensurePendingJobsCount(self);return}var hasOldJobs=self._pendingJobsCount>self._newPendingJobsLinkedList.getCount();if(hasOldJobs){self._freeResources.push(resource);
-++self._freeResourcesCount;ensurePendingJobsCount(self);return}var numPriorities=self._oldPendingJobsByPriority.length;var jobPriority;for(var priority=numPriorities-1;priority>=0;--priority){var jobs=self._oldPendingJobsByPriority[priority];if(jobs===undefined||jobs.length===0)continue;for(var i=jobs.length-1;i>=0;--i){job=jobs[i];jobPriority=self._prioritizer["getPriority"](job.jobContext);if(jobPriority>=priority){jobs.length=i;break}else if(jobPriority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext)}else{if(self._oldPendingJobsByPriority[jobPriority]===
-undefined)self._oldPendingJobsByPriority[jobPriority]=[];self._oldPendingJobsByPriority[jobPriority].push(job)}job=null}if(job!==null)break;jobs.length=0}if(job===null){self._freeResources.push(resource);++self._freeResourcesCount;ensurePendingJobsCount(self);return}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" dequeued old job of priority "+jobPriority;console.log(message)}--self._pendingJobsCount;ensurePendingJobsCount(self);schedule(self,
-job,resource);ensurePendingJobsCount(self)}function schedule(self,job,resource){++self._schedulesCounter;if(self._schedulesCounter>=self._numJobsBeforeRerankOldPriorities){self._schedulesCounter=0;rerankPriorities(self)}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";var priority=self._prioritizer["getPriority"](job.jobContext);message+=" scheduled job of priority "+priority;console.log(message)}job.jobFunc(resource,job.jobContext)}function initializeNewPendingJobsLinkedList(self){self._newPendingJobsLinkedList=
-new LinkedList}function addJobToLinkedList(self,job,addBefore){self._newPendingJobsLinkedList.add(job,addBefore);ensureNumberOfNodes(self)}function extractJobFromLinkedList(self,iterator){var value=self._newPendingJobsLinkedList.getValue(iterator);self._newPendingJobsLinkedList.remove(iterator);ensureNumberOfNodes(self);return value}function ensureNumberOfNodes(self){if(!self._showLog)return;var iterator=self._newPendingJobsLinkedList.getIterator();var expectedCount=0;while(iterator!==null){++expectedCount;
-iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCount!==self._newPendingJobsLinkedList.getCount())throw"Unexpected count of new jobs";}function ensurePendingJobsCount(self){if(!self._showLog)return;var oldJobsCount=0;for(var i=0;i<self._oldPendingJobsByPriority.length;++i){var jobs=self._oldPendingJobsByPriority[i];if(jobs!==undefined)oldJobsCount+=jobs.length}var expectedCount=oldJobsCount+self._newPendingJobsLinkedList.getCount();if(expectedCount!==self._pendingJobsCount)throw"Unexpected count of jobs";
-}function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
-LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
 
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.imageDecoderFramework = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 'use strict';
@@ -1327,9 +1327,8 @@ var DataPublisher = require('datapublisher.js');
 
 function SimpleFetcherBase(options) {
     this._url = null;
-    this._isReady = true;
     this._options = options || {};
-    this._isReady = false;
+    this._isReady = true;
     this._dataPublisher = this.createDataPublisherInternal(this);
 }
 
@@ -1356,6 +1355,7 @@ SimpleFetcherBase.prototype.createDataPublisherInternal = function createDataPub
 };
 
 SimpleFetcherBase.prototype.fetchProgressiveInternal = function fetchProgressiveInternal(dataKeys, dataCallback, queryIsKeyNeedFetch) {
+    this._ensureReady();
     var fetchHandle = new SimpleFetchHandle(this, dataCallback, queryIsKeyNeedFetch, this._options);
 	fetchHandle.fetch(dataKeys);
 	return fetchHandle;
@@ -1366,6 +1366,7 @@ SimpleFetcherBase.prototype.fetchProgressiveInternal = function fetchProgressive
 SimpleFetcherBase.prototype.createImageDataContext = function createImageDataContext(
     imagePartParams) {
     
+    this._ensureReady();
     var dataKeys = this.getDataKeysInternal(imagePartParams);
     return new SimpleImageDataContext(dataKeys, imagePartParams, this._dataPublisher, this);
 };
@@ -1403,15 +1404,16 @@ SimpleFetcherBase.prototype.moveFetch = function moveFetch(imageDataContext, mov
 };
 
 SimpleFetcherBase.prototype.close = function close(closedCallback) {
+    this._ensureReady();
+    this._isReady = false;
     return new Promise(function(resolve, reject) {
         // NOTE: Wait for all fetchHandles to finish?
-        this._ensureReady();
-        this._isReady = false;
         resolve();
     });
 };
 
 SimpleFetcherBase.prototype.reconnect = function reconnect() {
+    this._ensureReady();
     return this.reconnectInternal();
 };
 
@@ -1686,6 +1688,7 @@ function ImageDecoder(imageImplementationClassName, options) {
     ImageParamsRetrieverProxy.call(this, imageImplementationClassName);
     
     this._options = options || {};
+    this._optionsWebWorkers = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
     var decodeWorkersLimit = this._options.workersLimit || 5;
     
     this._tileWidth = this._options.tileWidth || 256;
@@ -1700,8 +1703,7 @@ function ImageDecoder(imageImplementationClassName, options) {
     this._channelStates = [];
     this._decoders = [];
 
-    var optionsFetchManager = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
-    this._fetchManager = new WorkerProxyFetchManager(optionsFetchManager);
+    this._fetchManager = new WorkerProxyFetchManager(this._optionsWebWorkers);
     
     var decodeScheduler = imageHelperFunctions.createScheduler(
         this._showLog,
@@ -1893,12 +1895,16 @@ ImageDecoder.prototype.reconnect = function reconnect() {
     this._fetchManager.reconnect();
 };
 
+ImageDecoder.prototype.alignParamsToTilesAndLevel = function alignParamsToTilesAndLevel(region) {
+	return imageHelperFunctions.alignParamsToTilesAndLevel(region, this);
+};
+
 ImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
     return this._internalSizesParams;
 };
 
 ImageDecoder.prototype._createDecoder = function createDecoder() {
-    var decoder = new WorkerProxyPixelsDecoder(this._options);
+    var decoder = new WorkerProxyPixelsDecoder(this._optionsWebWorkers);
     this._decoders.push(decoder);
     
     return decoder;
@@ -3833,7 +3839,10 @@ WorkerProxyFetchManager.prototype.open = function open(url) {
 };
 
 WorkerProxyFetchManager.prototype.close = function close() {
-    return this._workerHelper.callFunction('close', [], { isReturnPromise: true });
+    var self = this;
+    return this._workerHelper.callFunction('close', [], { isReturnPromise: true }).then(function() {
+        self._workerHelper.terminate();
+    });
 };
 
 WorkerProxyFetchManager.prototype.createChannel = function createChannel(
@@ -4091,6 +4100,10 @@ WorkerProxyImageDecoder.prototype.reconnect = function reconnect() {
     this._workerHelper.callFunction('reconnect');
 };
 
+WorkerProxyImageDecoder.prototype.alignParamsToTilesAndLevel = function alignParamsToTilesAndLevel(region) {
+	return imageHelperFunctions.alignParamsToTilesAndLevel(region, this);
+};
+
 WorkerProxyImageDecoder.prototype._imageOpened = function imageOpened(data) {
     this._internalSizesParams = data.sizesParams;
     this._tileWidth = data.applicativeTileWidth;
@@ -4144,6 +4157,10 @@ WorkerProxyPixelsDecoder.prototype.decode = function decode(dataForDecode) {
     };
     
     return this._workerHelper.callFunction('decode', args, options);
+};
+
+WorkerProxyPixelsDecoder.prototype.terminate = function terminate() {
+    this._workerHelper.terminate();
 };
 
 function decoderSlaveScriptBody() {

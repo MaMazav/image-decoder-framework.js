@@ -15,6 +15,7 @@ function ImageDecoder(imageImplementationClassName, options) {
     ImageParamsRetrieverProxy.call(this, imageImplementationClassName);
     
     this._options = options || {};
+    this._optionsWebWorkers = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
     var decodeWorkersLimit = this._options.workersLimit || 5;
     
     this._tileWidth = this._options.tileWidth || 256;
@@ -29,8 +30,7 @@ function ImageDecoder(imageImplementationClassName, options) {
     this._channelStates = [];
     this._decoders = [];
 
-    var optionsFetchManager = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
-    this._fetchManager = new WorkerProxyFetchManager(optionsFetchManager);
+    this._fetchManager = new WorkerProxyFetchManager(this._optionsWebWorkers);
     
     var decodeScheduler = imageHelperFunctions.createScheduler(
         this._showLog,
@@ -222,12 +222,16 @@ ImageDecoder.prototype.reconnect = function reconnect() {
     this._fetchManager.reconnect();
 };
 
+ImageDecoder.prototype.alignParamsToTilesAndLevel = function alignParamsToTilesAndLevel(region) {
+	return imageHelperFunctions.alignParamsToTilesAndLevel(region, this);
+};
+
 ImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
     return this._internalSizesParams;
 };
 
 ImageDecoder.prototype._createDecoder = function createDecoder() {
-    var decoder = new WorkerProxyPixelsDecoder(this._options);
+    var decoder = new WorkerProxyPixelsDecoder(this._optionsWebWorkers);
     this._decoders.push(decoder);
     
     return decoder;

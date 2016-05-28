@@ -10,9 +10,8 @@ var DataPublisher = require('datapublisher.js');
 
 function SimpleFetcherBase(options) {
     this._url = null;
-    this._isReady = true;
     this._options = options || {};
-    this._isReady = false;
+    this._isReady = true;
     this._dataPublisher = this.createDataPublisherInternal(this);
 }
 
@@ -39,6 +38,7 @@ SimpleFetcherBase.prototype.createDataPublisherInternal = function createDataPub
 };
 
 SimpleFetcherBase.prototype.fetchProgressiveInternal = function fetchProgressiveInternal(dataKeys, dataCallback, queryIsKeyNeedFetch) {
+    this._ensureReady();
     var fetchHandle = new SimpleFetchHandle(this, dataCallback, queryIsKeyNeedFetch, this._options);
 	fetchHandle.fetch(dataKeys);
 	return fetchHandle;
@@ -49,6 +49,7 @@ SimpleFetcherBase.prototype.fetchProgressiveInternal = function fetchProgressive
 SimpleFetcherBase.prototype.createImageDataContext = function createImageDataContext(
     imagePartParams) {
     
+    this._ensureReady();
     var dataKeys = this.getDataKeysInternal(imagePartParams);
     return new SimpleImageDataContext(dataKeys, imagePartParams, this._dataPublisher, this);
 };
@@ -86,15 +87,16 @@ SimpleFetcherBase.prototype.moveFetch = function moveFetch(imageDataContext, mov
 };
 
 SimpleFetcherBase.prototype.close = function close(closedCallback) {
+    this._ensureReady();
+    this._isReady = false;
     return new Promise(function(resolve, reject) {
         // NOTE: Wait for all fetchHandles to finish?
-        this._ensureReady();
-        this._isReady = false;
         resolve();
     });
 };
 
 SimpleFetcherBase.prototype.reconnect = function reconnect() {
+    this._ensureReady();
     return this.reconnectInternal();
 };
 

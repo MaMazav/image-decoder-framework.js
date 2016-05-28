@@ -149,6 +149,10 @@ WorkerProxyImageDecoder.prototype.reconnect = function reconnect() {
     this._workerHelper.callFunction('reconnect');
 };
 
+WorkerProxyImageDecoder.prototype.alignParamsToTilesAndLevel = function alignParamsToTilesAndLevel(region) {
+	return imageHelperFunctions.alignParamsToTilesAndLevel(region, this);
+};
+
 WorkerProxyImageDecoder.prototype._imageOpened = function imageOpened(data) {
     this._internalSizesParams = data.sizesParams;
     this._tileWidth = data.applicativeTileWidth;

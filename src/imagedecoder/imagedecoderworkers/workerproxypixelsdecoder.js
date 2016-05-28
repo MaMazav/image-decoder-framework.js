@@ -42,6 +42,10 @@ WorkerProxyPixelsDecoder.prototype.decode = function decode(dataForDecode) {
     return this._workerHelper.callFunction('decode', args, options);
 };
 
+WorkerProxyPixelsDecoder.prototype.terminate = function terminate() {
+    this._workerHelper.terminate();
+};
+
 function decoderSlaveScriptBody() {
     'use strict';
 

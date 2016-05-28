@@ -31,7 +31,10 @@ WorkerProxyFetchManager.prototype.open = function open(url) {
 };
 
 WorkerProxyFetchManager.prototype.close = function close() {
-    return this._workerHelper.callFunction('close', [], { isReturnPromise: true });
+    var self = this;
+    return this._workerHelper.callFunction('close', [], { isReturnPromise: true }).then(function() {
+        self._workerHelper.terminate();
+    });
 };
 
 WorkerProxyFetchManager.prototype.createChannel = function createChannel(
