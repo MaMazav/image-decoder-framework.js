@@ -37,7 +37,7 @@ SimpleFetcherBase.prototype.createDataPublisherInternal = function createDataPub
     return new DataPublisher(this);
 };
 
-SimpleFetcherBase.prototype.fetchProgressiveInternal = function fetchProgressiveInternal(dataKeys, dataCallback, queryIsKeyNeedFetch) {
+SimpleFetcherBase.prototype.fetchProgressiveInternal = function fetchProgressiveInternal(imagePartParams, dataKeys, dataCallback, queryIsKeyNeedFetch) {
     this._ensureReady();
     var fetchHandle = new SimpleFetchHandle(this, dataCallback, queryIsKeyNeedFetch, this._options);
 	fetchHandle.fetch(dataKeys);
@@ -74,7 +74,7 @@ SimpleFetcherBase.prototype.fetch = function fetch(imageDataContext) {
 		return self._dataPublisher.isKeyNeedFetch(key);
 	}
 	
-	return this.fetchProgressiveInternal(imageDataContext.getDataKeys(), dataCallback, queryIsKeyNeedFetch, maxQuality);
+	return this.fetchProgressiveInternal(imageDataContext.getImagePartParams(), imageDataContext.getDataKeys(), dataCallback, queryIsKeyNeedFetch, maxQuality);
 };
 
 SimpleFetcherBase.prototype.startMovableFetch = function startMovableFetch(imageDataContext, movableFetchState) {

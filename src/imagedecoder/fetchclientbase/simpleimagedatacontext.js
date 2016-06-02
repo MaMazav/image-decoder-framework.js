@@ -15,6 +15,7 @@ function SimpleImageDataContext(dataKeys, imagePartParams, dataPublisher, hasher
 	this._fetchedLowQualityCount = 0;
     this._dataListeners = [];
     this._dataKeys = dataKeys;
+    this._imagePartParams = imagePartParams;
     this._dataPublisher = dataPublisher;
 	this._isProgressive = false;
 	this._isDisposed = false;
@@ -38,6 +39,10 @@ SimpleImageDataContext.prototype.getMaxQuality = function getMaxQuality() {
 
 SimpleImageDataContext.prototype.getDataKeys = function getDataKeys() {
     return this._dataKeys;
+};
+
+SimpleImageDataContext.prototype.getImagePartParams = function getImagePartParams() {
+    return this._imagePartParams;
 };
 
 SimpleImageDataContext.prototype.hasData = function hasData() {

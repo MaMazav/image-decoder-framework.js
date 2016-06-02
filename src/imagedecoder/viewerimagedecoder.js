@@ -68,7 +68,7 @@ ViewerImageDecoder.prototype.setExceptionCallback = function setExceptionCallbac
 };
     
 ViewerImageDecoder.prototype.open = function open(url) {
-    this._image.open(url)
+    return this._image.open(url)
         .then(this._opened.bind(this))
         .catch(this._exceptionCallback);
 };
@@ -146,6 +146,13 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
         alignedParams,
         startDynamicRegionOnTermination,
         moveExistingChannel);
+};
+
+ViewerImageDecoder.prototype.getBounds = function getCartographicBounds() {
+    if (!this._isReady) {
+        throw 'ViewerImageDecoder error: Image is not ready yet';
+    }
+    return this._cartographicBoundsFixed;
 };
 
 ViewerImageDecoder.prototype._isImagePartsEqual = function isImagePartsEqual(first, second) {
