@@ -26,6 +26,7 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
         options.minFunctionCallIntervalMilliseconds;
     this._overviewResolutionX = options.overviewResolutionX || 100;
     this._overviewResolutionY = options.overviewResolutionY || 100;
+    this._workersLimit = options.workersLimit;
         
     this._lastRequestIndex = 0;
     this._pendingUpdateViewArea = null;
@@ -58,7 +59,8 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
     this._image = new ImageType(imageImplementationClassName, {
         serverRequestPrioritizer: 'frustumOnly',
         decodePrioritizer: 'frustumOnly',
-        showLog: this._showLog
+        showLog: this._showLog,
+        workersLimit: this._workersLimit
         });
 }
 
