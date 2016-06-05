@@ -46,8 +46,8 @@ var sources = [
 ];
 
 var vendorsProd = [
-    //'./vendor/asyncproxy.js',
-    //'./vendor/resourcescheduler.js'
+    './vendor/asyncproxy.js',
+    './vendor/resourcescheduler.js'
 ];
 
 var vendorsDebug = [
@@ -76,6 +76,7 @@ function build(isDebug) {
     var scripts = isDebug ? scriptsDebug : scriptsProd;
     var vendors = isDebug ? vendorsDebug : vendorsProd;
     var jshintStream = gulp.src(scripts)
+        .pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(buffer())
         .pipe(jshint())
         .pipe(jshint.reporter('default'));
@@ -83,27 +84,38 @@ function build(isDebug) {
     var browserifyStream = browserified
         .bundle()
         .pipe(source('imagedecoderframework-src.js'))
-        .pipe(buffer())
-        .pipe(sourcemaps.init({ loadMaps: true }))
+        .pipe(buffer());
+    
+    if (!isDebug) {
+        browserifyStream = browserifyStream
+        .pipe(uglify())
+        .on('error', gutil.log);
+    }
             // NOTE: Add it in production
-            //// Add transformation tasks to the pipeline here.
             //.pipe(uglify(/* { compress: { unused: false } } */))
             //.on('error', gutil.log);
     for (var i = 0; i < vendors.length; ++i) {
         browserifyStream = browserifyStream.pipe(addsrc(vendors[i]));
     }
     
+    var outFile = isDebug ? 'imagedecoderframework-debug' : 'imagedecoderframework';
+    
     browserifyStream = browserifyStream
-        .pipe(addsrc('./vendor/resourcescheduler.js'))
         .pipe(concat('imagedecoderframework-src.js'))
-        .pipe(rename('imagedecoderframework-debug.js'))
-        .pipe(sourcemaps.write('./'))
+        .pipe(rename(outFile + '.js'))
+        .pipe(sourcemaps.write(outFile))
         .pipe(gulp.dest('./'));
 
     //return jshintStream;
     return mergeStream(jshintStream, browserifyStream);
 }
 
-gulp.task('default', function () {
+gulp.task('debug', function () {
     return build(/*isDebug=*/true);
 });
+
+gulp.task('prod', function() {
+    return build(/*isDebug=*/false);
+});
+
+gulp.task('default', ['debug', 'prod']);
