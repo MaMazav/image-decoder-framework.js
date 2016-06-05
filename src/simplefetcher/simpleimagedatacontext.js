@@ -32,7 +32,7 @@ function SimpleImageDataContext(dataKeys, imagePartParams, dataPublisher, hasher
     }
 }
 
-// Not part of ImageDataContext interface, only service for SimpleFetcherBase
+// Not part of ImageDataContext interface, only service for SimpleFetcher
 SimpleImageDataContext.prototype.getMaxQuality = function getMaxQuality() {
 	return this._maxQuality;
 };

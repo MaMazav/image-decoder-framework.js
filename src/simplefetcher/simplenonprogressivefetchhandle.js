@@ -1,11 +1,11 @@
 'use strict';
 
-module.exports = SimpleFetchHandle;
+module.exports = SimpleNonProgressiveFetchHandle;
 
 /* global Promise: false */
 
-function SimpleFetchHandle(fetchClient, dataCallback, queryIsKeyNeedFetch, options) {
-    this._fetchClient = fetchClient;
+function SimpleNonProgressiveFetchHandle(fetchMethods, dataCallback, queryIsKeyNeedFetch, options) {
+    this._fetchMethods = fetchMethods;
 	this._dataCallback = dataCallback;
     this._queryIsKeyNeedFetch = queryIsKeyNeedFetch;
     this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
@@ -18,9 +18,9 @@ function SimpleFetchHandle(fetchClient, dataCallback, queryIsKeyNeedFetch, optio
     this._resolveAbort = null;
 }
 
-SimpleFetchHandle.prototype.fetch = function fetch(keys) {
+SimpleNonProgressiveFetchHandle.prototype.fetch = function fetch(keys) {
     if (this._keysToFetch !== null) {
-        throw 'SimpleFetchHandle error: Request fetcher can fetch only one region';
+        throw 'SimpleNonProgressiveFetchHandle error: Request fetcher can fetch only one region';
     }
     
     this._keysToFetch = keys;
@@ -32,7 +32,7 @@ SimpleFetchHandle.prototype.fetch = function fetch(keys) {
     }
 };
 
-SimpleFetchHandle.prototype.abortAsync = function abortAsync() {
+SimpleNonProgressiveFetchHandle.prototype.abortAsync = function abortAsync() {
     var self = this;
     return new Promise(function(resolve, reject) {
         if (self._activeFetchesCount === 0) {
@@ -43,7 +43,7 @@ SimpleFetchHandle.prototype.abortAsync = function abortAsync() {
     });
 };
 
-SimpleFetchHandle.prototype._fetchSingleKey = function fetchSingleKey() {
+SimpleNonProgressiveFetchHandle.prototype._fetchSingleKey = function fetchSingleKey() {
     var key;
     do {
         if (this._nextKeyToFetch >= this._keysToFetch.length) {
@@ -56,19 +56,19 @@ SimpleFetchHandle.prototype._fetchSingleKey = function fetchSingleKey() {
     this._activeFetches[key] = true;
     ++this._activeFetchesCount;
     
-    this._fetchClient.fetchInternal(key)
+    this._fetchMethods.fetch(key)
         .then(function resolved(result) {
             self._dataCallback(key, result, /*fetchEnded=*/true);
             self._fetchEnded(null, key, result);
         }).catch(function failed(reason) {
-            self._fetchClient._onError(reason);
+            //self._fetchClient._onError(reason);
             self._fetchEnded(reason, key);
         });
     
     return true;
 };
 
-SimpleFetchHandle.prototype._fetchEnded = function fetchEnded(error, key, result) {
+SimpleNonProgressiveFetchHandle.prototype._fetchEnded = function fetchEnded(error, key, result) {
     delete this._activeFetches[key];
     --this._activeFetchesCount;
     

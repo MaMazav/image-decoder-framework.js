@@ -1,28 +1,3 @@
-var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
-jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
-newNode;return newNode};LinkedList.prototype.remove=function remove(iterator){this._validateIteratorOfThis(iterator);--this._count;iterator._prev._next=iterator._next;iterator._next._prev=iterator._prev;iterator._parent=null};LinkedList.prototype.getValue=function getValue(iterator){this._validateIteratorOfThis(iterator);return iterator._value};LinkedList.prototype.getFirstIterator=function getFirstIterator(){var iterator=this.getNextIterator(this._first);return iterator};LinkedList.prototype.getLastIterator=
-function getFirstIterator(){var iterator=this.getPrevIterator(this._last);return iterator};LinkedList.prototype.getNextIterator=function getNextIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._next===this._last)return null;return iterator._next};LinkedList.prototype.getPrevIterator=function getPrevIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._prev===this._first)return null;return iterator._prev};LinkedList.prototype.getCount=function getCount(){return this._count};
-LinkedList.prototype._validateIteratorOfThis=function validateIteratorOfThis(iterator){if(iterator._parent!==this)throw"iterator must be of the current LinkedList";};return LinkedList}();var PriorityScheduler=function PrioritySchedulerClosure(){function PriorityScheduler(createResource,jobsLimit,prioritizer,options){options=options||{};this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._prioritizer=prioritizer;this._showLog=options["showLog"];this._schedulerName=options["schedulerName"];this._numNewJobs=options["numNewJobs"]||20;this._numJobsBeforeRerankOldPriorities=options["numJobsBeforeRerankOldPriorities"]||20;this._freeResourcesCount=this._jobsLimit;this._freeResources=
-new Array(this._jobsLimit);this._resourcesGuaranteedForHighPriority=options["resourcesGuaranteedForHighPriority"]||0;this._highPriorityToGuaranteeResource=options["highPriorityToGuaranteeResource"]||0;this._pendingJobsCount=0;this._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(this);this._schedulesCounter=0}PriorityScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext,jobAbortedFunc){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);
-return}var job={jobFunc:jobFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};var minPriority=getMinimalPriorityToSchedule(self);var resource=null;if(priority>=minPriority)resource=tryGetFreeResource(this);if(resource!==null){schedule(this,job,resource);return}enqueueNewJob(this,job,priority);ensurePendingJobsCount(self)},jobDone:function jobDone(resource,jobContext){if(this._showLog){var message="";if(this._schedulerName!==undefined)message=this._schedulerName+"'s ";var priority=this._prioritizer["getPriority"](jobContext);
-message+=" job done of priority "+priority;console.log(message)}resourceFreed(this,resource);ensurePendingJobsCount(self)},tryYield:function tryYield(jobContinueFunc,jobContext,jobAbortedFunc,jobYieldedFunc,resource){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);resourceFreed(this,resource);return true}var higherPriorityJob=tryDequeueNewJobWithHigherPriority(this,priority);ensurePendingJobsCount(self);if(higherPriorityJob===null)return false;jobYieldedFunc(jobContext);
-var job={jobFunc:jobContinueFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};enqueueNewJob(this,job,priority);ensurePendingJobsCount(self);schedule(this,higherPriorityJob,resource);ensurePendingJobsCount(self);return true}};function tryDequeueNewJobWithHigherPriority(self,lowPriority){var jobToScheduleNode=null;var highestPriorityFound=lowPriority;var countedPriorities=[];var currentNode=self._newPendingJobsLinkedList.getFirstIterator();while(currentNode!==null){var nextNode=self._newPendingJobsLinkedList.getNextIterator(currentNode);
-var job=self._newPendingJobsLinkedList.getValue(currentNode);var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){extractJobFromLinkedList(self,currentNode);--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);currentNode=nextNode;continue}if(highestPriorityFound===undefined||priority>highestPriorityFound){highestPriorityFound=priority;jobToScheduleNode=currentNode}if(!self._showLog){currentNode=nextNode;continue}if(countedPriorities[priority]===undefined)countedPriorities[priority]=
-1;else++countedPriorities[priority];currentNode=nextNode}var jobToSchedule=null;if(jobToScheduleNode!==null){jobToSchedule=extractJobFromLinkedList(self,jobToScheduleNode);--self._pendingJobsCount}if(self._showLog){var jobsListMessage="";var jobDequeuedMessage="";if(self._schedulerName!==undefined){jobsListMessage=self._schedulerName+"'s ";jobDequeuedMessage=self._schedulerName+"'s "}jobsListMessage+="Jobs list:";for(var i=0;i<countedPriorities.length;++i)if(countedPriorities[i]!==undefined)jobsListMessage+=
-countedPriorities[i]+" jobs of priority "+i+";";console.log(jobsListMessage);if(jobToSchedule!==null){jobDequeuedMessage+=" dequeued new job of priority "+highestPriorityFound;console.log(jobDequeuedMessage)}}ensurePendingJobsCount(self);return jobToSchedule}function tryGetFreeResource(self){if(self._freeResourcesCount===0)return null;--self._freeResourcesCount;var resource=self._freeResources.pop();if(resource===undefined)resource=self._resourceCreator();ensurePendingJobsCount(self);return resource}
-function enqueueNewJob(self,job,priority){++self._pendingJobsCount;var firstIterator=self._newPendingJobsLinkedList.getFirstIterator();addJobToLinkedList(self,job,firstIterator);if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" enqueued job of priority "+priority;console.log(message)}if(self._newPendingJobsLinkedList.getCount()<=self._numNewJobs){ensurePendingJobsCount(self);return}var lastIterator=self._newPendingJobsLinkedList.getLastIterator();
-var oldJob=extractJobFromLinkedList(self,lastIterator);enqueueOldJob(self,oldJob);ensurePendingJobsCount(self)}function enqueueOldJob(self,job){var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);return}if(self._oldPendingJobsByPriority[priority]===undefined)self._oldPendingJobsByPriority[priority]=[];self._oldPendingJobsByPriority[priority].push(job)}function rerankPriorities(self){var originalOldsArray=self._oldPendingJobsByPriority;
-var originalNewsList=self._newPendingJobsLinkedList;if(originalOldsArray.length===0)return;self._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(self);for(var i=0;i<originalOldsArray.length;++i){if(originalOldsArray[i]===undefined)continue;for(var j=0;j<originalOldsArray[i].length;++j)enqueueOldJob(self,originalOldsArray[i][j])}var iterator=originalNewsList.getFirstIterator();while(iterator!==null){var value=originalNewsList.getValue(iterator);enqueueOldJob(self,value);iterator=originalNewsList.getNextIterator(iterator)}var message=
-"";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+="rerank: ";for(var i=self._oldPendingJobsByPriority.length-1;i>=0;--i){var highPriorityJobs=self._oldPendingJobsByPriority[i];if(highPriorityJobs===undefined)continue;if(self._showLog)message+=highPriorityJobs.length+" jobs in priority "+i+";";while(highPriorityJobs.length>0&&self._newPendingJobsLinkedList.getCount()<self._numNewJobs){var job=highPriorityJobs.pop();addJobToLinkedList(self,job)}if(self._newPendingJobsLinkedList.getCount()>=
-self._numNewJobs&&!self._showLog)break}if(self._showLog)console.log(message);ensurePendingJobsCount(self)}function resourceFreed(self,resource){++self._freeResourcesCount;var minPriority=getMinimalPriorityToSchedule(self);--self._freeResourcesCount;var job=tryDequeueNewJobWithHigherPriority(self,minPriority);if(job!==null){ensurePendingJobsCount(self);schedule(self,job,resource);ensurePendingJobsCount(self);return}var hasOldJobs=self._pendingJobsCount>self._newPendingJobsLinkedList.getCount();if(hasOldJobs){self._freeResources.push(resource);
-++self._freeResourcesCount;ensurePendingJobsCount(self);return}var numPriorities=self._oldPendingJobsByPriority.length;var jobPriority;for(var priority=numPriorities-1;priority>=0;--priority){var jobs=self._oldPendingJobsByPriority[priority];if(jobs===undefined||jobs.length===0)continue;for(var i=jobs.length-1;i>=0;--i){job=jobs[i];jobPriority=self._prioritizer["getPriority"](job.jobContext);if(jobPriority>=priority){jobs.length=i;break}else if(jobPriority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext)}else{if(self._oldPendingJobsByPriority[jobPriority]===
-undefined)self._oldPendingJobsByPriority[jobPriority]=[];self._oldPendingJobsByPriority[jobPriority].push(job)}job=null}if(job!==null)break;jobs.length=0}if(job===null){self._freeResources.push(resource);++self._freeResourcesCount;ensurePendingJobsCount(self);return}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" dequeued old job of priority "+jobPriority;console.log(message)}--self._pendingJobsCount;ensurePendingJobsCount(self);schedule(self,
-job,resource);ensurePendingJobsCount(self)}function schedule(self,job,resource){++self._schedulesCounter;if(self._schedulesCounter>=self._numJobsBeforeRerankOldPriorities){self._schedulesCounter=0;rerankPriorities(self)}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";var priority=self._prioritizer["getPriority"](job.jobContext);message+=" scheduled job of priority "+priority;console.log(message)}job.jobFunc(resource,job.jobContext)}function initializeNewPendingJobsLinkedList(self){self._newPendingJobsLinkedList=
-new LinkedList}function addJobToLinkedList(self,job,addBefore){self._newPendingJobsLinkedList.add(job,addBefore);ensureNumberOfNodes(self)}function extractJobFromLinkedList(self,iterator){var value=self._newPendingJobsLinkedList.getValue(iterator);self._newPendingJobsLinkedList.remove(iterator);ensureNumberOfNodes(self);return value}function ensureNumberOfNodes(self){if(!self._showLog)return;var iterator=self._newPendingJobsLinkedList.getIterator();var expectedCount=0;while(iterator!==null){++expectedCount;
-iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCount!==self._newPendingJobsLinkedList.getCount())throw"Unexpected count of new jobs";}function ensurePendingJobsCount(self){if(!self._showLog)return;var oldJobsCount=0;for(var i=0;i<self._oldPendingJobsByPriority.length;++i){var jobs=self._oldPendingJobsByPriority[i];if(jobs!==undefined)oldJobsCount+=jobs.length}var expectedCount=oldJobsCount+self._newPendingJobsLinkedList.getCount();if(expectedCount!==self._pendingJobsCount)throw"Unexpected count of jobs";
-}function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
-LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
-
 var BlobScriptGenerator=BlobScriptGeneratorClosure();self["asyncProxyScriptBlob"]=new BlobScriptGenerator;
 function BlobScriptGeneratorClosure(){function BlobScriptGenerator(){var that=this;that._blobChunks=["'use strict';"];that._blob=null;that._blobUrl=null;that._namespaces={};that.addMember(BlobScriptGeneratorClosure,"BlobScriptGenerator");that.addStatement("var asyncProxyScriptBlob = new BlobScriptGenerator();")}BlobScriptGenerator.prototype.addMember=function addMember(closureFunction,memberName,namespace){if(this._blob)throw new Error("Cannot add member to AsyncProxyScriptBlob after blob was used");
 if(memberName){if(namespace){this._namespaces[namespace]=true;this._blobChunks.push(namespace);this._blobChunks.push(".")}else this._blobChunks.push("var ");this._blobChunks.push(memberName);this._blobChunks.push(" = ")}this._blobChunks.push("(");this._blobChunks.push(closureFunction.toString());this._blobChunks.push(")();")};BlobScriptGenerator.prototype.addStatement=function addStatement(statement){if(this._blob)throw new Error("Cannot add statement to AsyncProxyScriptBlob after blob was used");
@@ -56,6 +31,31 @@ AsyncProxySlaveSingleton["setBeforeOperationListener"]=AsyncProxySlaveSingleton.
 AsyncProxyMaster.prototype["terminate"]=AsyncProxyMaster.prototype.terminate;AsyncProxyMaster.prototype["callFunction"]=AsyncProxyMaster.prototype.callFunction;AsyncProxyMaster.prototype["wrapCallback"]=AsyncProxyMaster.prototype.wrapCallback;AsyncProxyMaster.prototype["freeCallback"]=AsyncProxyMaster.prototype.freeCallback;AsyncProxyMaster["getEntryUrl"]=AsyncProxyMaster.getEntryUrl;ScriptsToImportPool.prototype["addScriptFromErrorWithStackTrace"]=ScriptsToImportPool.prototype.addScriptFromErrorWithStackTrace;
 ScriptsToImportPool.prototype["getScriptsForWorkerImport"]=ScriptsToImportPool.prototype.getScriptsForWorkerImport}asyncProxyScriptBlob.addMember(ExportAsyncProxySymbolsClosure,"ExportAsyncProxySymbols");asyncProxyScriptBlob.addStatement("ExportAsyncProxySymbols(SubWorkerEmulationForChrome, AsyncProxySlaveSingleton, AsyncProxyMaster, ScriptsToImportPool);");asyncProxyScriptBlob.addStatement("self['AsyncProxy']['AsyncProxySlaveSingleton'] = AsyncProxySlaveSingleton;");asyncProxyScriptBlob.addStatement("self['AsyncProxy']['AsyncProxyMaster'] = AsyncProxyMaster;");
 asyncProxyScriptBlob.addStatement("self['AsyncProxy']['ScriptsToImportPool'] = ScriptsToImportPool;");return ExportAsyncProxySymbols}ExportAsyncProxySymbolsClosure()(SubWorkerEmulationForChrome,AsyncProxySlaveSingleton,AsyncProxyMaster,ScriptsToImportPool);self["AsyncProxy"]["AsyncProxySlaveSingleton"]=AsyncProxySlaveSingleton;self["AsyncProxy"]["AsyncProxyMaster"]=AsyncProxyMaster;self["AsyncProxy"]["ScriptsToImportPool"]=ScriptsToImportPool;
+
+var LifoScheduler=function LifoSchedulerClosure(){function LifoScheduler(createResource,jobsLimit){this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._freeResourcesCount=this._jobsLimit;this._freeResources=new Array(this._jobsLimit);this._pendingJobs=[]}LifoScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext){if(this._freeResourcesCount>0){--this._freeResourcesCount;var resource=this._freeResources.pop();if(resource===undefined)resource=this._resourceCreator();
+jobFunc(resource,jobContext)}else this._pendingJobs.push({jobFunc:jobFunc,jobContext:jobContext})},jobDone:function jobDone(resource){if(this._pendingJobs.length>0){var nextJob=this._pendingJobs.pop();nextJob.jobFunc(resource,nextJob.jobContext)}else{this._freeResources.push(resource);++this._freeResourcesCount}},shouldYieldOrAbort:function shouldYieldOrAbort(jobContext){return false},tryYield:function yieldResource(jobFunc,jobContext,resource){return false}};return LifoScheduler}();var LinkedList=function LinkedListClosure(){function LinkedList(){this._first={_prev:null,_parent:this};this._last={_next:null,_parent:this};this._count=0;this._last._prev=this._first;this._first._next=this._last}LinkedList.prototype.add=function add(value,addBefore){if(addBefore===null||addBefore===undefined)addBefore=this._last;this._validateIteratorOfThis(addBefore);++this._count;var newNode={_value:value,_next:addBefore,_prev:addBefore._prev,_parent:this};newNode._prev._next=newNode;addBefore._prev=
+newNode;return newNode};LinkedList.prototype.remove=function remove(iterator){this._validateIteratorOfThis(iterator);--this._count;iterator._prev._next=iterator._next;iterator._next._prev=iterator._prev;iterator._parent=null};LinkedList.prototype.getValue=function getValue(iterator){this._validateIteratorOfThis(iterator);return iterator._value};LinkedList.prototype.getFirstIterator=function getFirstIterator(){var iterator=this.getNextIterator(this._first);return iterator};LinkedList.prototype.getLastIterator=
+function getFirstIterator(){var iterator=this.getPrevIterator(this._last);return iterator};LinkedList.prototype.getNextIterator=function getNextIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._next===this._last)return null;return iterator._next};LinkedList.prototype.getPrevIterator=function getPrevIterator(iterator){this._validateIteratorOfThis(iterator);if(iterator._prev===this._first)return null;return iterator._prev};LinkedList.prototype.getCount=function getCount(){return this._count};
+LinkedList.prototype._validateIteratorOfThis=function validateIteratorOfThis(iterator){if(iterator._parent!==this)throw"iterator must be of the current LinkedList";};return LinkedList}();var PriorityScheduler=function PrioritySchedulerClosure(){function PriorityScheduler(createResource,jobsLimit,prioritizer,options){options=options||{};this._resourceCreator=createResource;this._jobsLimit=jobsLimit;this._prioritizer=prioritizer;this._showLog=options["showLog"];this._schedulerName=options["schedulerName"];this._numNewJobs=options["numNewJobs"]||20;this._numJobsBeforeRerankOldPriorities=options["numJobsBeforeRerankOldPriorities"]||20;this._freeResourcesCount=this._jobsLimit;this._freeResources=
+new Array(this._jobsLimit);this._resourcesGuaranteedForHighPriority=options["resourcesGuaranteedForHighPriority"]||0;this._highPriorityToGuaranteeResource=options["highPriorityToGuaranteeResource"]||0;this._pendingJobsCount=0;this._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(this);this._schedulesCounter=0}PriorityScheduler.prototype={enqueueJob:function enqueueJob(jobFunc,jobContext,jobAbortedFunc){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);
+return}var job={jobFunc:jobFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};var minPriority=getMinimalPriorityToSchedule(self);var resource=null;if(priority>=minPriority)resource=tryGetFreeResource(this);if(resource!==null){schedule(this,job,resource);return}enqueueNewJob(this,job,priority);ensurePendingJobsCount(self)},jobDone:function jobDone(resource,jobContext){if(this._showLog){var message="";if(this._schedulerName!==undefined)message=this._schedulerName+"'s ";var priority=this._prioritizer["getPriority"](jobContext);
+message+=" job done of priority "+priority;console.log(message)}resourceFreed(this,resource);ensurePendingJobsCount(self)},tryYield:function tryYield(jobContinueFunc,jobContext,jobAbortedFunc,jobYieldedFunc,resource){var priority=this._prioritizer["getPriority"](jobContext);if(priority<0){jobAbortedFunc(jobContext);resourceFreed(this,resource);return true}var higherPriorityJob=tryDequeueNewJobWithHigherPriority(this,priority);ensurePendingJobsCount(self);if(higherPriorityJob===null)return false;jobYieldedFunc(jobContext);
+var job={jobFunc:jobContinueFunc,jobAbortedFunc:jobAbortedFunc,jobContext:jobContext};enqueueNewJob(this,job,priority);ensurePendingJobsCount(self);schedule(this,higherPriorityJob,resource);ensurePendingJobsCount(self);return true}};function tryDequeueNewJobWithHigherPriority(self,lowPriority){var jobToScheduleNode=null;var highestPriorityFound=lowPriority;var countedPriorities=[];var currentNode=self._newPendingJobsLinkedList.getFirstIterator();while(currentNode!==null){var nextNode=self._newPendingJobsLinkedList.getNextIterator(currentNode);
+var job=self._newPendingJobsLinkedList.getValue(currentNode);var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){extractJobFromLinkedList(self,currentNode);--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);currentNode=nextNode;continue}if(highestPriorityFound===undefined||priority>highestPriorityFound){highestPriorityFound=priority;jobToScheduleNode=currentNode}if(!self._showLog){currentNode=nextNode;continue}if(countedPriorities[priority]===undefined)countedPriorities[priority]=
+1;else++countedPriorities[priority];currentNode=nextNode}var jobToSchedule=null;if(jobToScheduleNode!==null){jobToSchedule=extractJobFromLinkedList(self,jobToScheduleNode);--self._pendingJobsCount}if(self._showLog){var jobsListMessage="";var jobDequeuedMessage="";if(self._schedulerName!==undefined){jobsListMessage=self._schedulerName+"'s ";jobDequeuedMessage=self._schedulerName+"'s "}jobsListMessage+="Jobs list:";for(var i=0;i<countedPriorities.length;++i)if(countedPriorities[i]!==undefined)jobsListMessage+=
+countedPriorities[i]+" jobs of priority "+i+";";console.log(jobsListMessage);if(jobToSchedule!==null){jobDequeuedMessage+=" dequeued new job of priority "+highestPriorityFound;console.log(jobDequeuedMessage)}}ensurePendingJobsCount(self);return jobToSchedule}function tryGetFreeResource(self){if(self._freeResourcesCount===0)return null;--self._freeResourcesCount;var resource=self._freeResources.pop();if(resource===undefined)resource=self._resourceCreator();ensurePendingJobsCount(self);return resource}
+function enqueueNewJob(self,job,priority){++self._pendingJobsCount;var firstIterator=self._newPendingJobsLinkedList.getFirstIterator();addJobToLinkedList(self,job,firstIterator);if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" enqueued job of priority "+priority;console.log(message)}if(self._newPendingJobsLinkedList.getCount()<=self._numNewJobs){ensurePendingJobsCount(self);return}var lastIterator=self._newPendingJobsLinkedList.getLastIterator();
+var oldJob=extractJobFromLinkedList(self,lastIterator);enqueueOldJob(self,oldJob);ensurePendingJobsCount(self)}function enqueueOldJob(self,job){var priority=self._prioritizer["getPriority"](job.jobContext);if(priority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext);return}if(self._oldPendingJobsByPriority[priority]===undefined)self._oldPendingJobsByPriority[priority]=[];self._oldPendingJobsByPriority[priority].push(job)}function rerankPriorities(self){var originalOldsArray=self._oldPendingJobsByPriority;
+var originalNewsList=self._newPendingJobsLinkedList;if(originalOldsArray.length===0)return;self._oldPendingJobsByPriority=[];initializeNewPendingJobsLinkedList(self);for(var i=0;i<originalOldsArray.length;++i){if(originalOldsArray[i]===undefined)continue;for(var j=0;j<originalOldsArray[i].length;++j)enqueueOldJob(self,originalOldsArray[i][j])}var iterator=originalNewsList.getFirstIterator();while(iterator!==null){var value=originalNewsList.getValue(iterator);enqueueOldJob(self,value);iterator=originalNewsList.getNextIterator(iterator)}var message=
+"";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+="rerank: ";for(var i=self._oldPendingJobsByPriority.length-1;i>=0;--i){var highPriorityJobs=self._oldPendingJobsByPriority[i];if(highPriorityJobs===undefined)continue;if(self._showLog)message+=highPriorityJobs.length+" jobs in priority "+i+";";while(highPriorityJobs.length>0&&self._newPendingJobsLinkedList.getCount()<self._numNewJobs){var job=highPriorityJobs.pop();addJobToLinkedList(self,job)}if(self._newPendingJobsLinkedList.getCount()>=
+self._numNewJobs&&!self._showLog)break}if(self._showLog)console.log(message);ensurePendingJobsCount(self)}function resourceFreed(self,resource){++self._freeResourcesCount;var minPriority=getMinimalPriorityToSchedule(self);--self._freeResourcesCount;var job=tryDequeueNewJobWithHigherPriority(self,minPriority);if(job!==null){ensurePendingJobsCount(self);schedule(self,job,resource);ensurePendingJobsCount(self);return}var hasOldJobs=self._pendingJobsCount>self._newPendingJobsLinkedList.getCount();if(hasOldJobs){self._freeResources.push(resource);
+++self._freeResourcesCount;ensurePendingJobsCount(self);return}var numPriorities=self._oldPendingJobsByPriority.length;var jobPriority;for(var priority=numPriorities-1;priority>=0;--priority){var jobs=self._oldPendingJobsByPriority[priority];if(jobs===undefined||jobs.length===0)continue;for(var i=jobs.length-1;i>=0;--i){job=jobs[i];jobPriority=self._prioritizer["getPriority"](job.jobContext);if(jobPriority>=priority){jobs.length=i;break}else if(jobPriority<0){--self._pendingJobsCount;job.jobAbortedFunc(job.jobContext)}else{if(self._oldPendingJobsByPriority[jobPriority]===
+undefined)self._oldPendingJobsByPriority[jobPriority]=[];self._oldPendingJobsByPriority[jobPriority].push(job)}job=null}if(job!==null)break;jobs.length=0}if(job===null){self._freeResources.push(resource);++self._freeResourcesCount;ensurePendingJobsCount(self);return}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";message+=" dequeued old job of priority "+jobPriority;console.log(message)}--self._pendingJobsCount;ensurePendingJobsCount(self);schedule(self,
+job,resource);ensurePendingJobsCount(self)}function schedule(self,job,resource){++self._schedulesCounter;if(self._schedulesCounter>=self._numJobsBeforeRerankOldPriorities){self._schedulesCounter=0;rerankPriorities(self)}if(self._showLog){var message="";if(self._schedulerName!==undefined)message=self._schedulerName+"'s ";var priority=self._prioritizer["getPriority"](job.jobContext);message+=" scheduled job of priority "+priority;console.log(message)}job.jobFunc(resource,job.jobContext)}function initializeNewPendingJobsLinkedList(self){self._newPendingJobsLinkedList=
+new LinkedList}function addJobToLinkedList(self,job,addBefore){self._newPendingJobsLinkedList.add(job,addBefore);ensureNumberOfNodes(self)}function extractJobFromLinkedList(self,iterator){var value=self._newPendingJobsLinkedList.getValue(iterator);self._newPendingJobsLinkedList.remove(iterator);ensureNumberOfNodes(self);return value}function ensureNumberOfNodes(self){if(!self._showLog)return;var iterator=self._newPendingJobsLinkedList.getIterator();var expectedCount=0;while(iterator!==null){++expectedCount;
+iterator=self._newPendingJobsLinkedList.getNextIterator(iterator)}if(expectedCount!==self._newPendingJobsLinkedList.getCount())throw"Unexpected count of new jobs";}function ensurePendingJobsCount(self){if(!self._showLog)return;var oldJobsCount=0;for(var i=0;i<self._oldPendingJobsByPriority.length;++i){var jobs=self._oldPendingJobsByPriority[i];if(jobs!==undefined)oldJobsCount+=jobs.length}var expectedCount=oldJobsCount+self._newPendingJobsLinkedList.getCount();if(expectedCount!==self._pendingJobsCount)throw"Unexpected count of jobs";
+}function getMinimalPriorityToSchedule(self){if(self._freeResourcesCount<=self._resourcesGuaranteedForHighPriority)return self._highPriorityToGuaranteeResources;return 0}return PriorityScheduler}();self["ResourceScheduler"]={};self["ResourceScheduler"]["PriorityScheduler"]=PriorityScheduler;self["ResourceScheduler"]["LifoScheduler"]=LifoScheduler;PriorityScheduler.prototype["enqueueJob"]=PriorityScheduler.prototype.enqueueJob;PriorityScheduler.prototype["tryYield"]=PriorityScheduler.prototype.tryYield;PriorityScheduler.prototype["jobDone"]=PriorityScheduler.prototype.jobDone;LifoScheduler.prototype["enqueueJob"]=LifoScheduler.prototype.enqueueJob;LifoScheduler.prototype["tryYield"]=LifoScheduler.prototype.tryYield;
+LifoScheduler.prototype["jobDone"]=LifoScheduler.prototype.jobDone;
 
 var n=function(){function b(e,g){this.w=e;this.d=this.m=g;this.l=Array(this.m);this.v=[]}b.prototype={B:function(e,g){if(0<this.d){--this.d;var b=this.l.pop();void 0===b&&(b=this.w());e(b,g)}else this.v.push({t:e,f:g})},F:function(e){if(0<this.v.length){var b=this.v.pop();b.t(e,b.f)}else this.l.push(e),++this.d},G:function(){return!1}};return b}();var p=function(){function b(){this.p={g:null,q:this};this.n={i:null,q:this};this.h=0;this.n.g=this.p;this.p.i=this.n}b.prototype.add=function(e,b){if(null===b||void 0===b)b=this.n;this.o(b);++this.h;var l={K:e,i:b,g:b.g,q:this};l.g.i=l;return b.g=l};b.prototype.remove=function(e){this.o(e);--this.h;e.g.i=e.i;e.i.g=e.g;e.q=null};b.prototype.D=function(e){this.o(e);return e.K};b.prototype.C=function(){return this.r(this.p)};b.prototype.L=function(){return this.M(this.n)};b.prototype.r=function(e){this.o(e);
 return e.i===this.n?null:e.i};b.prototype.M=function(e){this.o(e);return e.g===this.p?null:e.g};b.prototype.o=function(e){if(e.q!==this)throw"iterator must be of the current LinkedList";};return b}();var u=function(){function b(a,h,c,d){d=d||{};this.w=a;this.m=h;this.k=c;this.e=d.showLog;this.c=d.schedulerName;this.u=d.numNewJobs||20;this.J=d.numJobsBeforeRerankOldPriorities||20;this.d=this.m;this.l=Array(this.m);this.H=d.resourcesGuaranteedForHighPriority||0;this.j=0;this.b=[];this.a=new p;this.A=0}function e(a,h){for(var c=null,d=h,e=[],f=a.a.C();null!==f;){var b=a.a.r(f),m=a.a.D(f),g=a.k.getPriority(m.f);if(0>g)q(a,f),--a.j,m.s(m.f);else{if(void 0===d||g>d)d=g,c=f;a.e&&(void 0===e[g]?e[g]=
@@ -158,7 +158,7 @@ function transformAndAddPoint(x, y, cesiumWidget, points) {
     points.push(cartesian);
     return 1;
 }
-},{"imagehelperfunctions.js":17}],2:[function(require,module,exports){
+},{"imagehelperfunctions.js":12}],2:[function(require,module,exports){
 'use strict';
 
 module.exports = CesiumImageDecoderLayerManager;
@@ -305,7 +305,7 @@ CesiumImageDecoderLayerManager.prototype._postRender = function postRender() {
         this._canvasUpdatedCallback(this._pendingPositionRectangle);
     }
 };
-},{"_cesiumfrustumcalculator.js":1,"canvasimageryprovider.js":3,"viewerimagedecoder.js":25}],3:[function(require,module,exports){
+},{"_cesiumfrustumcalculator.js":1,"canvasimageryprovider.js":3,"viewerimagedecoder.js":20}],3:[function(require,module,exports){
 'use strict';
 
 module.exports = CanvasImageryProvider;
@@ -1235,447 +1235,7 @@ function createTilingScheme(params) {
     
     return tilingScheme;
 }
-},{"_cesiumfrustumcalculator.js":1,"imagehelperfunctions.js":17,"workerproxyimagedecoder.js":23}],5:[function(require,module,exports){
-'use strict';
-
-module.exports = DataPublisher;
-
-var LinkedList = require('linkedlist.js');
-var HashMap = require('hashmap.js');
-
-function DataPublisher(hasher) {
-    this._subscribersByKey = new HashMap(hasher);
-}
-
-DataPublisher.prototype.publish = function publish(key, data, fetchEnded) {
-    var subscribers = this._subscribersByKey.getFromKey(key);
-    if (!subscribers) {
-        return;
-    }
-    
-    var iterator = subscribers.subscribersList.getFirstIterator();
-    var listeners = [];
-    while (iterator !== null) {
-        var subscriber = subscribers.subscribersList.getValue(iterator);
-	
-		if (!subscriber.isEnded) {
-			listeners.push(subscriber.listener);
-			if (fetchEnded) {
-				--subscribers.subscribersNotEndedCount;
-				subscriber.isEnded = true;
-			}
-		}
-        
-        iterator = subscribers.subscribersList.getNextIterator(iterator);
-    }
-    
-    // Call only after collecting all listeners, so the list will not be destroyed while iterating
-    for (var i = 0; i < listeners.length; ++i) {
-        listeners[i].call(this, key, data, fetchEnded);
-    }
-};
-
-DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
-    var subscribers = this._subscribersByKey.tryAdd(key, function() {
-        return {
-            subscribersList: new LinkedList(),
-            subscribersNotEndedCount: 0
-        };
-    });
-    
-    ++subscribers.value.subscribersNotEndedCount;
-    
-    var listIterator = subscribers.value.subscribersList.add({
-        listener: subscriber,
-        isEnded: false
-    });
-    
-    var handle = {
-        _listIterator: listIterator,
-        _hashIterator: subscribers.iterator
-    };
-    return handle;
-};
-
-DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
-    var subscribers = this._subscribersByKey.getFromIterator(handle._hashIterator);
-    
-    var subscriber = subscribers.subscribersList.getValue(handle._listIterator);
-    subscribers.subscribersList.remove(handle._listIterator);
-    if (subscribers.subscribersList.getCount() === 0) {
-        this._subscribersByKey.remove(handle._hashIterator);
-    } else if (!subscriber.isEnded) {
-        --subscribers.subscribersNotEndedCount;
-        subscriber.isEnded = true;
-    }
-};
-
-DataPublisher.prototype.isKeyNeedFetch = function isKeyNeedFetch(key) {
-    var subscribers = this._subscribersByKey.getFromKey(key);
-    return (!!subscribers) && (subscribers.subscribersNotEndedCount > 0);
-};
-},{"hashmap.js":16,"linkedlist.js":18}],6:[function(require,module,exports){
-'use strict';
-
-module.exports = SimpleFetcherBase;
-
-var SimpleImageDataContext = require('simpleimagedatacontext.js');
-var SimpleFetchHandle = require('simplefetchhandle.js');
-var DataPublisher = require('datapublisher.js');
-
-/* global Promise: false */
-
-function SimpleFetcherBase(options) {
-    this._url = null;
-    this._options = options || {};
-    this._isReady = true;
-    this._dataPublisher = this.createDataPublisherInternal(this);
-}
-
-// Methods for implementor
-
-SimpleFetcherBase.prototype.fetchInternal = function fetch(dataKey) {
-    throw 'SimpleFetcherBase error: fetchInternal is not implemented';
-};
-
-SimpleFetcherBase.prototype.getDataKeysInternal = function getDataKeysInternal(imagePartParams) {
-    throw 'SimpleFetcherBase error: getDataKeysInternal is not implemented';
-};
-
-SimpleFetcherBase.prototype.getHashCodeInternal = function getHashCodeInternal(dataKey) {
-    throw 'SimpleFetcherBase error: getHashCode is not implemented';
-};
-
-SimpleFetcherBase.prototype.isEqualInternal = function isEqualInternal(dataKey1, dataKey2) {
-    throw 'SimpleFetcherBase error: isEqual is not implemented';
-};
-
-SimpleFetcherBase.prototype.createDataPublisherInternal = function createDataPublisherInternal() {
-    return new DataPublisher(this);
-};
-
-SimpleFetcherBase.prototype.fetchProgressiveInternal = function fetchProgressiveInternal(imagePartParams, dataKeys, dataCallback, queryIsKeyNeedFetch) {
-    this._ensureReady();
-    var fetchHandle = new SimpleFetchHandle(this, dataCallback, queryIsKeyNeedFetch, this._options);
-	fetchHandle.fetch(dataKeys);
-	return fetchHandle;
-};
-
-// FetchClient implementation
-
-SimpleFetcherBase.prototype.createImageDataContext = function createImageDataContext(
-    imagePartParams) {
-    
-    this._ensureReady();
-    var dataKeys = this.getDataKeysInternal(imagePartParams);
-    return new SimpleImageDataContext(dataKeys, imagePartParams, this._dataPublisher, this);
-};
-
-SimpleFetcherBase.prototype.fetch = function fetch(imageDataContext) {
-	var maxQuality = imageDataContext.getMaxQuality();
-	var self = this;
-	
-	function dataCallback(dataKey, data, isFetchEnded) {
-		var key = {
-			dataKey: dataKey,
-			maxQuality: maxQuality
-		};
-		self._dataPublisher.publish(key, data, isFetchEnded);
-	}
-	
-	function queryIsKeyNeedFetch(dataKey) {
-		var key = {
-			dataKey: dataKey,
-			maxQuality: maxQuality
-		};
-		return self._dataPublisher.isKeyNeedFetch(key);
-	}
-	
-	return this.fetchProgressiveInternal(imageDataContext.getImagePartParams(), imageDataContext.getDataKeys(), dataCallback, queryIsKeyNeedFetch, maxQuality);
-};
-
-SimpleFetcherBase.prototype.startMovableFetch = function startMovableFetch(imageDataContext, movableFetchState) {
-	movableFetchState.fetchHandle = this.fetch(imageDataContext);
-};
-
-SimpleFetcherBase.prototype.moveFetch = function moveFetch(imageDataContext, movableFetchState) {
-	movableFetchState.fetchHandle.abortAsync();
-	movableFetchState.fetchHandle = this.fetch(imageDataContext);
-};
-
-SimpleFetcherBase.prototype.close = function close(closedCallback) {
-    this._ensureReady();
-    this._isReady = false;
-    return new Promise(function(resolve, reject) {
-        // NOTE: Wait for all fetchHandles to finish?
-        resolve();
-    });
-};
-
-SimpleFetcherBase.prototype.reconnect = function reconnect() {
-    this._ensureReady();
-    return this.reconnectInternal();
-};
-
-SimpleFetcherBase.prototype._ensureReady = function ensureReady() {
-    if (!this._isReady) {
-        throw 'SimpleFetcherBase error: fetch client is not opened';
-    }
-};
-
-// Hasher implementation
-
-SimpleFetcherBase.prototype.getHashCode = function getHashCode(key) {
-    return this.getHashCodeInternal(key.dataKey);
-};
-
-SimpleFetcherBase.prototype.isEqual = function isEqual(key1, key2) {
-    return key1.maxQuality == key2.maxQuality &&
-		this.isEqualInternal(key1.dataKey, key2.dataKey);
-};
-},{"datapublisher.js":5,"simplefetchhandle.js":7,"simpleimagedatacontext.js":8}],7:[function(require,module,exports){
-'use strict';
-
-module.exports = SimpleFetchHandle;
-
-/* global Promise: false */
-
-function SimpleFetchHandle(fetchClient, dataCallback, queryIsKeyNeedFetch, options) {
-    this._fetchClient = fetchClient;
-	this._dataCallback = dataCallback;
-    this._queryIsKeyNeedFetch = queryIsKeyNeedFetch;
-    this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
-    this._keysToFetch = null;
-    this._nextKeyToFetch = 0;
-    this._activeFetches = {};
-    this._activeFetchesCount = 0;
-    this._isAborted = false;
-    this._isStoppedCalled = false;
-    this._resolveAbort = null;
-}
-
-SimpleFetchHandle.prototype.fetch = function fetch(keys) {
-    if (this._keysToFetch !== null) {
-        throw 'SimpleFetchHandle error: Request fetcher can fetch only one region';
-    }
-    
-    this._keysToFetch = keys;
-    this._nextKeyToFetch = 0;
-    while (this._activeFetchesCount < this._fetchLimit) {
-        if (!this._fetchSingleKey()) {
-            break;
-        }
-    }
-};
-
-SimpleFetchHandle.prototype.abortAsync = function abortAsync() {
-    var self = this;
-    return new Promise(function(resolve, reject) {
-        if (self._activeFetchesCount === 0) {
-            resolve();
-        } else {
-            this._resolveAbort = resolve;
-        }
-    });
-};
-
-SimpleFetchHandle.prototype._fetchSingleKey = function fetchSingleKey() {
-    var key;
-    do {
-        if (this._nextKeyToFetch >= this._keysToFetch.length) {
-            return false;
-        }
-        key = this._keysToFetch[this._nextKeyToFetch++];
-    } while (!this._queryIsKeyNeedFetch(key));
-    
-    var self = this;
-    this._activeFetches[key] = true;
-    ++this._activeFetchesCount;
-    
-    this._fetchClient.fetchInternal(key)
-        .then(function resolved(result) {
-            self._dataCallback(key, result, /*fetchEnded=*/true);
-            self._fetchEnded(null, key, result);
-        }).catch(function failed(reason) {
-            self._fetchClient._onError(reason);
-            self._fetchEnded(reason, key);
-        });
-    
-    return true;
-};
-
-SimpleFetchHandle.prototype._fetchEnded = function fetchEnded(error, key, result) {
-    delete this._activeFetches[key];
-    --this._activeFetchesCount;
-    
-    if (!this._resolveAbort) {
-        this._fetchSingleKey();
-    } else if (this._activeFetchesCount === 0) {
-        this._resolveAbort();
-        this._resolveAbort = null;
-    }
-};
-},{}],8:[function(require,module,exports){
-'use strict';
-
-module.exports = SimpleImageDataContext;
-
-var HashMap = require('hashmap.js');
-
-function SimpleImageDataContext(dataKeys, imagePartParams, dataPublisher, hasher) {
-    this._dataByKey = new HashMap(hasher);
-    this._dataToReturn = {
-        imagePartParams: JSON.parse(JSON.stringify(imagePartParams)),
-        fetchedItems: []
-    };
-	this._maxQuality = imagePartParams.quality;
-    this._fetchEndedCount = 0;
-	this._fetchedLowQualityCount = 0;
-    this._dataListeners = [];
-    this._dataKeys = dataKeys;
-    this._imagePartParams = imagePartParams;
-    this._dataPublisher = dataPublisher;
-	this._isProgressive = false;
-	this._isDisposed = false;
-    
-    this._subscribeHandles = [];
-    
-    var dataFetchedBound = this._dataFetched.bind(this);
-    for (var i = 0; i < dataKeys.length; ++i) {
-        var subscribeHandle = this._dataPublisher.subscribe(
-			{ dataKey: dataKeys[i], maxQuality: this._maxQuality },
-			dataFetchedBound);
-        
-        this._subscribeHandles.push(subscribeHandle);
-    }
-}
-
-// Not part of ImageDataContext interface, only service for SimpleFetcherBase
-SimpleImageDataContext.prototype.getMaxQuality = function getMaxQuality() {
-	return this._maxQuality;
-};
-
-SimpleImageDataContext.prototype.getDataKeys = function getDataKeys() {
-    return this._dataKeys;
-};
-
-SimpleImageDataContext.prototype.getImagePartParams = function getImagePartParams() {
-    return this._imagePartParams;
-};
-
-SimpleImageDataContext.prototype.hasData = function hasData() {
-    return this._fetchedLowQualityCount == this._dataKeys.length;
-};
-
-SimpleImageDataContext.prototype.getFetchedData = function getFetchedData() {
-    if (!this.hasData()) {
-        throw 'SimpleImageDataContext error: cannot call getFetchedData before hasData = true';
-    }
-    
-    return this._dataToReturn;
-};
-
-SimpleImageDataContext.prototype.on = function on(event, listener) {
-	if (this._isDisposed) {
-		throw 'Cannot register to event on disposed ImageDataContext';
-	}
-    if (event !== 'data') {
-        throw 'SimpleImageDataContext error: Unexpected event ' + event;
-    }
-    
-    this._dataListeners.push(listener);
-};
-
-SimpleImageDataContext.prototype.isDone = function isDone() {
-    return this._fetchEndedCount === this._dataKeys.length;
-};
-
-SimpleImageDataContext.prototype.dispose = function dispose() {
-	this._isDisposed = true;
-    for (var i = 0; i < this._subscribeHandles.length; ++i) {
-        this._dataPublisher.unsubscribe(this._subscribeHandles[i]);
-    }
-    
-    this._subscribeHandles = [];
-	this._dataListeners = [];
-};
-
-SimpleImageDataContext.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
-	var oldIsProgressive = this._isProgressive;
-    this._isProgressive = isProgressive;
-	if (!oldIsProgressive && isProgressive && this.hasData()) {
-		for (var i = 0; i < this._dataListeners.length; ++i) {
-            this._dataListeners[i](this);
-        }
-	}
-};
-
-SimpleImageDataContext.prototype._dataFetched = function dataFetched(key, data, fetchEnded) {
-	if (this._isDisposed) {
-		throw 'Unexpected dataFetched listener call on disposed ImageDataContext';
-	}
-
-	var self = this;
-	var added = this._dataByKey.tryAdd(key, function() {
-		// Executed if new item
-        self._dataToReturn.fetchedItems.push({
-            key: key.dataKey,
-            data: data
-        });
-		++self._fetchedLowQualityCount;
-		return {
-			fetchEnded: false,
-			fetchedItemsOffset: self._dataToReturn.fetchedItems.length - 1
-		};
-	});
-	
-    if (added.value.fetchEnded) {
-		// Already fetched full quality, nothing to refresh
-		return;
-	}
-	
-	this._dataToReturn.fetchedItems[added.value.fetchedItemsOffset].data = data;
-	if (fetchEnded)
-	{
-		added.value.fetchEnded = true;
-        ++this._fetchEndedCount;
-    }
-    
-    if (this.isDone() || (this.hasData() && this._isProgressive)) {
-        for (var i = 0; i < this._dataListeners.length; ++i) {
-            this._dataListeners[i](this);
-        }
-    }
-};
-},{"hashmap.js":16}],9:[function(require,module,exports){
-'use strict';
-
-module.exports = SimplePixelsDecoderBase;
-
-/* global Promise : false */
-/* global ImageData : false */
-
-function SimplePixelsDecoderBase() {
-    SimplePixelsDecoderBase.prototype.decode = function decode(fetchedData) {
-        var imagePartParams = fetchedData.imagePartParams;
-        var width  = imagePartParams.maxXExclusive - imagePartParams.minX;
-        var height = imagePartParams.maxYExclusive - imagePartParams.minY;
-        var result = new ImageData(width, height);
-        var promises = [];
-        for (var i = 0; i < fetchedData.fetchedItems.length; ++i) {
-            promises.push(this.decodeRegion(result, imagePartParams.minX, imagePartParams.minY, fetchedData.fetchedItems[i].key, fetchedData.fetchedItems[i].data));
-        }
-        
-        return Promise.all(promises).then(function() {
-            return result;
-        });
-    };
-    
-    SimplePixelsDecoderBase.prototype.decodeRegion = function decodeRegion(targetImageData, imagePartParams, key, fetchedData) {
-        throw 'SimplePixelsDecoderBase error: decodeRegion is not implemented';
-    };
-}
-},{}],10:[function(require,module,exports){
+},{"_cesiumfrustumcalculator.js":1,"imagehelperfunctions.js":12,"workerproxyimagedecoder.js":18}],5:[function(require,module,exports){
 'use strict';
 
 module.exports = ImageDecoder;
@@ -1956,7 +1516,7 @@ function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
         targetOffset += targetStride;
     }
 }
-},{"decodejobspool.js":12,"imageHelperFunctions.js":17,"imageparamsretrieverproxy.js":20,"workerproxyfetchmanager.js":22,"workerproxypixelsdecoder.js":24}],11:[function(require,module,exports){
+},{"decodejobspool.js":7,"imageHelperFunctions.js":12,"imageparamsretrieverproxy.js":15,"workerproxyfetchmanager.js":17,"workerproxypixelsdecoder.js":19}],6:[function(require,module,exports){
 'use strict';
 
 module.exports = DecodeJob;
@@ -2293,7 +1853,7 @@ DecodeJob.prototype._checkIfAllTerminated = function checkIfAllTerminated() {
         iterator = linkedList.getNextIterator(iterator);
     }
 };
-},{"linkedlist.js":18}],12:[function(require,module,exports){
+},{"linkedlist.js":13}],7:[function(require,module,exports){
 'use strict';
 
 module.exports = DecodeJobsPool;
@@ -2469,7 +2029,7 @@ function getOrAddValue(parentArray, index, defaultValue) {
     
     return subArray;
 }
-},{"decodejob.js":11}],13:[function(require,module,exports){
+},{"decodejob.js":6}],8:[function(require,module,exports){
 'use strict';
 
 module.exports = FetchJob;
@@ -2811,7 +2371,7 @@ function fetchAbortedByScheduler(self) {
     self._resource = null;
     self._fetchTerminated(/*isAborted=*/true);
 }
-},{}],14:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 'use strict';
 
 module.exports = FetchManager;
@@ -3030,7 +2590,7 @@ function extractDataAndCallCallback(contextVars, imageDataContext, quality) {
 function createServerRequestDummyResource() {
     return {};
 }
-},{"fetchjob.js":13,"imagehelperfunctions.js":17,"imageparamsretrieverproxy.js":20}],15:[function(require,module,exports){
+},{"fetchjob.js":8,"imagehelperfunctions.js":12,"imageparamsretrieverproxy.js":15}],10:[function(require,module,exports){
 'use strict';
 
 module.exports = FrustumRequestsPrioritizer;
@@ -3207,7 +2767,7 @@ FrustumRequestsPrioritizer.prototype._pixelToCartographicY = function tileToCart
     var yProjected = imageRectangle.north - relativeY * rectangleHeight;
     return yProjected;
 };
-},{}],16:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 'use strict';
 
 module.exports = HashMap;
@@ -3290,7 +2850,7 @@ HashMap.prototype.remove = function remove(iterator) {
         delete this._byKey[iterator._hashCode];
     }
 };
-},{"linkedlist.js":18}],17:[function(require,module,exports){
+},{"linkedlist.js":13}],12:[function(require,module,exports){
 'use strict';
 
 var FrustumRequestsPrioritizer = require('frustumrequestsprioritizer.js');
@@ -3545,7 +3105,7 @@ function createInternalOptions(imageImplementationClassName, options) {
     
     return optionsInternal;
 }
-},{"frustumrequestsprioritizer.js":15}],18:[function(require,module,exports){
+},{"frustumrequestsprioritizer.js":10}],13:[function(require,module,exports){
 'use strict';
 
 module.exports = LinkedList;
@@ -3638,7 +3198,7 @@ LinkedList.prototype._validateIteratorOfThis =
         throw 'iterator must be of the current LinkedList';
     }
 };
-},{}],19:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 'use strict';
 
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
@@ -3669,7 +3229,7 @@ function slaveScriptContent() {
         return instance;
     });
 }
-},{"imagedecoder.js":10}],20:[function(require,module,exports){
+},{"imagedecoder.js":5}],15:[function(require,module,exports){
 'use strict';
 
 module.exports = ImageParamsRetrieverProxy;
@@ -3763,7 +3323,7 @@ ImageParamsRetrieverProxy.prototype._validateSizesCalculator = function validate
     this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
         sizesParams);
 }
-},{"imagehelperfunctions.js":17}],21:[function(require,module,exports){
+},{"imagehelperfunctions.js":12}],16:[function(require,module,exports){
 'use strict';
 
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
@@ -3810,7 +3370,7 @@ function slaveScriptContent() {
         isReady = true;
     }
 }
-},{}],22:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 'use strict';
 
 module.exports = WorkerProxyFetchManager;
@@ -3953,7 +3513,7 @@ WorkerProxyFetchManager.prototype._getSizesParamsInternal = function getSizesPar
 WorkerProxyFetchManager.prototype._userDataHandler = function userDataHandler(data) {
     this._internalSizesParams = data.sizesParams;
 };
-},{"imagehelperfunctions.js":17,"imageparamsretrieverproxy.js":20,"sendimageparameterstomaster.js":21}],23:[function(require,module,exports){
+},{"imagehelperfunctions.js":12,"imageparamsretrieverproxy.js":15,"sendimageparameterstomaster.js":16}],18:[function(require,module,exports){
 'use strict';
 
 module.exports = WorkerProxyImageDecoder;
@@ -4119,7 +3679,7 @@ WorkerProxyImageDecoder.prototype._imageOpened = function imageOpened(data) {
 WorkerProxyImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
     return this._internalSizesParams;
 };
-},{"createimagedecoderonslaveside.js":19,"imagehelperfunctions.js":17,"imageparamsretrieverproxy.js":20,"sendimageparameterstomaster.js":21}],24:[function(require,module,exports){
+},{"createimagedecoderonslaveside.js":14,"imagehelperfunctions.js":12,"imageparamsretrieverproxy.js":15,"sendimageparameterstomaster.js":16}],19:[function(require,module,exports){
 'use strict';
 
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
@@ -4176,7 +3736,7 @@ function decoderSlaveScriptBody() {
         return imageImplementation.createPixelsDecoder();
     });
 }
-},{"imagehelperfunctions.js":17}],25:[function(require,module,exports){
+},{"imagehelperfunctions.js":12}],20:[function(require,module,exports){
 'use strict';
 
 module.exports = ViewerImageDecoder;
@@ -4822,12 +4382,12 @@ ViewerImageDecoder.prototype._opened = function opened() {
         this._startShowingDynamicRegion();
     }
 };
-},{"imagedecoder.js":10,"imagehelperfunctions.js":17,"workerproxyimagedecoder.js":23}],26:[function(require,module,exports){
+},{"imagedecoder.js":5,"imagehelperfunctions.js":12,"workerproxyimagedecoder.js":18}],21:[function(require,module,exports){
 'use strict';
 
 module.exports.ViewerImageDecoder = require('viewerimagedecoder.js');
 module.exports.ImageDecoder = require('imagedecoder.js');
-module.exports.SimpleFetcherBase = require('simplefetcherbase.js');
+module.exports.SimpleFetcher = require('simplefetcher.js');
 module.exports.SimplePixelsDecoderBase = require('simplepixelsdecoderbase.js');
 module.exports.CesiumImageDecoderLayerManager = require('_cesiumimagedecoderlayermanager.js');
 module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
@@ -4835,7 +4395,7 @@ module.exports.ImageDecoderRegionLayer = require('imagedecoderregionlayer.js');
 module.exports.Internals = {
     FetchManager: require('fetchmanager.js')
 };
-},{"_cesiumimagedecoderlayermanager.js":2,"fetchmanager.js":14,"imagedecoder.js":10,"imagedecoderimageryprovider.js":4,"imagedecoderregionlayer.js":27,"simplefetcherbase.js":6,"simplepixelsdecoderbase.js":9,"viewerimagedecoder.js":25}],27:[function(require,module,exports){
+},{"_cesiumimagedecoderlayermanager.js":2,"fetchmanager.js":9,"imagedecoder.js":5,"imagedecoderimageryprovider.js":4,"imagedecoderregionlayer.js":22,"simplefetcher.js":25,"simplepixelsdecoderbase.js":28,"viewerimagedecoder.js":20}],22:[function(require,module,exports){
 'use strict';
 
 var ViewerImageDecoder = require('viewerimagedecoder.js');
@@ -5005,7 +4565,7 @@ function createImageDecoderRegionLayerFunctions() {
         }
     };
 }
-},{"leafletfrustumcalculator.js":28,"viewerimagedecoder.js":25}],28:[function(require,module,exports){
+},{"leafletfrustumcalculator.js":23,"viewerimagedecoder.js":20}],23:[function(require,module,exports){
 'use strict';
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
@@ -5026,6 +4586,455 @@ module.exports = function calculateLeafletFrustum(leafletMap) {
 
     return frustumData;
 };
-},{"imagehelperfunctions.js":17}]},{},[26])(26)
+},{"imagehelperfunctions.js":12}],24:[function(require,module,exports){
+'use strict';
+
+module.exports = DataPublisher;
+
+var LinkedList = require('linkedlist.js');
+var HashMap = require('hashmap.js');
+
+function DataPublisher(hasher) {
+    this._subscribersByKey = new HashMap(hasher);
+}
+
+DataPublisher.prototype.publish = function publish(key, data, fetchEnded) {
+    var subscribers = this._subscribersByKey.getFromKey(key);
+    if (!subscribers) {
+        return;
+    }
+    
+    var iterator = subscribers.subscribersList.getFirstIterator();
+    var listeners = [];
+    while (iterator !== null) {
+        var subscriber = subscribers.subscribersList.getValue(iterator);
+	
+		if (!subscriber.isEnded) {
+			listeners.push(subscriber.listener);
+			if (fetchEnded) {
+				--subscribers.subscribersNotEndedCount;
+				subscriber.isEnded = true;
+			}
+		}
+        
+        iterator = subscribers.subscribersList.getNextIterator(iterator);
+    }
+    
+    // Call only after collecting all listeners, so the list will not be destroyed while iterating
+    for (var i = 0; i < listeners.length; ++i) {
+        listeners[i].call(this, key, data, fetchEnded);
+    }
+};
+
+DataPublisher.prototype.subscribe = function subscribe(key, subscriber) {
+    var subscribers = this._subscribersByKey.tryAdd(key, function() {
+        return {
+            subscribersList: new LinkedList(),
+            subscribersNotEndedCount: 0
+        };
+    });
+    
+    ++subscribers.value.subscribersNotEndedCount;
+    
+    var listIterator = subscribers.value.subscribersList.add({
+        listener: subscriber,
+        isEnded: false
+    });
+    
+    var handle = {
+        _listIterator: listIterator,
+        _hashIterator: subscribers.iterator
+    };
+    return handle;
+};
+
+DataPublisher.prototype.unsubscribe = function unsubscribe(handle) {
+    var subscribers = this._subscribersByKey.getFromIterator(handle._hashIterator);
+    
+    var subscriber = subscribers.subscribersList.getValue(handle._listIterator);
+    subscribers.subscribersList.remove(handle._listIterator);
+    if (subscribers.subscribersList.getCount() === 0) {
+        this._subscribersByKey.remove(handle._hashIterator);
+    } else if (!subscriber.isEnded) {
+        --subscribers.subscribersNotEndedCount;
+        subscriber.isEnded = true;
+    }
+};
+
+DataPublisher.prototype.isKeyNeedFetch = function isKeyNeedFetch(key) {
+    var subscribers = this._subscribersByKey.getFromKey(key);
+    return (!!subscribers) && (subscribers.subscribersNotEndedCount > 0);
+};
+},{"hashmap.js":11,"linkedlist.js":13}],25:[function(require,module,exports){
+'use strict';
+
+module.exports = SimpleFetcher;
+
+var SimpleImageDataContext = require('simpleimagedatacontext.js');
+var SimpleNonProgressiveFetchHandle = require('simplenonprogressivefetchhandle.js');
+var DataPublisher = require('datapublisher.js');
+
+/* global Promise: false */
+
+function SimpleFetcher(fetcherMethods, options) {
+    this._url = null;
+    this._fetcherMethods = fetcherMethods;
+    this._options = options || {};
+    this._isReady = true;
+    
+    if (!this._fetcherMethods.getDataKeys) {
+        throw 'SimpleFetcher error: getDataKeys is not implemented';
+    }
+    if (!this._fetcherMethods.fetch && !this._fetcherMethods.fetchProgressive) {
+        throw 'SimpleFetcher error: Neither fetch nor fetchProgressive methods are implemented';
+    }
+    
+    if (!this._fetcherMethods.getHashCode) {
+        throw 'SimpleFetcher error: getHashCode is not implemented';
+    }
+    if (!this._fetcherMethods.isEqual) {
+        throw 'SimpleFetcher error: isEqual is not implemented';
+    }
+
+    this._hasher = {
+        _fetcherMethods: this._fetcherMethods,
+        getHashCode: function(dataKey) {
+            return this._fetcherMethods.getHashCode(dataKey);
+        },
+        isEqual: function(key1, key2) {
+            if (key1.maxQuality !== key2.maxQuality) {
+                return false;
+            }
+
+            return this._fetcherMethods.isEqual(key1.dataKey, key2.dataKey);
+        }
+    };
+
+    if (this._fetcherMethods.createDataPublisher) {
+        this._dataPublisher = this.fetcherMethods.createDataPublisher(this._hasher);
+    } else {
+        this._dataPublisher = new DataPublisher(this._hasher);
+    }
+}
+
+SimpleFetcher.prototype.fetchProgressive = function fetchProgressive(imagePartParams, dataKeys, dataCallback, queryIsKeyNeedFetch, maxQuality) {
+    this._ensureReady();
+    if (!this._fetcherMethods.fetchProgressive) {
+        var fetchHandle = new SimpleNonProgressiveFetchHandle(this._fetcherMethods, dataCallback, queryIsKeyNeedFetch, this._options);
+        fetchHandle.fetch(dataKeys);
+        return fetchHandle;
+    }
+    
+    return this._fetcherMethods.fetchProgressive(imagePartParams, dataKeys, dataCallback, queryIsKeyNeedFetch, maxQuality);
+};
+
+SimpleFetcher.prototype.reconnect = function reconnect() {
+    this._ensureReady();
+    if (!this._fetcherMethods.reconnect) {
+        throw 'SimpleFetcher error: reconnect is not implemented';
+    }
+    this._fetcherMethods.reconnect();
+};
+
+// Fetcher implementation
+
+SimpleFetcher.prototype.createImageDataContext = function createImageDataContext(
+    imagePartParams) {
+    
+    this._ensureReady();
+    var dataKeys = this._fetcherMethods.getDataKeys(imagePartParams);
+    return new SimpleImageDataContext(dataKeys, imagePartParams, this._dataPublisher, this._hasher);
+};
+
+SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
+	var maxQuality = imageDataContext.getMaxQuality();
+	var self = this;
+	
+	function dataCallback(dataKey, data, isFetchEnded) {
+		var key = {
+			dataKey: dataKey,
+			maxQuality: maxQuality
+		};
+		self._dataPublisher.publish(key, data, isFetchEnded);
+	}
+	
+	function queryIsKeyNeedFetch(dataKey) {
+		var key = {
+			dataKey: dataKey,
+			maxQuality: maxQuality
+		};
+		return self._dataPublisher.isKeyNeedFetch(key);
+	}
+	
+	return this.fetchProgressive(imageDataContext.getImagePartParams(), imageDataContext.getDataKeys(), dataCallback, queryIsKeyNeedFetch, maxQuality);
+};
+
+SimpleFetcher.prototype.startMovableFetch = function startMovableFetch(imageDataContext, movableFetchState) {
+	movableFetchState.fetchHandle = this.fetch(imageDataContext);
+};
+
+SimpleFetcher.prototype.moveFetch = function moveFetch(imageDataContext, movableFetchState) {
+	movableFetchState.fetchHandle.abortAsync();
+	movableFetchState.fetchHandle = this.fetch(imageDataContext);
+};
+
+SimpleFetcher.prototype.close = function close(closedCallback) {
+    this._ensureReady();
+    this._isReady = false;
+    return new Promise(function(resolve, reject) {
+        // NOTE: Wait for all fetchHandles to finish?
+        resolve();
+    });
+};
+
+SimpleFetcher.prototype._ensureReady = function ensureReady() {
+    if (!this._isReady) {
+        throw 'SimpleFetcher error: fetch client is not opened';
+    }
+};
+
+},{"datapublisher.js":24,"simpleimagedatacontext.js":26,"simplenonprogressivefetchhandle.js":27}],26:[function(require,module,exports){
+'use strict';
+
+module.exports = SimpleImageDataContext;
+
+var HashMap = require('hashmap.js');
+
+function SimpleImageDataContext(dataKeys, imagePartParams, dataPublisher, hasher) {
+    this._dataByKey = new HashMap(hasher);
+    this._dataToReturn = {
+        imagePartParams: JSON.parse(JSON.stringify(imagePartParams)),
+        fetchedItems: []
+    };
+	this._maxQuality = imagePartParams.quality;
+    this._fetchEndedCount = 0;
+	this._fetchedLowQualityCount = 0;
+    this._dataListeners = [];
+    this._dataKeys = dataKeys;
+    this._imagePartParams = imagePartParams;
+    this._dataPublisher = dataPublisher;
+	this._isProgressive = false;
+	this._isDisposed = false;
+    
+    this._subscribeHandles = [];
+    
+    var dataFetchedBound = this._dataFetched.bind(this);
+    for (var i = 0; i < dataKeys.length; ++i) {
+        var subscribeHandle = this._dataPublisher.subscribe(
+			{ dataKey: dataKeys[i], maxQuality: this._maxQuality },
+			dataFetchedBound);
+        
+        this._subscribeHandles.push(subscribeHandle);
+    }
+}
+
+// Not part of ImageDataContext interface, only service for SimpleFetcher
+SimpleImageDataContext.prototype.getMaxQuality = function getMaxQuality() {
+	return this._maxQuality;
+};
+
+SimpleImageDataContext.prototype.getDataKeys = function getDataKeys() {
+    return this._dataKeys;
+};
+
+SimpleImageDataContext.prototype.getImagePartParams = function getImagePartParams() {
+    return this._imagePartParams;
+};
+
+SimpleImageDataContext.prototype.hasData = function hasData() {
+    return this._fetchedLowQualityCount == this._dataKeys.length;
+};
+
+SimpleImageDataContext.prototype.getFetchedData = function getFetchedData() {
+    if (!this.hasData()) {
+        throw 'SimpleImageDataContext error: cannot call getFetchedData before hasData = true';
+    }
+    
+    return this._dataToReturn;
+};
+
+SimpleImageDataContext.prototype.on = function on(event, listener) {
+	if (this._isDisposed) {
+		throw 'Cannot register to event on disposed ImageDataContext';
+	}
+    if (event !== 'data') {
+        throw 'SimpleImageDataContext error: Unexpected event ' + event;
+    }
+    
+    this._dataListeners.push(listener);
+};
+
+SimpleImageDataContext.prototype.isDone = function isDone() {
+    return this._fetchEndedCount === this._dataKeys.length;
+};
+
+SimpleImageDataContext.prototype.dispose = function dispose() {
+	this._isDisposed = true;
+    for (var i = 0; i < this._subscribeHandles.length; ++i) {
+        this._dataPublisher.unsubscribe(this._subscribeHandles[i]);
+    }
+    
+    this._subscribeHandles = [];
+	this._dataListeners = [];
+};
+
+SimpleImageDataContext.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
+	var oldIsProgressive = this._isProgressive;
+    this._isProgressive = isProgressive;
+	if (!oldIsProgressive && isProgressive && this.hasData()) {
+		for (var i = 0; i < this._dataListeners.length; ++i) {
+            this._dataListeners[i](this);
+        }
+	}
+};
+
+SimpleImageDataContext.prototype._dataFetched = function dataFetched(key, data, fetchEnded) {
+	if (this._isDisposed) {
+		throw 'Unexpected dataFetched listener call on disposed ImageDataContext';
+	}
+
+	var self = this;
+	var added = this._dataByKey.tryAdd(key, function() {
+		// Executed if new item
+        self._dataToReturn.fetchedItems.push({
+            key: key.dataKey,
+            data: data
+        });
+		++self._fetchedLowQualityCount;
+		return {
+			fetchEnded: false,
+			fetchedItemsOffset: self._dataToReturn.fetchedItems.length - 1
+		};
+	});
+	
+    if (added.value.fetchEnded) {
+		// Already fetched full quality, nothing to refresh
+		return;
+	}
+	
+	this._dataToReturn.fetchedItems[added.value.fetchedItemsOffset].data = data;
+	if (fetchEnded)
+	{
+		added.value.fetchEnded = true;
+        ++this._fetchEndedCount;
+    }
+    
+    if (this.isDone() || (this.hasData() && this._isProgressive)) {
+        for (var i = 0; i < this._dataListeners.length; ++i) {
+            this._dataListeners[i](this);
+        }
+    }
+};
+},{"hashmap.js":11}],27:[function(require,module,exports){
+'use strict';
+
+module.exports = SimpleNonProgressiveFetchHandle;
+
+/* global Promise: false */
+
+function SimpleNonProgressiveFetchHandle(fetchMethods, dataCallback, queryIsKeyNeedFetch, options) {
+    this._fetchMethods = fetchMethods;
+	this._dataCallback = dataCallback;
+    this._queryIsKeyNeedFetch = queryIsKeyNeedFetch;
+    this._fetchLimit = (options || {}).fetchLimitPerFetcher || 2;
+    this._keysToFetch = null;
+    this._nextKeyToFetch = 0;
+    this._activeFetches = {};
+    this._activeFetchesCount = 0;
+    this._isAborted = false;
+    this._isStoppedCalled = false;
+    this._resolveAbort = null;
+}
+
+SimpleNonProgressiveFetchHandle.prototype.fetch = function fetch(keys) {
+    if (this._keysToFetch !== null) {
+        throw 'SimpleNonProgressiveFetchHandle error: Request fetcher can fetch only one region';
+    }
+    
+    this._keysToFetch = keys;
+    this._nextKeyToFetch = 0;
+    while (this._activeFetchesCount < this._fetchLimit) {
+        if (!this._fetchSingleKey()) {
+            break;
+        }
+    }
+};
+
+SimpleNonProgressiveFetchHandle.prototype.abortAsync = function abortAsync() {
+    var self = this;
+    return new Promise(function(resolve, reject) {
+        if (self._activeFetchesCount === 0) {
+            resolve();
+        } else {
+            this._resolveAbort = resolve;
+        }
+    });
+};
+
+SimpleNonProgressiveFetchHandle.prototype._fetchSingleKey = function fetchSingleKey() {
+    var key;
+    do {
+        if (this._nextKeyToFetch >= this._keysToFetch.length) {
+            return false;
+        }
+        key = this._keysToFetch[this._nextKeyToFetch++];
+    } while (!this._queryIsKeyNeedFetch(key));
+    
+    var self = this;
+    this._activeFetches[key] = true;
+    ++this._activeFetchesCount;
+    
+    this._fetchMethods.fetch(key)
+        .then(function resolved(result) {
+            self._dataCallback(key, result, /*fetchEnded=*/true);
+            self._fetchEnded(null, key, result);
+        }).catch(function failed(reason) {
+            //self._fetchClient._onError(reason);
+            self._fetchEnded(reason, key);
+        });
+    
+    return true;
+};
+
+SimpleNonProgressiveFetchHandle.prototype._fetchEnded = function fetchEnded(error, key, result) {
+    delete this._activeFetches[key];
+    --this._activeFetchesCount;
+    
+    if (!this._resolveAbort) {
+        this._fetchSingleKey();
+    } else if (this._activeFetchesCount === 0) {
+        this._resolveAbort();
+        this._resolveAbort = null;
+    }
+};
+},{}],28:[function(require,module,exports){
+'use strict';
+
+module.exports = SimplePixelsDecoderBase;
+
+/* global Promise : false */
+/* global ImageData : false */
+
+function SimplePixelsDecoderBase() {
+    SimplePixelsDecoderBase.prototype.decode = function decode(fetchedData) {
+        var imagePartParams = fetchedData.imagePartParams;
+        var width  = imagePartParams.maxXExclusive - imagePartParams.minX;
+        var height = imagePartParams.maxYExclusive - imagePartParams.minY;
+        var result = new ImageData(width, height);
+        var promises = [];
+        for (var i = 0; i < fetchedData.fetchedItems.length; ++i) {
+            promises.push(this.decodeRegion(result, imagePartParams.minX, imagePartParams.minY, fetchedData.fetchedItems[i].key, fetchedData.fetchedItems[i].data));
+        }
+        
+        return Promise.all(promises).then(function() {
+            return result;
+        });
+    };
+    
+    SimplePixelsDecoderBase.prototype.decodeRegion = function decodeRegion(targetImageData, imagePartParams, key, fetchedData) {
+        throw 'SimplePixelsDecoderBase error: decodeRegion is not implemented';
+    };
+}
+},{}]},{},[21])(21)
 });
 
