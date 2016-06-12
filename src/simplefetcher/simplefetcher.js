@@ -49,16 +49,7 @@ function SimpleFetcher(fetcherMethods, options) {
     }
 }
 
-SimpleFetcher.prototype.fetchProgressive = function fetchProgressive(imagePartParams, dataKeys, dataCallback, queryIsKeyNeedFetch, maxQuality) {
-    this._ensureReady();
-    if (!this._fetcherMethods.fetchProgressive) {
-        var fetchHandle = new SimpleNonProgressiveFetchHandle(this._fetcherMethods, dataCallback, queryIsKeyNeedFetch, this._options);
-        fetchHandle.fetch(dataKeys);
-        return fetchHandle;
-    }
-    
-    return this._fetcherMethods.fetchProgressive(imagePartParams, dataKeys, dataCallback, queryIsKeyNeedFetch, maxQuality);
-};
+// Fetcher implementation
 
 SimpleFetcher.prototype.reconnect = function reconnect() {
     this._ensureReady();
@@ -67,8 +58,6 @@ SimpleFetcher.prototype.reconnect = function reconnect() {
     }
     this._fetcherMethods.reconnect();
 };
-
-// Fetcher implementation
 
 SimpleFetcher.prototype.createImageDataContext = function createImageDataContext(
     imagePartParams) {
@@ -79,7 +68,11 @@ SimpleFetcher.prototype.createImageDataContext = function createImageDataContext
 };
 
 SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
+    this._ensureReady();
+    var imagePartParams = imageDataContext.getImagePartParams();
+    var dataKeys = imageDataContext.getDataKeys();
 	var maxQuality = imageDataContext.getMaxQuality();
+
 	var self = this;
 	
 	function dataCallback(dataKey, data, isFetchEnded) {
@@ -98,16 +91,33 @@ SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
 		return self._dataPublisher.isKeyNeedFetch(key);
 	}
 	
-	return this.fetchProgressive(imageDataContext.getImagePartParams(), imageDataContext.getDataKeys(), dataCallback, queryIsKeyNeedFetch, maxQuality);
+    if (!this._fetcherMethods.fetchProgressive) {
+        var fetchHandle = new SimpleNonProgressiveFetchHandle(this._fetcherMethods, dataCallback, queryIsKeyNeedFetch, this._options);
+        fetchHandle.fetch(dataKeys);
+        return fetchHandle;
+    }
+    
+    return this._fetcherMethods.fetchProgressive(imagePartParams, dataKeys, dataCallback, queryIsKeyNeedFetch, maxQuality);
 };
 
 SimpleFetcher.prototype.startMovableFetch = function startMovableFetch(imageDataContext, movableFetchState) {
+    movableFetchState.moveToImageDataContext = null;
 	movableFetchState.fetchHandle = this.fetch(imageDataContext);
 };
 
 SimpleFetcher.prototype.moveFetch = function moveFetch(imageDataContext, movableFetchState) {
-	movableFetchState.fetchHandle.abortAsync();
-	movableFetchState.fetchHandle = this.fetch(imageDataContext);
+    var isAlreadyMoveRequested = !!movableFetchState.moveToImageDataContext;
+    movableFetchState.moveToImageDataContext = imageDataContext;
+    if (isAlreadyMoveRequested) {
+        return;
+    }
+    
+    var self = this;
+	movableFetchState.fetchHandle.stopAsync().then(function() {
+        var moveToImageDataContext = movableFetchState.moveToImageDataContext;
+        movableFetchState.moveToImageDataContext = null;
+        movableFetchState.fetchHandle = self.fetch(moveToImageDataContext);
+    });
 };
 
 SimpleFetcher.prototype.close = function close(closedCallback) {

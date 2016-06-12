@@ -189,7 +189,7 @@ function internalCallback(contextVars, imageDataContext) {
 }
 
 function internalTerminatedCallback(contextVars, imageDataContext, isAborted) {
-    if (!contextVars.isLastCallbackCalledWithoutLowQualityLimit) {
+    if (!contextVars.isLastCallbackCalledWithoutLowQualityLimit && !isAborted) {
         // This condition come to check if another decoding should be done.
         // One situation it may happen is when the request is not
         // progressive, then the decoding is done only on termination.

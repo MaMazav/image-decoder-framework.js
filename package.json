@@ -1,6 +1,6 @@
 {
   "name": "ImageDecoderFramework.js",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A framework for heavy decoding of images, including ability to view in Leaflet and Cesium",
   "main": "gulpfile.js",
   "scripts": {

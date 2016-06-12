@@ -13,9 +13,7 @@ function SimpleNonProgressiveFetchHandle(fetchMethods, dataCallback, queryIsKeyN
     this._nextKeyToFetch = 0;
     this._activeFetches = {};
     this._activeFetchesCount = 0;
-    this._isAborted = false;
-    this._isStoppedCalled = false;
-    this._resolveAbort = null;
+    this._resolveStop = null;
 }
 
 SimpleNonProgressiveFetchHandle.prototype.fetch = function fetch(keys) {
@@ -32,15 +30,32 @@ SimpleNonProgressiveFetchHandle.prototype.fetch = function fetch(keys) {
     }
 };
 
-SimpleNonProgressiveFetchHandle.prototype.abortAsync = function abortAsync() {
+SimpleNonProgressiveFetchHandle.prototype.stopAsync = function abortAsync() {
     var self = this;
     return new Promise(function(resolve, reject) {
         if (self._activeFetchesCount === 0) {
             resolve();
         } else {
-            this._resolveAbort = resolve;
+            this._resolveStop = resolve;
         }
     });
+};
+
+SimpleNonProgressiveFetchHandle.prototype.resume = function() {
+    if (this._resolveStop) {
+        this._resolveStop = null;
+        return;
+    }
+    
+    if (this._activeFetchesCount > 0) {
+        throw 'SimpleNonProgressiveFetchHandle error: cannot resume() while already fetching';
+    }
+    
+    while (this._activeFetchesCount < this._fetchLimit) {
+        if (!this._fetchSingleKey()) {
+            break;
+        }
+    }
 };
 
 SimpleNonProgressiveFetchHandle.prototype._fetchSingleKey = function fetchSingleKey() {
@@ -72,10 +87,10 @@ SimpleNonProgressiveFetchHandle.prototype._fetchEnded = function fetchEnded(erro
     delete this._activeFetches[key];
     --this._activeFetchesCount;
     
-    if (!this._resolveAbort) {
+    if (!this._resolveStop) {
         this._fetchSingleKey();
     } else if (this._activeFetchesCount === 0) {
-        this._resolveAbort();
-        this._resolveAbort = null;
+        this._resolveStop();
+        this._resolveStop = null;
     }
 };

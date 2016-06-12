@@ -76,7 +76,7 @@ function build(isDebug) {
     var scripts = isDebug ? scriptsDebug : scriptsProd;
     var vendors = isDebug ? vendorsDebug : vendorsProd;
     var jshintStream = gulp.src(scripts)
-        .pipe(sourcemaps.init({ loadMaps: true }))
+        //.pipe(sourcemaps.init({ loadMaps: true }))
         .pipe(buffer())
         .pipe(jshint())
         .pipe(jshint.reporter('default'));
@@ -91,9 +91,6 @@ function build(isDebug) {
         .pipe(uglify())
         .on('error', gutil.log);
     }
-            // NOTE: Add it in production
-            //.pipe(uglify(/* { compress: { unused: false } } */))
-            //.on('error', gutil.log);
     for (var i = 0; i < vendors.length; ++i) {
         browserifyStream = browserifyStream.pipe(addsrc(vendors[i]));
     }
@@ -103,7 +100,7 @@ function build(isDebug) {
     browserifyStream = browserifyStream
         .pipe(concat('imagedecoderframework-src.js'))
         .pipe(rename(outFile + '.js'))
-        .pipe(sourcemaps.write(outFile))
+        //.pipe(sourcemaps.write(outFile + '.js.map'))
         .pipe(gulp.dest('./'));
 
     //return jshintStream;
