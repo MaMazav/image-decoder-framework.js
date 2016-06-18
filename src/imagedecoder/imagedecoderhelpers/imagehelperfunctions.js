@@ -217,17 +217,41 @@ function alignParamsToTilesAndLevel(
 }
 
 function getImageImplementation(imageImplementationClassName) {
+    var result;
     try {
-        return window && window[imageImplementationClassName];
+        result = getClassInGlobalObject(window, imageImplementationClassName);
+        if (result) {
+            return result;
+        }
     } catch(e) { }
 
     try {
-        return globals && globals[imageImplementationClassName];
+        result = getClassInGlobalObject(globals, imageImplementationClassName);
+        if (result) {
+            return result;
+        }
     } catch(e) { }
 
     try {
-        return self && self[imageImplementationClassName];
+        result = getClassInGlobalObject(self, imageImplementationClassName);
+        if (result) {
+            return result;
+        }
     } catch(e) { }
+}
+
+function getClassInGlobalObject(globalObject, className) {
+    if (globalObject[className]) {
+        return globalObject[className];
+    }
+    
+    var result = globalObject;
+    var path = className.split('.');
+    for (var i = 0; i < path.length; ++i) {
+        result = result[path[i]];
+    }
+    
+    return result;
 }
 
 function getScriptsForWorkerImport(imageImplementation, options) {
