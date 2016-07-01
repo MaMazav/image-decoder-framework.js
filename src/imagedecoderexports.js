@@ -8,5 +8,6 @@ module.exports.CesiumImageDecoderLayerManager = require('_cesiumimagedecoderlaye
 module.exports.ImageDecoderImageryProvider = require('imagedecoderimageryprovider.js');
 module.exports.ImageDecoderRegionLayer = require('imagedecoderregionlayer.js');
 module.exports.Internals = {
-    FetchManager: require('fetchmanager.js')
+    FetchManager: require('fetchmanager.js'),
+    imageHelperFunctions: require('imagehelperfunctions.js')
 };

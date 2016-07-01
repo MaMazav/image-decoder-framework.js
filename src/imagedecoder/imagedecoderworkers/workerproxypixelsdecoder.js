@@ -4,6 +4,7 @@
 /*jshint -W034 */
 
 /* global self: false */
+/* global imageDecoderFramework: false */
 
 module.exports = WorkerProxyPixelsDecoder;
 
@@ -50,7 +51,8 @@ function decoderSlaveScriptBody() {
     'use strict';
 
     AsyncProxy.AsyncProxySlave.setSlaveSideCreator(function createDecoder(options) {
-        var imageImplementation = self[options.imageImplementationClassName];
+        //var imageImplementation = self[options.imageImplementationClassName];
+        var imageImplementation = imageDecoderFramework.Internals.imageHelperFunctions.getImageImplementation(options.imageImplementationClassName);
         return imageImplementation.createPixelsDecoder();
     });
 }
