@@ -227,6 +227,7 @@ FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
     
     if (this._imageDataContext !== null && this._state !== FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE) {
         this._imageDataContext.dispose();
+        this._imageDataContext = null;
     }
 };
 
