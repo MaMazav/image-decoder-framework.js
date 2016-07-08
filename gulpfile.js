@@ -46,13 +46,13 @@ var sources = [
 ];
 
 var vendorsProd = [
-    './vendor/asyncproxy.js',
-    './vendor/resourcescheduler.js'
+    './vendor/async-proxy.dev.js',
+    './vendor/resource-scheduler.dev.js'
 ];
 
 var vendorsDebug = [
-    './vendor/asyncproxy.debug.js',
-    './vendor/resourcescheduler.debug.js'
+    './vendor/async-proxy.dev.debug.js',
+    './vendor/resource-scheduler.dev.debug.js'
 ];
 
 var scriptsDebug = vendorsDebug.concat(sources);
@@ -83,7 +83,7 @@ function build(isDebug) {
     
     var browserifyStream = browserified
         .bundle()
-        .pipe(source('imagedecoderframework-src.js'))
+        .pipe(source('image-decoder-framework.src.js'))
         .pipe(buffer());
     
     if (!isDebug) {
@@ -95,10 +95,10 @@ function build(isDebug) {
         browserifyStream = browserifyStream.pipe(addsrc(vendors[i]));
     }
     
-    var outFile = isDebug ? 'imagedecoderframework-debug' : 'imagedecoderframework';
+    var outFile = isDebug ? 'image-decoder-framework.dev.debug' : 'image-decoder-framework.dev';
     
     browserifyStream = browserifyStream
-        .pipe(concat('imagedecoderframework-src.js'))
+        .pipe(concat('image-decoder-framework.src.js'))
         .pipe(rename(outFile + '.js'))
         //.pipe(sourcemaps.write(outFile + '.js.map'))
         .pipe(gulp.dest('./'));

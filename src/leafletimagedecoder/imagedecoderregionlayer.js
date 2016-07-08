@@ -143,6 +143,10 @@ function createImageDecoderRegionLayerFunctions() {
         },
         
         _animateZoom: function animateZoom(options) {
+            if (this._canvasPosition === null) {
+                return;
+            }
+        
             // NOTE: All method (including using of private method
             // _latLngToNewLayerPoint) was copied from ImageOverlay,
             // as Leaflet documentation recommends.
