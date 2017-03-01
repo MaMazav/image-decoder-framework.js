@@ -8,88 +8,55 @@ var DataPublisher = require('datapublisher.js');
 
 /* global Promise: false */
 
-function SimpleFetcher(fetcherMethods, options) {
+function SimpleFetcher(fetchFunction, options) {
     this._url = null;
-    this._fetcherMethods = fetcherMethods;
     this._options = options || {};
+    this._fetchFunction = fetchFunction;
     this._isReady = true;
-    
-    if (!this._fetcherMethods.getDataKeys) {
-        throw 'SimpleFetcher error: getDataKeys is not implemented';
-    }
-    if (!this._fetcherMethods.fetch && !this._fetcherMethods.fetchProgressive) {
-        throw 'SimpleFetcher error: Neither fetch nor fetchProgressive methods are implemented';
-    }
-    
-    if (!this._fetcherMethods.getHashCode) {
-        throw 'SimpleFetcher error: getHashCode is not implemented';
-    }
-    if (!this._fetcherMethods.isEqual) {
-        throw 'SimpleFetcher error: isEqual is not implemented';
-    }
-
-    this._hasher = {
-        _fetcherMethods: this._fetcherMethods,
-        getHashCode: function(dataKey) {
-            return this._fetcherMethods.getHashCode(dataKey);
-        },
-        isEqual: function(key1, key2) {
-            if (key1.maxQuality !== key2.maxQuality) {
-                return false;
-            }
-
-            return this._fetcherMethods.isEqual(key1.dataKey, key2.dataKey);
-        }
-    };
-
-    if (this._fetcherMethods.createDataPublisher) {
-        this._dataPublisher = this.fetcherMethods.createDataPublisher(this._hasher);
-    } else {
-        this._dataPublisher = new DataPublisher(this._hasher);
-    }
+    this._dataListeners = [];
 }
 
 // Fetcher implementation
 
 SimpleFetcher.prototype.reconnect = function reconnect() {
     this._ensureReady();
-    if (!this._fetcherMethods.reconnect) {
-        throw 'SimpleFetcher error: reconnect is not implemented';
+};
+
+SimpleFetcher.prototype.on = function on(event, listener) {
+    if (event !== 'data') {
+        throw 'SimpleFetcher: Unexpected event ' + event + '. Expected "data"';
     }
-    this._fetcherMethods.reconnect();
+    this._dataListeners.push(listener);
 };
 
-SimpleFetcher.prototype.createImageDataContext = function createImageDataContext(
-    imagePartParams) {
-    
+SimpleFetcher.prototype.fetch = function fetch(imagePartParams) {
     this._ensureReady();
-    var dataKeys = this._fetcherMethods.getDataKeys(imagePartParams);
-    return new SimpleImageDataContext(dataKeys, imagePartParams, this._dataPublisher, this._hasher);
-};
-
-SimpleFetcher.prototype.fetch = function fetch(imageDataContext) {
-    this._ensureReady();
-    var imagePartParams = imageDataContext.getImagePartParams();
-    var dataKeys = imageDataContext.getDataKeys();
-	var maxQuality = imageDataContext.getMaxQuality();
 
 	var self = this;
+    var keys = [];
+    var values = [];
 	
 	function dataCallback(dataKey, data, isFetchEnded) {
-		var key = {
-			dataKey: dataKey,
-			maxQuality: maxQuality
-		};
-		self._dataPublisher.publish(key, data, isFetchEnded);
+        keys.push(dataKey);
+        values.push(data);
+        if (keys.length === 1) {
+            setImmediate(emitData);
+        }
 	}
 	
 	function queryIsKeyNeedFetch(dataKey) {
-		var key = {
-			dataKey: dataKey,
-			maxQuality: maxQuality
-		};
-		return self._dataPublisher.isKeyNeedFetch(key);
+		// TODO
 	}
+    
+    function emitData() {
+        var localKeys = keys;
+        var localValues = values;
+        keys = [];
+        values = [];
+        for (var i = 0; i < self._dataListeners.length; ++i) {
+            self._dataListeners[i](keys, values);
+        }
+    }
 	
     if (!this._fetcherMethods.fetchProgressive) {
         var fetchHandle = new SimpleNonProgressiveFetchHandle(this._fetcherMethods, dataCallback, queryIsKeyNeedFetch, this._options);

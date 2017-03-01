@@ -54,10 +54,6 @@ FrustumRequestsPrioritizer.prototype.getPriority = function getPriority(jobConte
     var prioritizeLowProgressiveStage = 0;
     
     if (this._isPrioritizeLowProgressiveStage && isInFrustum) {
-        if (jobContext.progressiveStagesDone === undefined) {
-            throw 'Missing progressive stage information';
-        }
-        
         prioritizeLowProgressiveStage =
             jobContext.progressiveStagesDone === 0 ? ADD_PRIORITY_TO_LOW_QUALITY :
             jobContext.progressiveStagesDone === 1 ? 1 :
@@ -152,8 +148,7 @@ FrustumRequestsPrioritizer.prototype._getPriorityInternal = function getPriority
 FrustumRequestsPrioritizer.prototype._pixelToCartographicX = function pixelToCartographicX(
     x, imagePartParams) {
     
-    var relativeX = x / this._frustumData.image.getLevelWidth(
-        imagePartParams.level);
+    var relativeX = x / imagePartParams.levelWidth;
     
     var imageRectangle = this._frustumData.imageRectangle;
     var rectangleWidth = imageRectangle.east - imageRectangle.west;
@@ -165,8 +160,7 @@ FrustumRequestsPrioritizer.prototype._pixelToCartographicX = function pixelToCar
 FrustumRequestsPrioritizer.prototype._pixelToCartographicY = function tileToCartographicY(
     y, imagePartParams, image) {
     
-    var relativeY = y / this._frustumData.image.getLevelHeight(
-        imagePartParams.level);
+    var relativeY = y / imagePartParams.levelHeight;
     
     var imageRectangle = this._frustumData.imageRectangle;
     var rectangleHeight = imageRectangle.north - imageRectangle.south;

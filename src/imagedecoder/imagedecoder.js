@@ -2,21 +2,21 @@
 
 module.exports = ImageDecoder;
 
-var WorkerProxyFetchManager = require('workerproxyfetchmanager.js');
 var imageHelperFunctions = require('imageHelperFunctions.js');
 var DecodeJobsPool = require('decodejobspool.js');
-var WorkerProxyPixelsDecoder = require('workerproxypixelsdecoder.js');
 var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
+var setDecoderSlaveSideCreator = require('setdecoderslavesidecreator.js');
 
 /* global console: false */
 /* global Promise: false */
 
-function ImageDecoder(imageImplementationClassName, options) {
-    ImageParamsRetrieverProxy.call(this, imageImplementationClassName);
+ImageDecoder.alignParamsToTilesAndLevel = imageHelperFunctions.alignParamsToTilesAndLevel;
+
+function ImageDecoder(image, options) {
+    ImageParamsRetrieverProxy.call(this);
     
     this._options = options || {};
-    this._optionsWebWorkers = imageHelperFunctions.createInternalOptions(imageImplementationClassName, this._options);
-    var decodeWorkersLimit = this._options.workersLimit || 5;
+    //var decodeWorkersLimit = this._options.workersLimit || 5;
     
     this._tileWidth = this._options.tileWidth || 256;
     this._tileHeight = this._options.tileHeight || 256;
@@ -30,54 +30,57 @@ function ImageDecoder(imageImplementationClassName, options) {
     this._channelStates = [];
     this._decoders = [];
 
-    this._fetchManager = new WorkerProxyFetchManager(this._optionsWebWorkers);
-    
+    /* TODO
     var decodeScheduler = imageHelperFunctions.createScheduler(
         this._showLog,
         this._options.decodePrioritizer,
         'decode',
-        this._createDecoder.bind(this),
+        function createResource() {
+            return {};
+        },
         decodeWorkersLimit);
+    */
     
-    this._decodePrioritizer = decodeScheduler.prioritizer;
-
-    this._requestsDecodeJobsPool = new DecodeJobsPool(
-        this._fetchManager,
-        decodeScheduler.scheduler,
-        this._tileWidth,
-        this._tileHeight,
-        /*onlyWaitForDataAndDecode=*/false);
-        
-    this._channelsDecodeJobsPool = new DecodeJobsPool(
-        this._fetchManager,
-        decodeScheduler.scheduler,
-        this._tileWidth,
-        this._tileHeight,
-        /*onlyWaitForDataAndDecode=*/true);
+    //this._decodePrioritizer = decodeScheduler.prioritizer;
+    
+    this._image = image;
+    if (!this._image.getFetchManager) {
+        throw 'Image.getFetchManager() is not implemented by image ctor argument!';
+    }
+    if (!this._image.getDecoderWorkers) {
+        throw 'Image.getDecoderWorkers() is not implemented by image ctor argument';
+    }
 }
 
 ImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
 ImageDecoder.prototype.getTileWidth = function getTileWidth() {
-    this._validateSizesCalculator();
     return this._tileWidth;
 };
 
 ImageDecoder.prototype.getTileHeight = function getTileHeight() {
-    this._validateSizesCalculator();
     return this._tileHeight;
 };
     
 ImageDecoder.prototype.setServerRequestPrioritizerData =
     function setServerRequestPrioritizerData(prioritizerData) {
+
+    this._validateComponents();
     
+    // TODO
     this._fetchManager.setServerRequestPrioritizerData(
         prioritizerData);
 };
 
 ImageDecoder.prototype.setDecodePrioritizerData =
     function setDecodePrioritizerData(prioritizerData) {
+
+    this._validateComponents();
     
+    // TODO
+    if (!ImageDecoder.undefinedVar) { // Avoid unreachable warning
+        return;
+    }
     if (this._decodePrioritizer === null) {
         throw 'No decode prioritizer has been set';
     }
@@ -93,8 +96,11 @@ ImageDecoder.prototype.setDecodePrioritizerData =
 };
 
 ImageDecoder.prototype.open = function open(url) {
+    this._validateComponents();
+    
     var self = this;
-    return this._fetchManager.open(url).then(function (sizesParams) {
+    var promise = this._fetchManager.open(url);
+    return promise.then(function (sizesParams) {
         self._internalSizesParams = sizesParams;
         return {
             sizesParams: sizesParams,
@@ -105,6 +111,8 @@ ImageDecoder.prototype.open = function open(url) {
 };
 
 ImageDecoder.prototype.close = function close() {
+    this._validateComponents();
+    
     for (var i = 0; i < this._decoders.length; ++i) {
         this._decoders[i].terminate();
     }
@@ -112,31 +120,24 @@ ImageDecoder.prototype.close = function close() {
     return this._fetchManager.close();
 };
 
-ImageDecoder.prototype.createChannel = function createChannel(
-    createdCallback) {
-    
-    this._validateSizesCalculator();
+ImageDecoder.prototype.createChannel = function createChannel() {
+    this._validateComponents();
+    this._getSizesParams();
     
     var self = this;
     
-    function channelCreated(channelHandle) {
+    return this._fetchManager.createChannel().then(function(channelHandle) {
         self._channelStates[channelHandle] = {
             decodeJobsListenerHandle: null
         };
         
-        createdCallback(channelHandle);
-    }
-    
-    this._fetchManager.createChannel(
-        channelCreated);
+        return channelHandle;
+    });
 };
 
 ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
-    this._validateSizesCalculator();
-    
-    var level = imagePartParams.level;
-    var levelWidth = this._sizesCalculator.getLevelWidth(level);
-    var levelHeight = this._sizesCalculator.getLevelHeight(level);
+    this._validateComponents();
+    this._getSizesParams();
     
     var resolve, reject;
     var accumulatedResult = {};
@@ -152,14 +153,11 @@ ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
         self._requestsDecodeJobsPool.forkDecodeJobs(
             imagePartParams,
             internalCallback,
-            internalTerminatedCallback,
-            levelWidth,
-            levelHeight,
-            /*isProgressive=*/false);
+            internalTerminatedCallback);
     }
     
     function internalCallback(decodedData) {
-        copyPixelsToAccumulatedResult(decodedData, accumulatedResult);
+        self._copyPixelsToAccumulatedResult(decodedData, accumulatedResult);
     }
     
     function internalTerminatedCallback(isAborted) {
@@ -178,11 +176,8 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     imagePartParamsNotNeeded,
     channelHandle) {
     
-    this._validateSizesCalculator();
-    
-    var level = imagePartParams.level;
-    var levelWidth = this._sizesCalculator.getLevelWidth(level);
-    var levelHeight = this._sizesCalculator.getLevelHeight(level);
+    this._validateComponents();
+    this._getSizesParams();
     
     var channelState = null;
     var decodeJobsPool;
@@ -202,9 +197,6 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
         imagePartParams,
         callback,
         terminatedCallback,
-        levelWidth,
-        levelHeight,
-        /*isProgressive=*/true,
         imagePartParamsNotNeeded);
         
     if (channelHandle !== undefined) {
@@ -219,25 +211,40 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
 };
 
 ImageDecoder.prototype.reconnect = function reconnect() {
+    this._validateComponents();
+    
     this._fetchManager.reconnect();
 };
 
-ImageDecoder.prototype.alignParamsToTilesAndLevel = function alignParamsToTilesAndLevel(region) {
-	return imageHelperFunctions.alignParamsToTilesAndLevel(region, this);
+ImageDecoder.prototype.getImage = function getImage() {
+    return this._image;
+};
+
+// Internal Methods
+
+ImageDecoder.prototype._validateComponents = function validateComponents() {
+    this._fetchManager = this._image.getFetchManager();
+    
+    this._decodeDependencyWorkers = this._image.getDecoderWorkers();
+    
+    this._requestsDecodeJobsPool = new DecodeJobsPool(
+        this._decodeDependencyWorkers,
+        this._tileWidth,
+        this._tileHeight);
+        
+    this._channelsDecodeJobsPool = new DecodeJobsPool(
+        this._decodeDependencyWorkers,
+        this._tileWidth,
+        this._tileHeight);
 };
 
 ImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
     return this._internalSizesParams;
 };
 
-ImageDecoder.prototype._createDecoder = function createDecoder() {
-    var decoder = new WorkerProxyPixelsDecoder(this._optionsWebWorkers);
-    this._decoders.push(decoder);
-    
-    return decoder;
-};
-
-function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
+ImageDecoder.prototype._copyPixelsToAccumulatedResult =
+    function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
+        
     var bytesPerPixel = 4;
     var sourceStride = decodedData.width * bytesPerPixel;
     var targetStride =
@@ -277,4 +284,4 @@ function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
         sourceOffset += sourceStride;
         targetOffset += targetStride;
     }
-}
+};

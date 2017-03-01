@@ -7,7 +7,7 @@ var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
 var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 function WorkerProxyFetchManager(options) {
-    ImageParamsRetrieverProxy.call(this, options.imageImplementationClassName);
+    ImageParamsRetrieverProxy.call(this);
 
     this._imageWidth = null;
     this._imageHeight = null;
@@ -18,7 +18,7 @@ function WorkerProxyFetchManager(options) {
     var scriptsToImport = options.scriptsToImport.concat([sendImageParametersToMaster.getScriptUrl()]);
     
     this._workerHelper = new AsyncProxy.AsyncProxyMaster(
-        scriptsToImport, 'imageDecoderFramework.Internals.FetchManager', ctorArgs);
+        scriptsToImport, 'imageDecoderFramework.FetchManager', ctorArgs);
     
     var boundUserDataHandler = this._userDataHandler.bind(this);
     this._workerHelper.setUserDataHandler(boundUserDataHandler);
@@ -26,26 +26,35 @@ function WorkerProxyFetchManager(options) {
 
 WorkerProxyFetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
-WorkerProxyFetchManager.prototype.open = function open(url) {
+WorkerProxyFetchManager.prototype.open = function open(dataCallback, url) {
     return this._workerHelper.callFunction('open', [url], { isReturnPromise: true });
 };
 
 WorkerProxyFetchManager.prototype.close = function close() {
     var self = this;
-    return this._workerHelper.callFunction('close', [], { isReturnPromise: true }).then(function() {
-        self._workerHelper.terminate();
-    });
+    return this._workerHelper
+        .callFunction('close', [], { isReturnPromise: true })
+        .then(function() {
+            self._workerHelper.terminate();
+        });
 };
 
-WorkerProxyFetchManager.prototype.createChannel = function createChannel(
-    createdCallback) {
+WorkerProxyFetchManager.prototype.on = function on(event, callback) {
+    var transferablePaths = this._options.transferablePathsOfDataCallback;
     
     var callbackWrapper = this._workerHelper.wrapCallback(
-        createdCallback,
-        'FetchManager_createChannelCallback');
-    
-    var args = [callbackWrapper];
-    this._workerHelper.callFunction('createChannel', args);
+        callback, event + '-callback', {
+            isMultipleTimeCallback: true,
+            pathsToTransferables: transferablePaths
+        }
+    );
+
+    this._fetcher.on(event, callbackWrapper);
+};
+
+WorkerProxyFetchManager.prototype.createChannel = function createChannel() {
+    return this._workerHelper.callFunction(
+        'createChannel', [], { isReturnPromise: true });
 };
 
 WorkerProxyFetchManager.prototype.moveChannel = function moveChannel(
@@ -58,27 +67,9 @@ WorkerProxyFetchManager.prototype.moveChannel = function moveChannel(
 WorkerProxyFetchManager.prototype.createRequest = function createRequest(
     fetchParams,
     callbackThis,
-    callback,
     terminatedCallback,
     isOnlyWaitForData,
     requestId) {
-    
-    //var pathToArrayInPacketsData = [0, 'data', 'buffer'];
-    //var pathToHeadersCodestream = [1, 'codestream', 'buffer'];
-    //var transferablePaths = [
-    //    pathToArrayInPacketsData,
-    //    pathToHeadersCodestream
-    //];
-    
-    var transferablePaths = this._options.transferablePathsOfRequestCallback;
-    
-    var internalCallbackWrapper =
-        this._workerHelper.wrapCallback(
-            callback.bind(callbackThis), 'requestTilesProgressiveCallback', {
-                isMultipleTimeCallback: true,
-                pathsToTransferables: transferablePaths
-            }
-        );
     
     var internalTerminatedCallbackWrapper =
         this._workerHelper.wrapCallback(
@@ -90,7 +81,6 @@ WorkerProxyFetchManager.prototype.createRequest = function createRequest(
     var args = [
         fetchParams,
         /*callbackThis=*/{ dummyThis: 'dummyThis' },
-        internalCallbackWrapper,
         internalTerminatedCallbackWrapper,
         isOnlyWaitForData,
         requestId];
@@ -100,7 +90,6 @@ WorkerProxyFetchManager.prototype.createRequest = function createRequest(
     this._workerHelper.callFunction('createRequest', args);
     
     function internalTerminatedCallback(isAborted) {
-        self._workerHelper.freeCallback(internalCallbackWrapper);
         terminatedCallback.call(callbackThis, isAborted);
     }
 };

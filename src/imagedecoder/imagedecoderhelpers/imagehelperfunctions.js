@@ -7,9 +7,6 @@ module.exports = {
     createScheduler: createScheduler,
     fixBounds: fixBounds,
     alignParamsToTilesAndLevel: alignParamsToTilesAndLevel,
-    getImageImplementation: getImageImplementation,
-    getScriptsForWorkerImport: getScriptsForWorkerImport,
-    createInternalOptions: createInternalOptions
 };
 
 // Avoid jshint error
@@ -17,10 +14,6 @@ module.exports = {
 /* global globals: false */
     
 //var log2 = Math.log(2);
-
-var imageDecoderFrameworkScript = new AsyncProxy.ScriptsToImportPool();
-imageDecoderFrameworkScript.addScriptFromErrorWithStackTrace(new Error());
-var scriptsForWorkerToImport = imageDecoderFrameworkScript.getScriptsForWorkerImport();
 
 function calculateFrustum2DFromBounds(
     bounds, screenSize) {
@@ -105,9 +98,7 @@ function fixBounds(bounds, image, adaptProportions) {
     var rectangleWidth = bounds.east - bounds.west;
     var rectangleHeight = bounds.north - bounds.south;
 
-    var level = image.getImageLevel();
-    var pixelsAspectRatio =
-        image.getLevelWidth(level) / image.getLevelHeight(level);
+    var pixelsAspectRatio = image.getImageWidth() / image.getImageHeight();
     var rectangleAspectRatio = rectangleWidth / rectangleHeight;
     
     if (pixelsAspectRatio < rectangleAspectRatio) {
@@ -128,9 +119,8 @@ function fixBounds(bounds, image, adaptProportions) {
 }
 
 function alignParamsToTilesAndLevel(
-    region, imageDecoder) {
+    region, imageDecoder, levelCalculator) {
     
-    var sizesCalculator = imageDecoder._getSizesCalculator();
     var tileWidth = imageDecoder.getTileWidth();
     var tileHeight = imageDecoder.getTileHeight();
     
@@ -146,9 +136,8 @@ function alignParamsToTilesAndLevel(
         throw 'Parameters order is invalid';
     }
     
-    var imageLevel = sizesCalculator.getImageLevel();
-    var defaultLevelWidth = sizesCalculator.getLevelWidth(imageLevel);
-    var defaultLevelHeight = sizesCalculator.getLevelHeight(imageLevel);
+    var defaultLevelWidth = imageDecoder.getImageWidth();
+    var defaultLevelHeight = imageDecoder.getImageHeight();
     if (regionMaxX < 0 || regionMinX >= defaultLevelWidth ||
         regionMaxY < 0 || regionMinY >= defaultLevelHeight) {
         
@@ -156,15 +145,15 @@ function alignParamsToTilesAndLevel(
     }
     
     //var maxLevel =
-    //    sizesCalculator.getDefaultNumResolutionLevels() - 1;
+    //    imageDecoder.getDefaultNumResolutionLevels() - 1;
 
     //var levelX = Math.log((regionMaxX - regionMinX) / screenWidth ) / log2;
     //var levelY = Math.log((regionMaxY - regionMinY) / screenHeight) / log2;
     //var level = Math.ceil(Math.min(levelX, levelY));
     //level = Math.max(0, Math.min(maxLevel, level));
-    var level = sizesCalculator.getLevel(region);
-    var levelWidth = sizesCalculator.getLevelWidth(level);
-    var levelHeight = sizesCalculator.getLevelHeight(level);
+    var level = levelCalculator.getLevel(region);
+    var levelWidth = levelCalculator.getLevelWidth(level);
+    var levelHeight = levelCalculator.getLevelHeight(level);
     
     var scaleX = defaultLevelWidth / levelWidth;
     var scaleY = defaultLevelHeight / levelHeight;
@@ -192,6 +181,8 @@ function alignParamsToTilesAndLevel(
         minY: croppedMinY,
         maxXExclusive: croppedMaxX,
         maxYExclusive: croppedMaxY,
+        levelWidth: levelWidth,
+        levelHeight: levelHeight,
         level: level
     };
     
@@ -216,30 +207,6 @@ function alignParamsToTilesAndLevel(
     };
 }
 
-function getImageImplementation(imageImplementationClassName) {
-    var result;
-    try {
-        result = getClassInGlobalObject(window, imageImplementationClassName);
-        if (result) {
-            return result;
-        }
-    } catch(e) { }
-
-    try {
-        result = getClassInGlobalObject(globals, imageImplementationClassName);
-        if (result) {
-            return result;
-        }
-    } catch(e) { }
-
-    try {
-        result = getClassInGlobalObject(self, imageImplementationClassName);
-        if (result) {
-            return result;
-        }
-    } catch(e) { }
-}
-
 function getClassInGlobalObject(globalObject, className) {
     if (globalObject[className]) {
         return globalObject[className];
@@ -252,27 +219,4 @@ function getClassInGlobalObject(globalObject, className) {
     }
     
     return result;
-}
-
-function getScriptsForWorkerImport(imageImplementation, options) {
-    return scriptsForWorkerToImport.concat(
-        imageImplementation.getScriptsToImport());
-}
-
-function createInternalOptions(imageImplementationClassName, options) {
-    options = options || {};
-    
-    if (options.imageImplementationClassName &&
-        options.scriptsToImport) {
-            
-        return options;
-    }
-    
-    var imageImplementation = getImageImplementation(imageImplementationClassName);
-    
-    var optionsInternal = JSON.parse(JSON.stringify(options));
-    optionsInternal.imageImplementationClassName = options.imageImplementationClassName || imageImplementationClassName;
-    optionsInternal.scriptsToImport = options.scriptsToImport || getScriptsForWorkerImport(imageImplementation, options);
-    
-    return optionsInternal;
 }

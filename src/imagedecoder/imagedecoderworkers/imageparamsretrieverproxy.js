@@ -2,76 +2,75 @@
 
 module.exports = ImageParamsRetrieverProxy;
 
-var imageHelperFunctions = require('imagehelperfunctions.js');
-
-function ImageParamsRetrieverProxy(imageImplementationClassName) {
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(imageImplementationClassName);
+function ImageParamsRetrieverProxy() {
     this._sizesParams = null;
-    this._sizesCalculator = null;
 }
 
 ImageParamsRetrieverProxy.prototype.getImageLevel = function getImageLevel() {
-    this._validateSizesCalculator();
-    var level = this._sizesCalculator.getImageLevel();
+    var sizesParams = this._getSizesParams();
 
-    return level;
+    return sizesParams.imageLevel;
+};
+
+ImageParamsRetrieverProxy.prototype.getImageWidth = function getImageWidth() {
+    var sizesParams = this._getSizesParams();
+
+    return sizesParams.imageWidth;
+};
+
+ImageParamsRetrieverProxy.prototype.getImageHeight = function getImageHeight() {
+    var sizesParams = this._getSizesParams();
+
+    return sizesParams.imageHeight;
 };
 
 ImageParamsRetrieverProxy.prototype.getNumResolutionLevelsForLimittedViewer = function getNumResolutionLevelsForLimittedViewer() {
-    this._validateSizesCalculator();
-    var levels = this._sizesCalculator.getNumResolutionLevelsForLimittedViewer();
+    var sizesParams = this._getSizesParams();
 
-    return levels;
-};
-
-ImageParamsRetrieverProxy.prototype.getLevelWidth = function getLevelWidth(level) {
-    this._validateSizesCalculator();
-    var width = this._sizesCalculator.getLevelWidth(
-        level);
-
-    return width;
-};
-
-ImageParamsRetrieverProxy.prototype.getLevelHeight = function getLevelHeight(level) {
-    this._validateSizesCalculator();
-    var height = this._sizesCalculator.getLevelHeight(
-        level);
-
-    return height;
-};
-
-ImageParamsRetrieverProxy.prototype.getLevel = function getLevel(regionLevel0) {
-    this._validateSizesCalculator();
-    var level = this._sizesCalculator.getLevel(regionLevel0);
-    
-    return level;
+    return sizesParams.numResolutionLevelsForLimittedViewer;
 };
 
 ImageParamsRetrieverProxy.prototype.getLowestQuality = function getLowestQuality() {
-    this._validateSizesCalculator();
-    var quality = this._sizesCalculator.getLowestQuality();
-    
-    return quality;
+    var sizesParams = this._getSizesParams();
+
+    return sizesParams.lowestQuality;
 };
 
 ImageParamsRetrieverProxy.prototype.getHighestQuality = function getHighestQuality() {
-    this._validateSizesCalculator();
-    var quality = this._sizesCalculator.getHighestQuality();
+    var sizesParams = this._getSizesParams();
 
-    return quality;
-};
-
-ImageParamsRetrieverProxy.prototype._getSizesCalculator = function getSizesCalculator() {
-    this._validateSizesCalculator(this);
-    
-    return this._sizesCalculator;
+    return sizesParams.highestQuality;
 };
 
 ImageParamsRetrieverProxy.prototype._getSizesParams = function getSizesParams() {
     if (!this._sizesParams) {
         this._sizesParams = this._getSizesParamsInternal();
         if (!this._sizesParams) {
-            throw 'getSizesParams() return falsy value; Maybe image not ready yet?';
+            throw 'getSizesParamsInternal() returned falsy value; Maybe image not ready yet?';
+        }
+        
+        if (this._sizesParams.imageLevel === undefined) {
+            throw 'getSizesParamsInternal() result has no imageLevel property';
+        }
+        
+        if (this._sizesParams.imageWidth === undefined) {
+            throw 'getSizesParamsInternal() result has no imageWidth property';
+        }
+        
+        if (this._sizesParams.imageHeight === undefined) {
+            throw 'getSizesParamsInternal() result has no imageHeight property';
+        }
+        
+        if (this._sizesParams.numResolutionLevelsForLimittedViewer === undefined) {
+            throw 'getSizesParamsInternal() result has no numResolutionLevelsForLimittedViewer property';
+        }
+        
+        if (this._sizesParams.lowestQuality === undefined) {
+            throw 'getSizesParamsInternal() result has no lowestQuality property';
+        }
+        
+        if (this._sizesParams.highestQuality === undefined) {
+            throw 'getSizesParamsInternal() result has no highestQuality property';
         }
     }
     
@@ -79,15 +78,5 @@ ImageParamsRetrieverProxy.prototype._getSizesParams = function getSizesParams() 
 };
 
 ImageParamsRetrieverProxy.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
-    throw 'ImageParamsRetrieverProxy implemented did not implement _getSizesParamsInternal()';
+    throw 'ImageParamsRetrieverProxy inheritor did not implement _getSizesParamsInternal()';
 };
-
-ImageParamsRetrieverProxy.prototype._validateSizesCalculator = function validateSizesCalculator() {
-    if (this._sizesCalculator !== null) {
-        return;
-    }
-    
-    var sizesParams = this._getSizesParams();
-    this._sizesCalculator = this._imageImplementation.createImageParamsRetriever(
-        sizesParams);
-}

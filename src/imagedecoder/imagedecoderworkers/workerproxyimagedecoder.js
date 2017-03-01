@@ -8,13 +8,12 @@ var createImageDecoderSlaveSide = require('createimagedecoderonslaveside.js');
 var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
 
 function WorkerProxyImageDecoder(imageImplementationClassName, options) {
-    ImageParamsRetrieverProxy.call(this, imageImplementationClassName);
+    ImageParamsRetrieverProxy.call(this);
 
     this._imageWidth = null;
     this._imageHeight = null;
     this._tileWidth = 0;
     this._tileHeight = 0;
-    this._sizesCalculator = null;
     
     var optionsInternal = imageHelperFunctions.createInternalOptions(imageImplementationClassName, options);
     var ctorArgs = [imageImplementationClassName, optionsInternal];
@@ -35,12 +34,12 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
 WorkerProxyImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
 WorkerProxyImageDecoder.prototype.getTileWidth = function getTileWidth() {
-    this._validateSizesCalculator();
+    this._getSizesParams();
     return this._tileWidth;
 };
 
 WorkerProxyImageDecoder.prototype.getTileHeight = function getTileHeight() {
-    this._validateSizesCalculator();
+    this._getSizesParams();
     return this._tileHeight;
 };
 
@@ -57,14 +56,9 @@ WorkerProxyImageDecoder.prototype.close = function close() {
     return this._workerHelper.callFunction('close', [], { isReturnPromise: true });
 };
 
-WorkerProxyImageDecoder.prototype.createChannel = function createChannel(
-    createdCallback) {
-    
-    var callbackWrapper = this._workerHelper.wrapCallback(
-        createdCallback, 'ImageDecoder_createChannelCallback');
-    
-    var args = [callbackWrapper];
-    this._workerHelper.callFunction('createChannel', args);
+WorkerProxyImageDecoder.prototype.createChannel = function createChannel() {
+    this._workerHelper.callFunction(
+        'createChannel', [], { isReturnPromise: true });
 };
 
 WorkerProxyImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
@@ -157,7 +151,7 @@ WorkerProxyImageDecoder.prototype._imageOpened = function imageOpened(data) {
     this._internalSizesParams = data.sizesParams;
     this._tileWidth = data.applicativeTileWidth;
     this._tileHeight = data.applicativeTileHeight;
-    this._validateSizesCalculator();
+    this._getSizesParams();
 };
 
 WorkerProxyImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {

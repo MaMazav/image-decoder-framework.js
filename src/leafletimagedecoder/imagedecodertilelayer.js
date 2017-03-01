@@ -129,11 +129,13 @@ var ImageDecoderOverviewTileLayer = L.Class.extend({
         this._image = imageDecoder;
         
         var overviewLevel = this._image.getDefaultNumResolutionLevels() - 1;
+        var levelWidth  = this._image.getLevelWidth (overviewLevel);
+        var levelHeight = this._image.getLevelHeight(overviewLevel);
         this._overviewParams = {
             minX: 0,
             minY: 0,
-            maxXExclusive: this._image.getLevelWidth(overviewLevel),
-            maxYExclusive: this._image.getLevelHeight(overviewLevel),
+            maxXExclusive: levelWidth,
+            maxYExclusive: levelHeight,
             level: overviewLevel,
             maxNumQualityLayers: 1,
             requestPriorityData: { overrideHighestPriority: true }
@@ -291,8 +293,10 @@ var ImageDecoderInternalTileLayer = L.TileLayer.Canvas.extend({
         var minY = tilePoint.y * this._tileSize;
         var level = this._maxZoom - zoom;
         
-        if (minX >= this._image.getLevelWidth(level) ||
-            minY >= this._image.getLevelHeight(level)) {
+        var levelWidth  = this._image.getLevelWidth (level);
+        var levelHeight = this._image.getLevelHeight(level);
+        
+        if (minX >= levelWidth || minY >= levelHeight) {
             
             this.tileDrawn(canvas);
             return;
@@ -304,6 +308,8 @@ var ImageDecoderInternalTileLayer = L.TileLayer.Canvas.extend({
             maxXExclusive: minX + this._tileSize,
             maxYExclusive: minY + this._tileSize,
             maxNumResolutionLevels: level,
+            levelWidth: levelWidth,
+            levelHeight: levelHeight,
             maxNumQualityLayers: this._maxNumQualityLayers,
             requestPriorityData: {}
         };

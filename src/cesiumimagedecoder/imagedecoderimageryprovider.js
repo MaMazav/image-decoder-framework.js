@@ -32,7 +32,7 @@ var imageHelperFunctions = require('imagehelperfunctions.js');
  * @see TileMapServiceImageryProvider
  * @see WebMapServiceImageryProvider
  */
-function ImageDecoderImageryProvider(imageImplementationClassName, options) {
+function ImageDecoderImageryProvider(image, options) {
     var url = options.url;
     this._adaptProportions = options.adaptProportions;
     this._rectangle = options.rectangle;
@@ -86,11 +86,20 @@ function ImageDecoderImageryProvider(imageImplementationClassName, options) {
         // NOTE: Is that the correct logic?
         imageUrl = this._proxy.getURL(imageUrl);
     }
-        
+    
+    this._image = image;
+
+    this._levelCalculator = null;
+    this._factory = image.getFactory();
+    if (!this._factory.getLevelCalculator) {
+        throw 'ImageDecoder.getLevelCalculator() is not implemented by factory ctor argument!';
+    }
+
+    /*
     this._image = new WorkerProxyImageDecoder(imageImplementationClassName, {
         serverRequestPrioritizer: 'frustum',
         decodePrioritizer: 'frustum'
-    });
+    });*/
 
     this._url = imageUrl;
 }
@@ -406,18 +415,20 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
     var maxXExclusive = (x + 1) * this._tileWidth  * levelFactor;
     var maxYExclusive = (y + 1) * this._tileHeight * levelFactor;
     
+    var level = alignedParams.imagePartParams.level;
+    var levelWidth  = this._levelCalculator.getLevelWidth(level);
+    var levelHeight = this._levelCalculator.getLevelHeight(level);
+    
     var alignedParams = imageHelperFunctions.alignParamsToTilesAndLevel({
         minX: minX,
         minY: minY,
         maxXExclusive: maxXExclusive,
         maxYExclusive: maxYExclusive,
+        levelWidth: levelWidth,
+        levelHeight: levelHeight,
         screenWidth: this._tileWidth,
         screenHeight: this._tileHeight
-    }, this._image);
-    
-    var level = alignedParams.imagePartParams.level;
-    var levelWidth = this._image.getLevelWidth(level);
-    var levelHeight = this._image.getLevelHeight(level);
+    }, this._image, this._levelCalculator);
     
     var scaledCanvas = document.createElement('canvas');
     scaledCanvas.width = this._tileWidth;
@@ -535,6 +546,9 @@ ImageDecoderImageryProvider.prototype._opened = function opened() {
     
     this._ready = true;
     
+    var imageParams = this._image._getSizesParams();
+    this._levelCalculator = this._factory.getLevelCalculator(imageParams);
+
     // This is wrong if COD or COC exists besides main header COD
     this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
     this._quality = this._image.getHighestQuality();
@@ -544,8 +558,8 @@ ImageDecoderImageryProvider.prototype._opened = function opened() {
     this._tileHeight = this._image.getTileHeight();
         
     var bestLevel = this._image.getImageLevel();
-    var bestLevelWidth  = this._image.getLevelWidth (bestLevel);
-    var bestLevelHeight = this._image.getLevelHeight(bestLevel);
+    var bestLevelWidth  = this._image.getImageWidth ();
+    var bestLevelHeight = this._image.getImageHeight();
     
     var lowestLevelTilesX = Math.ceil(bestLevelWidth  / this._tileWidth ) >> maximumCesiumLevel;
     var lowestLevelTilesY = Math.ceil(bestLevelHeight / this._tileHeight) >> maximumCesiumLevel;

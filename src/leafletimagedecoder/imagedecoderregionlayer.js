@@ -32,29 +32,29 @@ function createImageDecoderRegionLayerFunctions() {
             this._targetCanvas = null;
             this._canvasPosition = null;
             this._canvasUpdatedCallbackBound = this._canvasUpdatedCallback.bind(this);
-            this._image = null;
+            this._viewerImageDecoder = null;
             this._exceptionCallback = null;
         },
         
         setExceptionCallback: function setExceptionCallback(exceptionCallback) {
             this._exceptionCallback = exceptionCallback;
-            if (this._image !== null) {
-                this._image.setExceptionCallback(exceptionCallback);
+            if (this._viewerImageDecoder !== null) {
+                this._viewerImageDecoder.setExceptionCallback(exceptionCallback);
             }
         },
         
         _createImage: function createImage() {
-            if (this._image === null) {
-                this._image = new ViewerImageDecoder(
+            if (this._viewerImageDecoder === null) {
+                this._viewerImageDecoder = new ViewerImageDecoder(
                     this._options.imageImplementationClassName,
                     this._canvasUpdatedCallbackBound,
                     this._options);
                 
                 if (this._exceptionCallback !== null) {
-                    this._image.setExceptionCallback(this._exceptionCallback);
+                    this._viewerImageDecoder.setExceptionCallback(this._exceptionCallback);
                 }
                 
-                this._image.open(this._options.url).catch(this._exceptionCallback);
+                this._viewerImageDecoder.open(this._options.url).catch(this._exceptionCallback);
             }
         },
 
@@ -70,7 +70,7 @@ function createImageDecoderRegionLayerFunctions() {
             this._targetCanvas = L.DomUtil.create(
                 'canvas', 'image-decoder-layer-canvas leaflet-zoom-animated');
             
-            this._image.setTargetCanvas(this._targetCanvas);
+            this._viewerImageDecoder.setTargetCanvas(this._targetCanvas);
             
             this._canvasPosition = null;
                 
@@ -103,8 +103,8 @@ function createImageDecoderRegionLayerFunctions() {
 
             this._map = undefined;
             
-            this._image.close();
-            this._image = null;
+            this._viewerImageDecoder.close();
+            this._viewerImageDecoder = null;
         },
         
         _moved: function () {
@@ -112,7 +112,7 @@ function createImageDecoderRegionLayerFunctions() {
 
             var frustumData = calculateLeafletFrustum(this._map);
             
-            this._image.updateViewArea(frustumData);
+            this._viewerImageDecoder.updateViewArea(frustumData);
         },
         
         _canvasUpdatedCallback: function canvasUpdatedCallback(newPosition) {

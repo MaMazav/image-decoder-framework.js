@@ -12,8 +12,7 @@ var PENDING_CALL_TYPE_REPOSITION = 2;
 var REGION_OVERVIEW = 0;
 var REGION_DYNAMIC = 1;
 
-function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback, options) {
-    this._imageImplementationClassName = imageImplementationClassName;
+function ViewerImageDecoder(decoder, canvasUpdatedCallback, options) {
     this._canvasUpdatedCallback = canvasUpdatedCallback;
     
     this._adaptProportions = options.adaptProportions;
@@ -26,7 +25,6 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
         options.minFunctionCallIntervalMilliseconds;
     this._overviewResolutionX = options.overviewResolutionX || 100;
     this._overviewResolutionY = options.overviewResolutionY || 100;
-    this._workersLimit = options.workersLimit;
         
     this._lastRequestIndex = 0;
     this._pendingUpdateViewArea = null;
@@ -53,15 +51,22 @@ function ViewerImageDecoder(imageImplementationClassName, canvasUpdatedCallback,
         this._adaptProportions = true;
     }
     
+    this._decoder = decoder;
+    /*
     var ImageType = this._isMainImageOnUi ?
         ImageDecoder: WorkerProxyImageDecoder;
-        
+
     this._image = new ImageType(imageImplementationClassName, {
         serverRequestPrioritizer: 'frustumOnly',
-        decodePrioritizer: 'frustumOnly',
-        showLog: this._showLog,
-        workersLimit: this._workersLimit
-        });
+        // TODO decodePrioritizer: 'frustumOnly',
+        showLog: this._showLog
+    });
+    */
+    
+    this._image = decoder.getImage();
+    if (!this._image.getLevelCalculator) {
+        throw 'Image.getLevelCalculator() is not implemented by image ctor argument!';
+    }
 }
 
 ViewerImageDecoder.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
@@ -70,13 +75,13 @@ ViewerImageDecoder.prototype.setExceptionCallback = function setExceptionCallbac
 };
     
 ViewerImageDecoder.prototype.open = function open(url) {
-    return this._image.open(url)
+    return this._decoder.open(url)
         .then(this._opened.bind(this))
         .catch(this._exceptionCallback);
 };
 
 ViewerImageDecoder.prototype.close = function close() {
-    var promise = this._image.close();
+    var promise = this._decoder.close();
     promise.catch(this._exceptionCallback);
     this._isReady = false;
     this._canShowDynamicRegion = false;
@@ -113,7 +118,7 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
     
     var alignedParams =
         imageHelperFunctions.alignParamsToTilesAndLevel(
-            regionParams, this._image);
+            regionParams, this._decoder, this._levelCalculator);
     
     var isOutsideScreen = alignedParams === null;
     if (isOutsideScreen) {
@@ -136,8 +141,8 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
     frustumData.exactlevel =
         alignedParams.imagePartParams.level;
     
-    this._image.setDecodePrioritizerData(frustumData);
-    this._image.setServerRequestPrioritizerData(frustumData);
+    this._decoder.setDecodePrioritizerData(frustumData);
+    this._decoder.setServerRequestPrioritizerData(frustumData);
 
     this._dynamicFetchParams = alignedParams;
     
@@ -228,7 +233,7 @@ ViewerImageDecoder.prototype._fetch = function fetch(
     
     var channelHandle = moveExistingChannel ? this._channelHandle: undefined;
 
-    this._image.requestPixelsProgressive(
+    this._decoder.requestPixelsProgressive(
         fetchParams.imagePartParams,
         callback,
         terminatedCallback,
@@ -251,7 +256,7 @@ ViewerImageDecoder.prototype._fetch = function fetch(
             // Then Chrome raises ERR_INVALID_CHUNKED_ENCODING and the request
             // never returns. Thus perform second request.
             
-            self._image.requestPixelsProgressive(
+            self._decoder.requestPixelsProgressive(
                 fetchParams.imagePartParams,
                 callback,
                 terminatedCallback,
@@ -286,8 +291,7 @@ ViewerImageDecoder.prototype._fetchTerminatedCallback = function fetchTerminated
 	}
     
     if (startDynamicRegionOnTermination) {
-        this._image.createChannel(
-            this._createdChannelBound);
+        this._decoder.createChannel().then(this._createdChannelBound);
     }
 };
 
@@ -376,8 +380,8 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
     var scaleX;
     var scaleY;
     if (oldPartParams !== undefined) {
-        scaleX = this._image.getLevelWidth (level) / this._image.getLevelWidth (oldPartParams.level);
-        scaleY = this._image.getLevelHeight(level) / this._image.getLevelHeight(oldPartParams.level);
+        scaleX = newPartParams.levelWidth  / oldPartParams.levelWidth;
+        scaleY = newPartParams.levelHeight / oldPartParams.levelHeight;
         
         intersection = {
             minX: Math.max(oldPartParams.minX * scaleX, newPartParams.minX),
@@ -589,6 +593,9 @@ ViewerImageDecoder.prototype._copyOverviewToCanvas = function copyOverviewToCanv
 ViewerImageDecoder.prototype._opened = function opened() {
     this._isReady = true;
     
+    var imageParams = this._image._getSizesParams();
+    this._levelCalculator = this._image.getLevelCalculator(imageParams);
+
     var fixedBounds = {
         west: this._cartographicBounds.west,
         east: this._cartographicBounds.east,
@@ -596,13 +603,12 @@ ViewerImageDecoder.prototype._opened = function opened() {
         north: this._cartographicBounds.north
     };
     imageHelperFunctions.fixBounds(
-        fixedBounds, this._image, this._adaptProportions);
+        fixedBounds, this._decoder, this._adaptProportions);
     this._cartographicBoundsFixed = fixedBounds;
     
-    var level = this._image.getImageLevel();
-    var imageWidth = this._image.getLevelWidth(level);
-    var imageHeight = this._image.getLevelHeight(level);
-    this._quality = this._image.getHighestQuality();
+    var imageWidth  = this._decoder.getImageWidth ();
+    var imageHeight = this._decoder.getImageHeight();
+    this._quality = this._decoder.getHighestQuality();
 
     var rectangleWidth = fixedBounds.east - fixedBounds.west;
     var rectangleHeight = fixedBounds.north - fixedBounds.south;
@@ -623,13 +629,13 @@ ViewerImageDecoder.prototype._opened = function opened() {
     
     var overviewAlignedParams =
         imageHelperFunctions.alignParamsToTilesAndLevel(
-            overviewParams, this._image);
+            overviewParams, this._decoder, this._levelCalculator);
             
     overviewAlignedParams.imagePartParams.requestPriorityData =
         overviewAlignedParams.imagePartParams.requestPriorityData || {};
     
     overviewAlignedParams.imagePartParams.requestPriorityData.overrideHighestPriority = true;
-    overviewAlignedParams.imagePartParams.quality = this._image.getLowestQuality();
+    overviewAlignedParams.imagePartParams.quality = this._decoder.getLowestQuality();
     
     var startDynamicRegionOnTermination =
         !this._allowMultipleChannelsInSession;

@@ -5,15 +5,17 @@ module.exports = FetchManager;
 var imageHelperFunctions = require('imagehelperfunctions.js');
 var FetchJob = require('fetchjob.js');
 var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
+var LinkedList = require('linkedlist.js');
 
 /* global console: false */
+/* global Promise: false */
 
-function FetchManager(options) {
-    ImageParamsRetrieverProxy.call(this, options.imageImplementationClassName);
+function FetchManager(fetcher, options) {
+    ImageParamsRetrieverProxy.call(this);
 
     var serverRequestsLimit = options.serverRequestsLimit || 5;
     
-    this._fetcher = null;
+    this._fetcher = fetcher;
     this._internalSizesParams = null;
     this._showLog = options.showLog;
     
@@ -35,12 +37,13 @@ function FetchManager(options) {
     this._channelHandleCounter = 0;
     this._channelHandles = [];
     this._requestById = [];
+    this._scheduledJobsList = new LinkedList();
 }
 
 FetchManager.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
 FetchManager.prototype.open = function open(url) {
-    var promise = this._imageImplementation.createFetcher(url, {isReturnPromise: true});
+    var promise = this._fetcher.open(url);
     var self = this;
     return promise.then(function(result) {
         self._fetcher = result.fetcher;
@@ -49,8 +52,12 @@ FetchManager.prototype.open = function open(url) {
     });
 };
 
+FetchManager.prototype.on = function on(event, callback) {
+    this._fetcher.on(event, callback);
+};
+
 FetchManager.prototype.close = function close() {
-    return this._fetcher.close({isReturnPromise: true});
+    return this._fetcher.close();
 };
 
 FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
@@ -69,17 +76,18 @@ FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveReques
     fetchJob.setIsProgressive(isProgressive);
 };
 
-FetchManager.prototype.createChannel = function createChannel(
-    createdCallback) {
-    
-    var channelHandle = ++this._channelHandleCounter;
-    this._channelHandles[channelHandle] = new FetchJob(
-        this._fetcher,
-        this._scheduler,
-        FetchJob.FETCH_TYPE_CHANNEL,
-        /*contextVars=*/null);
+FetchManager.prototype.createChannel = function createChannel() {
+    return new Promise(function(resolve, reject) {
+        var channelHandle = ++this._channelHandleCounter;
+        this._channelHandles[channelHandle] = new FetchJob(
+            this._fetcher,
+            this._scheduler,
+            this._scheduledJobsList,
+            FetchJob.FETCH_TYPE_CHANNEL,
+            /*contextVars=*/null);
 
-    createdCallback(channelHandle);
+        resolve(channelHandle);
+    });
 };
 
 FetchManager.prototype.moveChannel = function moveChannel(
@@ -92,7 +100,6 @@ FetchManager.prototype.moveChannel = function moveChannel(
 FetchManager.prototype.createRequest = function createRequest(
     fetchParams,
     callbackThis,
-    callback,
     terminatedCallback,
     isOnlyWaitForData,
     requestId) {
@@ -101,7 +108,6 @@ FetchManager.prototype.createRequest = function createRequest(
         progressiveStagesDone: 0,
         isLastCallbackCalledWithoutLowQualityLimit: false,
         callbackThis: callbackThis,
-        callback: callback,
         terminatedCallback: terminatedCallback,
         requestId: requestId,
         fetchJob: null,
@@ -112,7 +118,7 @@ FetchManager.prototype.createRequest = function createRequest(
         FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : FetchJob.FETCH_TYPE_REQUEST;
     
     var fetchJob = new FetchJob(
-        this._fetcher, this._scheduler, fetchType, contextVars);
+        this._fetcher, this._scheduler, this._scheduledJobsList, fetchType, contextVars);
     
     contextVars.fetchJob = fetchJob;
     
@@ -122,10 +128,11 @@ FetchManager.prototype.createRequest = function createRequest(
         this._requestById[requestId] = fetchJob;
     }
     
-    fetchJob.on('data', internalCallback);
     fetchJob.on('terminated', internalTerminatedCallback);
     
     fetchJob.fetch(fetchParams);
+    
+    this._yieldFetchJobs();
 };
 
 FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
@@ -152,65 +159,39 @@ FetchManager.prototype.reconnect = function reconnect() {
 
 FetchManager.prototype.setServerRequestPrioritizerData =
     function setServerRequestPrioritizerData(prioritizerData) {
-        if (this._serverRequestPrioritizer === null) {
-            throw 'No serverRequest prioritizer has been set';
-        }
-        
-        if (this._showLog) {
-            console.log('setServerRequestPrioritizerData(' + prioritizerData + ')');
-        }
-        
-        prioritizerData.image = this;
-        this._serverRequestPrioritizer.setPrioritizerData(prioritizerData);
-    };
+
+    if (this._serverRequestPrioritizer === null) {
+        throw 'No serverRequest prioritizer has been set';
+    }
+    
+    if (this._showLog) {
+        console.log('setServerRequestPrioritizerData(' + prioritizerData + ')');
+    }
+    
+    prioritizerData.image = this;
+    this._serverRequestPrioritizer.setPrioritizerData(prioritizerData);
+    this._yieldFetchJobs();
+};
 
 FetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
     return this._internalSizesParams;
 };
 
-function internalCallback(contextVars, imageDataContext) {
-    var isProgressive = contextVars.fetchJob.getIsProgressive();
-    var isLimitToLowQuality = 
-        contextVars.progressiveStagesDone === 0;
-    
-    // See comment at internalTerminatedCallback method
-    contextVars.isLastCallbackCalledWithoutLowQualityLimit |=
-        isProgressive && !isLimitToLowQuality;
-    
-    if (!isProgressive) {
-        return;
-    }
-    
-    var quality = isLimitToLowQuality ? contextVars.self.getLowestQuality() : undefined;
-    
-    ++contextVars.progressiveStagesDone;
-    
-    extractDataAndCallCallback(contextVars, imageDataContext, quality);
-}
-
-function internalTerminatedCallback(contextVars, imageDataContext, isAborted) {
-    if (!contextVars.isLastCallbackCalledWithoutLowQualityLimit && !isAborted) {
-        // This condition come to check if another decoding should be done.
-        // One situation it may happen is when the request is not
-        // progressive, then the decoding is done only on termination.
-        // Another situation is when only the first stage has been reached,
-        // thus the callback was called with only the first quality (for
-        // performance reasons). Thus another decoding should be done.
+FetchManager.prototype._yieldFetchJobs = function yieldFetchJobs() {
+    var iterator = this._scheduledJobsList.getFirstIterator();
+    while (iterator !== null) {
+        var fetchJob = this._scheduledJobsList.getValue(iterator);
+        iterator = this._scheduledJobsList.getNextIterator(iterator);
         
-        extractDataAndCallCallback(contextVars, imageDataContext);
+        fetchJob.checkIfShouldYield();
     }
-    
+};
+
+function internalTerminatedCallback(contextVars, isAborted) {
     contextVars.terminatedCallback.call(
         contextVars.callbackThis, isAborted);
     
     delete contextVars.self._requestById[contextVars.requestId];
-}
-
-function extractDataAndCallCallback(contextVars, imageDataContext, quality) {
-    var dataForDecode = imageDataContext.getFetchedData(quality);
-    
-    contextVars.callback.call(
-        contextVars.callbackThis, dataForDecode);
 }
 
 function createServerRequestDummyResource() {

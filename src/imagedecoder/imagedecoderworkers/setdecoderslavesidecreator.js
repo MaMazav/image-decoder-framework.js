@@ -6,7 +6,9 @@
 /* global self: false */
 /* global imageDecoderFramework: false */
 
-module.exports = WorkerProxyPixelsDecoder;
+module.exports.getScriptUrl = function getScriptUrl() {
+    return decoderSlaveScriptUrl;
+};
 
 var imageHelperFunctions = require('imagehelperfunctions.js');
 
@@ -15,37 +17,37 @@ var decoderSlaveScriptBlob = new Blob(
     { type: 'application/javascript' });
 var decoderSlaveScriptUrl = URL.createObjectURL(decoderSlaveScriptBlob);
 
-function WorkerProxyPixelsDecoder(options) {
-    this._options = options || {};
-    this._imageImplementation = imageHelperFunctions.getImageImplementation(
-        options.imageImplementationClassName);
-    
-    var scriptsToImport = (this._options.scriptsToImport || []).concat([decoderSlaveScriptUrl]);
-    var args = [this._options];
-    
-    this._workerHelper = new AsyncProxy.AsyncProxyMaster(
-        scriptsToImport,
-        'ArbitraryClassName',
-        args);
-}
+//function WorkerProxyPixelsDecoder(options) {
+//    this._options = options || {};
+//    this._imageImplementation = imageHelperFunctions.getImageImplementation(
+//        options.imageImplementationClassName);
+//    
+//    var scriptsToImport = (this._options.scriptsToImport || []).concat([decoderSlaveScriptUrl]);
+//    var args = [this._options];
+//    
+//    this._workerHelper = new AsyncProxy.AsyncProxyMaster(
+//        scriptsToImport,
+//        'ArbitraryClassName',
+//        args);
+//}
+//
+//WorkerProxyPixelsDecoder.prototype.decode = function decode(dataForDecode) {
+//    //var transferables = this._imageImplementation.getTransferableOfDecodeArguments(dataForDecode);
+//    var resultTransferables = [['data', 'buffer']];
+//    
+//    var args = [dataForDecode];
+//    var options = {
+//        //transferables: transferables,
+//        pathsToTransferablesInPromiseResult: resultTransferables,
+//        isReturnPromise: true
+//    };
+//    
+//    return this._workerHelper.callFunction('decode', args, options);
+//};
 
-WorkerProxyPixelsDecoder.prototype.decode = function decode(dataForDecode) {
-    //var transferables = this._imageImplementation.getTransferableOfDecodeArguments(dataForDecode);
-    var resultTransferables = [['data', 'buffer']];
-    
-    var args = [dataForDecode];
-    var options = {
-        //transferables: transferables,
-        pathsToTransferablesInPromiseResult: resultTransferables,
-        isReturnPromise: true
-    };
-    
-    return this._workerHelper.callFunction('decode', args, options);
-};
-
-WorkerProxyPixelsDecoder.prototype.terminate = function terminate() {
-    this._workerHelper.terminate();
-};
+//WorkerProxyPixelsDecoder.prototype.terminate = function terminate() {
+//    this._workerHelper.terminate();
+//};
 
 function decoderSlaveScriptBody() {
     'use strict';

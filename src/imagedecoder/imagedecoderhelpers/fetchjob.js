@@ -10,40 +10,29 @@ FetchJob.FETCH_STATUS_WAIT_FOR_FETCH_CALL = 1;
 FetchJob.FETCH_STATUS_REQUEST_WAIT_FOR_SCHEDULE = 2;
 FetchJob.FETCH_STATUS_ACTIVE = 3;
 FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD = 4;
-FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD_PENDING_NEW_DATA = 5;
 FetchJob.FETCH_STATUS_REQUEST_YIELDED = 6;
-FetchJob.FETCH_STATUS_REQUEST_YIELDED_PENDING_NEW_DATA = 7;
 FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_ABORT = 8;
 FetchJob.FETCH_STATUS_REQUEST_TERMINATED = 9;
 FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE = 10;
 
-function FetchJob(fetcher, scheduler, fetchType, contextVars) {
+function FetchJob(fetcher, scheduler, scheduledJobsList, fetchType, contextVars) {
     this._fetcher = fetcher;
     this._scheduler = scheduler;
+    this._scheduledJobsList = scheduledJobsList;
+    this._scheduledJobsListIterator = null;
     
-    this._dataListeners = [];
     this._terminatedListeners = [];
     
     this._imagePartParams = null;
-    this._progressiveStagesDone = 0;
     
     this._state = FetchJob.FETCH_STATUS_WAIT_FOR_FETCH_CALL;
-    /*
-    this._isAboutToYield = false;
-    this._isYielded = false;
-    this._isFailure = false;
-    this._isTerminated = false;
-    this._isManuallyAborted = false;
-    this._hasNewDataTillYield = false;
-	this._isChannelStartedFetch = false;
-    */
     this._isChannel = fetchType === FetchJob.FETCH_TYPE_CHANNEL;
     this._contextVars = contextVars;
     this._isOnlyWaitForData = fetchType === FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA;
     this._useScheduler = fetchType === FetchJob.FETCH_TYPE_REQUEST;
-    this._imageDataContext = null;
     this._resource = null;
-	this._fetchHandle = null;
+    this._fetchHandle = null;
+    this._fetchTerminatedBound = this._fetchTerminated.bind(this);
     //this._alreadyTerminatedWhenAllDataArrived = false;
     
     if (fetchType === FetchJob.FETCH_TYPE_CHANNEL) {
@@ -55,9 +44,6 @@ function FetchJob(fetcher, scheduler, fetchType, contextVars) {
 
 FetchJob.prototype.fetch = function fetch(imagePartParams) {
     if (this._isChannel) {
-		if (this._imageDataContext !== null) {
-			this._imageDataContext.dispose();
-		}
         this._imagePartParams = imagePartParams;
         this._startFetch();
         return;
@@ -102,13 +88,11 @@ FetchJob.prototype.manualAbortRequest = function manualAbortRequest() {
             }
             break;
         case FetchJob.FETCH_STATUS_WAIT_FOR_FETCH_CALL:
-            this._state= FetchJob.FETCH_STATUS_REQUEST_TERMINATED;
+            this._state = FetchJob.FETCH_STATUS_REQUEST_TERMINATED;
             return;
         case FetchJob.FETCH_STATUS_REQUEST_WAIT_FOR_SCHEDULE:
         case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD:
-        case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD_PENDING_NEW_DATA:
         case FetchJob.FETCH_STATUS_REQUEST_YIELDED:
-        case FetchJob.FETCH_STATUS_REQUEST_YIELDED_PENDING_NEW_DATA:
             this._state = FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_ABORT;
             break;
         default:
@@ -122,9 +106,6 @@ FetchJob.prototype.getContextVars = function getContextVars(requestId) {
 
 FetchJob.prototype.on = function on(event, listener) {
     switch (event) {
-        case 'data':
-            this._dataListeners.push(listener);
-            break;
         case 'terminated':
             this._terminatedListeners.push(listener);
             break;
@@ -135,9 +116,9 @@ FetchJob.prototype.on = function on(event, listener) {
 
 FetchJob.prototype.setIsProgressive = function setIsProgressive(isProgressive) {
     this._isProgressive = isProgressive;
-	if (this._imageDataContext !== null) {
-		this._imageDataContext.setIsProgressive(isProgressive);
-	}
+    if (this._fetchHandle !== null) {
+        this._fetchHandle.setIsProgressive(isProgressive);
+    }
 };
 
 FetchJob.prototype.getIsProgressive = function getIsProgressive() {
@@ -145,45 +126,22 @@ FetchJob.prototype.getIsProgressive = function getIsProgressive() {
 };
 
 FetchJob.prototype._startFetch = function startFetch() {
-    var imageDataContext = this._fetcher.createImageDataContext(
-        this._imagePartParams);
-    
     var prevState = this._state;
-    this._imageDataContext = imageDataContext;
-	this._imageDataContext.setIsProgressive(this._isProgressive);
     this._state = FetchJob.FETCH_STATUS_ACTIVE;
     
-    if (imageDataContext.isDone()) {
-        for (var i = 0; i < this._dataListeners.length; ++i) {
-            this._dataListeners[i].call(this, this._contextVars, imageDataContext);
-        }
-
-        this._fetchTerminated(/*isAborted=*/false);
-        //this._alreadyTerminatedWhenAllDataArrived = true;
-        
-        return;
+    if (this._isOnlyWaitForData) {
+        this._fetchHandle = this._extractAlreadyFetchedData();
+    } else if (!this._isChannel) {
+        this._fetchHandle = this._fetcher.fetch(this._imagePartParams);
+    } else if (prevState !== FetchJob.FETCH_STATUS_WAIT_FOR_FETCH_CALL) {
+        this._fetchHandle = this._fetcher.moveFetch(
+            this._imagePartParams, this._movableFetchState);
+    } else {
+        this._fetchHandle = this._fetcher.startMovableFetch(
+            this._imagePartParams, this._movableFetchState);
     }
-    
-    if (imageDataContext.hasData()) {
-        for (var j = 0; j < this._dataListeners.length; ++j) {
-            this._dataListeners[j].call(this, this._contextVars, imageDataContext);
-        }
-    }
-    
-    var self = this;
-    imageDataContext.on('data', function() {
-        self._dataCallback(imageDataContext);
-    });
-    
-    if (!this._isOnlyWaitForData) {
-		if (!this._isChannel) {
-			this._fetchHandle = this._fetcher.fetch(imageDataContext);
-		} else if (prevState !== FetchJob.FETCH_STATUS_WAIT_FOR_FETCH_CALL) {
-			this._fetcher.moveFetch(imageDataContext, this._movableFetchState);
-		} else {
-			this._fetcher.startMovableFetch(imageDataContext, this._movableFetchState);
-		}
-    }
+    this._fetchHandle.on('terminated', this._fetchTerminatedBound);
+    this._fetchHandle.setIsProgressive(this._isProgressive);
 };
 
 FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
@@ -192,7 +150,6 @@ FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
             break;
         case FetchJob.FETCH_STATUS_ACTIVE:
         case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD:
-        case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD_PENDING_NEW_DATA:
             if (isAborted) {
                 this._state = FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE;
                 throw 'Unexpected abort when fetch is active';
@@ -207,6 +164,7 @@ FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
             throw 'Unexpected request termination without resource allocated';
         }
 
+        this._scheduledJobsList.remove(this._scheduledJobsListIterator);
         this._scheduler.jobDone(this._resource, this);
 
         this._resource = null;
@@ -220,46 +178,20 @@ FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
         this._state = FetchJob.FETCH_STATUS_REQUEST_TERMINATED;
         
         for (var i = 0; i < this._terminatedListeners.length; ++i) {
-            this._terminatedListeners[i](
-                this._contextVars, this._imageDataContext, isAborted);
+            this._terminatedListeners[i](this._contextVars, isAborted);
         }
     }
     
-    if (this._imageDataContext !== null && this._state !== FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE) {
-        this._imageDataContext.dispose();
-        this._imageDataContext = null;
+    if (this._fetchHandle !== null &&
+        this._state !== FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE) {
+            
+        this._fetchHandle.dispose();
+        this._fetchHandle = null;
     }
 };
 
-FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
+FetchJob.prototype.checkIfShouldYield = function checkIfShouldYield() {
     try {
-        if (imageDataContext !== this._imageDataContext) {
-            throw 'Unexpected imageDataContext';
-        }
-
-        ++this._progressiveStagesDone;
-        
-        switch (this._state) {
-            case FetchJob.FETCH_STATUS_ACTIVE:
-                break;
-            case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD:
-                this._state = FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD_PENDING_NEW_DATA;
-                return;
-            case FetchJob.FETCH_STATUS_REQUEST_YIELDED:
-                this._state = FetchJob.FETCH_STATUS_REQUEST_YIELDED_PENDING_NEW_DATA;
-                return;
-            case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD_PENDING_NEW_DATA:
-            case FetchJob.FETCH_STATUS_REQUEST_YIELDED_PENDING_NEW_DATA:
-            case FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE:
-            case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_ABORT:
-                return;
-                
-            default:
-                throw 'Unexpected state in data callback: ' + this._state;
-        }
-        
-        this._hasNewData();
-        
         if (!this._useScheduler || this._state === FetchJob.FETCH_STATUS_REQUEST_TERMINATED) {
             return;
         }
@@ -288,9 +220,7 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
                 self._resource);
             
             if (!isYielded) {
-                if (self._state === FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD_PENDING_NEW_DATA) {
-                    self._hasNewData();
-                } else if (self._state !== FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD) {
+                if (self._state !== FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD) {
                     throw 'Unexpected state on tryYield() false: ' + self._state;
                 }
                 self._state = FetchJob.FETCH_STATUS_ACTIVE;
@@ -306,16 +236,6 @@ FetchJob.prototype._dataCallback = function dataCallback(imageDataContext) {
     }
 };
 
-FetchJob.prototype._hasNewData = function hasNewData() {
-    for (var i = 0; i < this._dataListeners.length; ++i) {
-        this._dataListeners[i].call(this, this._contextVars, this._imageDataContext);
-    }
-    
-    if (this._imageDataContext.isDone()) {
-        this._fetchTerminated(/*isAborted=*/false);
-    }
-};
-
 // Properties for FrustumRequesetPrioritizer
 
 Object.defineProperty(FetchJob.prototype, 'imagePartParams', {
@@ -324,14 +244,8 @@ Object.defineProperty(FetchJob.prototype, 'imagePartParams', {
     }
 });
 
-Object.defineProperty(FetchJob.prototype, 'progressiveStagesDone', {
-    get: function getProgressiveStagesDone() {
-        return this._progressiveStagesDone;
-    }
-});
-
 function startRequest(resource, self) {
-    if (self._imageDataContext !== null || self._resource !== null) {
+    if (self._fetchHandle !== null || self._resource !== null) {
         throw 'Unexpected restart of already started request';
     }
     
@@ -343,6 +257,10 @@ function startRequest(resource, self) {
     }
     
     self._resource = resource;
+
+    if (resource !== null) {
+        self._scheduledJobsListIterator = self._scheduledJobsList.add(self);
+    }
     
     self._startFetch();
 }
@@ -359,31 +277,26 @@ function continueYieldedRequest(resource, self) {
         return;
     }
     
-    if (self._state === FetchJob.FETCH_STATUS_REQUEST_YIELDED_PENDING_NEW_DATA) {
-        self._hasNewData();
-    } else if (self._state !== FetchJob.FETCH_STATUS_REQUEST_YIELDED) {
+    if (self._state !== FetchJob.FETCH_STATUS_REQUEST_YIELDED) {
         throw 'Unexpected request state on continue: ' + self._state;
     }
     
     self._state = FetchJob.FETCH_STATUS_ACTIVE;
     self._resource = resource;
     
+    self._scheduledJobsListIterator = self._scheduledJobsList.add(self);
     self._fetchHandle.resume();
 }
 
 function fetchYieldedByScheduler(self) {
     var nextState;
     self._resource = null;
-    switch (self._state) {
-        case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD_PENDING_NEW_DATA:
-            self._state = FetchJob.FETCH_STATUS_REQUEST_YIELDED_PENDING_NEW_DATA;
-            break;
-        case FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD:
-            self._state = FetchJob.FETCH_STATUS_REQUEST_YIELDED;
-            break;
-        default:
-            self._state = FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE;
-            throw 'Unexpected request state on yield process: ' + self._state;
+    self._scheduledJobsList.remove(self._scheduledJobsListIterator);
+    if (self.state === FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD) {
+        self._state = FetchJob.FETCH_STATUS_REQUEST_YIELDED;
+    } else {
+        self._state = FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE;
+        throw 'Unexpected request state on yield process: ' + self._state;
     }
 }
 

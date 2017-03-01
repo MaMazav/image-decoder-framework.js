@@ -24,14 +24,16 @@ var sources = [
     './src/imagedecoder/imagedecoderhelpers/fetchjob.js',
     './src/imagedecoder/imagedecoderhelpers/imageparamsretrieverproxy.js',
     './src/imagedecoder/imagedecoderworkers/sendimageparameterstomaster.js',
+    './src/imagedecoder/imagedecoderworkers/setdecoderslavesidecreator.js',
     './src/imagedecoder/imagedecoderworkers/workerproxyfetchmanager.js',
-    './src/imagedecoder/imagedecoderworkers/workerproxyimagedecoder.js',
     './src/imagedecoder/imagedecoderworkers/workerproxypixelsdecoder.js',
+    /*
     './src/simplefetcher/datapublisher.js',
     './src/simplefetcher/simpleimagedatacontext.js',
     './src/simplefetcher/simplenonprogressivefetchhandle.js',
     './src/simplefetcher/simplepixelsdecoderbase.js',
     './src/simplefetcher/simplefetcher.js',
+    //*/
     './src/imagedecoder/imagedecoder.js',
     './src/imagedecoder/viewerimagedecoder.js',
 
@@ -65,7 +67,7 @@ function build(isDebug) {
             './src/imagedecoder',
             './src/imagedecoder/imagedecoderhelpers',
             './src/imagedecoder/imagedecoderworkers',
-            './src/simplefetcher',
+            //'./src/simplefetcher',
             './src/cesiumimagedecoder',
             './src/leafletimagedecoder'
         ],
