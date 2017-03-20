@@ -27,6 +27,8 @@ var sources = [
     './src/imagedecoder/imagedecoderworkers/setdecoderslavesidecreator.js',
     './src/imagedecoder/imagedecoderworkers/workerproxyfetchmanager.js',
     './src/imagedecoder/imagedecoderworkers/workerproxypixelsdecoder.js',
+    './src/simplefetcher/promisefetcheradapter.js',
+    './src/simplefetcher/promisefetcheradapterfetchhandle.js',
     /*
     './src/simplefetcher/datapublisher.js',
     './src/simplefetcher/simpleimagedatacontext.js',
@@ -48,12 +50,10 @@ var sources = [
 ];
 
 var vendorsProd = [
-    './vendor/async-proxy.dev.js',
     './vendor/resource-scheduler.dev.js'
 ];
 
 var vendorsDebug = [
-    './vendor/async-proxy.dev.debug.js',
     './vendor/resource-scheduler.dev.debug.js'
 ];
 
@@ -67,7 +67,7 @@ function build(isDebug) {
             './src/imagedecoder',
             './src/imagedecoder/imagedecoderhelpers',
             './src/imagedecoder/imagedecoderworkers',
-            //'./src/simplefetcher',
+            './src/simplefetcher',
             './src/cesiumimagedecoder',
             './src/leafletimagedecoder'
         ],

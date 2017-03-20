@@ -5,9 +5,13 @@ module.exports = HashMap;
 var LinkedList = require('linkedlist.js');
 
 function HashMap(hasher) {
-    this._byKey = [];
     this._hasher = hasher;
+	this.clear();
 }
+
+HashMap.prototype.clear = function clear() {
+    this._byKey = [];
+};
 
 HashMap.prototype.getFromKey = function getFromKey(key) {
     var hashCode = this._hasher.getHashCode(key);

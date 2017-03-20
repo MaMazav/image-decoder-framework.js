@@ -34,12 +34,12 @@ function WorkerProxyImageDecoder(imageImplementationClassName, options) {
 WorkerProxyImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
 WorkerProxyImageDecoder.prototype.getTileWidth = function getTileWidth() {
-    this._getSizesParams();
+    this.getImageParams();
     return this._tileWidth;
 };
 
 WorkerProxyImageDecoder.prototype.getTileHeight = function getTileHeight() {
-    this._getSizesParams();
+    this.getImageParams();
     return this._tileHeight;
 };
 
@@ -151,9 +151,9 @@ WorkerProxyImageDecoder.prototype._imageOpened = function imageOpened(data) {
     this._internalSizesParams = data.sizesParams;
     this._tileWidth = data.applicativeTileWidth;
     this._tileHeight = data.applicativeTileHeight;
-    this._getSizesParams();
+    this.getImageParams();
 };
 
-WorkerProxyImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+WorkerProxyImageDecoder.prototype._getImageParamsInternal = function getImageParamsInternal() {
     return this._internalSizesParams;
 };

@@ -122,7 +122,7 @@ WorkerProxyFetchManager.prototype.reconnect = function reconnect() {
     this._workerHelper.callFunction('reconnect');
 };
 
-WorkerProxyFetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+WorkerProxyFetchManager.prototype._getImageParamsInternal = function getImageParamsInternal() {
     return this._internalSizesParams;
 };
 

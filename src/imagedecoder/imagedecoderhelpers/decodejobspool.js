@@ -89,7 +89,8 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                 singleTileImagePartParams);
 
             var taskHandle =
-                this._decodeDependencyWorkers.startTask(decodeJob);
+                this._decodeDependencyWorkers.startTask(
+                    singleTileImagePartParams, decodeJob);
             
             listenerHandle.unregisterHandles.push(taskHandle);
         }
@@ -105,7 +106,9 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     return listenerHandle;
 };
 
-DecodeJobsPool.prototype.unregisterForkedJobs = function unregisterForkedJobs(listenerHandle) {
+DecodeJobsPool.prototype.unregisterForkedJobs = function unregisterForkedJobs(
+    listenerHandle) {
+            
     if (listenerHandle.remainingDecodeJobs === 0) {
         // All jobs has already been terminated, no need to unregister
         return;

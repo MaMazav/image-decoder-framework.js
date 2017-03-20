@@ -20,7 +20,10 @@ function createImageDecoderRegionLayerFunctions() {
             this._options = options || {};
             
             if (this._options.latLngBounds !== undefined) {
-                this._options = JSON.parse(JSON.stringify(options));
+                this._options = {};
+                for (var member in options) {
+                    this._options[member] = options[member];
+                }
                 this._options.cartographicBounds = {
                     west: options.latLngBounds.getWest(),
                     east: options.latLngBounds.getEast(),
@@ -46,7 +49,7 @@ function createImageDecoderRegionLayerFunctions() {
         _createImage: function createImage() {
             if (this._viewerImageDecoder === null) {
                 this._viewerImageDecoder = new ViewerImageDecoder(
-                    this._options.imageImplementationClassName,
+                    this._options.imageDecoder,
                     this._canvasUpdatedCallbackBound,
                     this._options);
                 

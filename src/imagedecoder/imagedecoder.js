@@ -21,6 +21,11 @@ function ImageDecoder(image, options) {
     this._tileWidth = this._options.tileWidth || 256;
     this._tileHeight = this._options.tileHeight || 256;
     this._showLog = !!this._options.showLog;
+    this._fetchManager = null;
+    this._decodeDependencyWorkers = null;
+    this._requestsDecodeJobsPool = null;
+    this._channelsDecodeJobsPool = null;
+	this._fetchRequestId = 0;
     
     /*if (this._showLog) {
         // Old IE
@@ -65,17 +70,17 @@ ImageDecoder.prototype.getTileHeight = function getTileHeight() {
 ImageDecoder.prototype.setServerRequestPrioritizerData =
     function setServerRequestPrioritizerData(prioritizerData) {
 
-    this._validateComponents();
+    this._validateFetcher();
     
     // TODO
-    this._fetchManager.setServerRequestPrioritizerData(
-        prioritizerData);
+    //this._fetchManager.setServerRequestPrioritizerData(
+    //    prioritizerData);
 };
 
 ImageDecoder.prototype.setDecodePrioritizerData =
     function setDecodePrioritizerData(prioritizerData) {
 
-    this._validateComponents();
+    this._validateDecoder();
     
     // TODO
     if (!ImageDecoder.undefinedVar) { // Avoid unreachable warning
@@ -96,7 +101,7 @@ ImageDecoder.prototype.setDecodePrioritizerData =
 };
 
 ImageDecoder.prototype.open = function open(url) {
-    this._validateComponents();
+    this._validateFetcher();
     
     var self = this;
     var promise = this._fetchManager.open(url);
@@ -111,7 +116,8 @@ ImageDecoder.prototype.open = function open(url) {
 };
 
 ImageDecoder.prototype.close = function close() {
-    this._validateComponents();
+    this._validateFetcher();
+    this._validateDecoder();
     
     for (var i = 0; i < this._decoders.length; ++i) {
         this._decoders[i].terminate();
@@ -121,8 +127,8 @@ ImageDecoder.prototype.close = function close() {
 };
 
 ImageDecoder.prototype.createChannel = function createChannel() {
-    this._validateComponents();
-    this._getSizesParams();
+    this._validateFetcher();
+    this.getImageParams();
     
     var self = this;
     
@@ -136,8 +142,8 @@ ImageDecoder.prototype.createChannel = function createChannel() {
 };
 
 ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
-    this._validateComponents();
-    this._getSizesParams();
+    this._validateDecoder();
+    this.getImageParams();
     
     var resolve, reject;
     var accumulatedResult = {};
@@ -176,8 +182,8 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     imagePartParamsNotNeeded,
     channelHandle) {
     
-    this._validateComponents();
-    this._getSizesParams();
+    this._validateDecoder();
+    this.getImageParams();
     
     var channelState = null;
     var decodeJobsPool;
@@ -207,11 +213,13 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
         }
         channelState.decodeJobsListenerHandle = listenerHandle;
         this._fetchManager.moveChannel(channelHandle, imagePartParams);
-    }
+    } else {
+		this._fetchManager.createRequest(++this._fetchRequestId, imagePartParams);
+	}
 };
 
 ImageDecoder.prototype.reconnect = function reconnect() {
-    this._validateComponents();
+    this._validateFetcher();
     
     this._fetchManager.reconnect();
 };
@@ -222,8 +230,16 @@ ImageDecoder.prototype.getImage = function getImage() {
 
 // Internal Methods
 
-ImageDecoder.prototype._validateComponents = function validateComponents() {
-    this._fetchManager = this._image.getFetchManager();
+ImageDecoder.prototype._validateFetcher = function validateFetcher() {
+    if (this._fetchManager === null) {
+        this._fetchManager = this._image.getFetchManager();
+    }
+};
+
+ImageDecoder.prototype._validateDecoder = function validateComponents() {
+    if (this._decodeDependencyWorkers !== null) {
+        return;
+    }
     
     this._decodeDependencyWorkers = this._image.getDecoderWorkers();
     
@@ -238,7 +254,7 @@ ImageDecoder.prototype._validateComponents = function validateComponents() {
         this._tileHeight);
 };
 
-ImageDecoder.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+ImageDecoder.prototype._getImageParamsInternal = function getImageParamsInternal() {
     return this._internalSizesParams;
 };
 

@@ -13,6 +13,7 @@ var LinkedList = require('linkedlist.js');
 function FetchManager(fetcher, options) {
     ImageParamsRetrieverProxy.call(this);
 
+    options = options || {};
     var serverRequestsLimit = options.serverRequestsLimit || 5;
     
     this._fetcher = fetcher;
@@ -23,6 +24,28 @@ function FetchManager(fetcher, options) {
         // Old IE
         throw 'showLog is not supported on this browser';
     }
+	
+	if (!fetcher.on) {
+		throw 'ImageDecoderFramework error: Fetcher has no method on()';
+	}
+	if (!fetcher.open) {
+		throw 'ImageDecoderFramework error: Fetcher has no method open()';
+	}
+    if (!fetcher.close) {
+		throw 'ImageDecoderFramework error: Fetcher has no method close()';
+	}
+    if (!fetcher.reconnect) {
+		throw 'ImageDecoderFramework error: Fetcher has no method reconnect()';
+	}
+    if (!fetcher.fetch) {
+		throw 'ImageDecoderFramework error: Fetcher has no method fetch()';
+	}
+    if (!fetcher.moveFetch) {
+		throw 'ImageDecoderFramework error: Fetcher has no method moveFetch()';
+	}
+    if (!fetcher.startMovableFetch) {
+		throw 'ImageDecoderFramework error: Fetcher has no method startMovableFetch()';
+	}
     
     var serverRequestScheduler = imageHelperFunctions.createScheduler(
         options.showLog,
@@ -46,9 +69,8 @@ FetchManager.prototype.open = function open(url) {
     var promise = this._fetcher.open(url);
     var self = this;
     return promise.then(function(result) {
-        self._fetcher = result.fetcher;
-        self._internalSizesParams = result.sizesParams;
-        return result.sizesParams;
+        self._internalSizesParams = result;
+        return result;
     });
 };
 
@@ -77,12 +99,13 @@ FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveReques
 };
 
 FetchManager.prototype.createChannel = function createChannel() {
+	var self = this;
     return new Promise(function(resolve, reject) {
-        var channelHandle = ++this._channelHandleCounter;
-        this._channelHandles[channelHandle] = new FetchJob(
-            this._fetcher,
-            this._scheduler,
-            this._scheduledJobsList,
+        var channelHandle = ++self._channelHandleCounter;
+        self._channelHandles[channelHandle] = new FetchJob(
+            self._fetcher,
+            self._scheduler,
+            self._scheduledJobsList,
             FetchJob.FETCH_TYPE_CHANNEL,
             /*contextVars=*/null);
 
@@ -98,24 +121,18 @@ FetchManager.prototype.moveChannel = function moveChannel(
 };
 
 FetchManager.prototype.createRequest = function createRequest(
-    fetchParams,
-    callbackThis,
-    terminatedCallback,
-    isOnlyWaitForData,
-    requestId) {
+    requestId, imagePartParams) {
     
     var contextVars = {
         progressiveStagesDone: 0,
         isLastCallbackCalledWithoutLowQualityLimit: false,
-        callbackThis: callbackThis,
-        terminatedCallback: terminatedCallback,
         requestId: requestId,
         fetchJob: null,
         self: this
     };
     
-    var fetchType = isOnlyWaitForData ?
-        FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : FetchJob.FETCH_TYPE_REQUEST;
+    var fetchType = /*isOnlyWaitForData ?
+        FetchJob.FETCH_TYPE_ONLY_WAIT_FOR_DATA : */FetchJob.FETCH_TYPE_REQUEST;
     
     var fetchJob = new FetchJob(
         this._fetcher, this._scheduler, this._scheduledJobsList, fetchType, contextVars);
@@ -130,7 +147,7 @@ FetchManager.prototype.createRequest = function createRequest(
     
     fetchJob.on('terminated', internalTerminatedCallback);
     
-    fetchJob.fetch(fetchParams);
+    fetchJob.fetch(imagePartParams);
     
     this._yieldFetchJobs();
 };
@@ -173,7 +190,7 @@ FetchManager.prototype.setServerRequestPrioritizerData =
     this._yieldFetchJobs();
 };
 
-FetchManager.prototype._getSizesParamsInternal = function getSizesParamsInternal() {
+FetchManager.prototype._getImageParamsInternal = function getImageParamsInternal() {
     return this._internalSizesParams;
 };
 
@@ -188,9 +205,6 @@ FetchManager.prototype._yieldFetchJobs = function yieldFetchJobs() {
 };
 
 function internalTerminatedCallback(contextVars, isAborted) {
-    contextVars.terminatedCallback.call(
-        contextVars.callbackThis, isAborted);
-    
     delete contextVars.self._requestById[contextVars.requestId];
 }
 

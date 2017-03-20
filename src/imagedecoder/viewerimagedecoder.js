@@ -593,8 +593,7 @@ ViewerImageDecoder.prototype._copyOverviewToCanvas = function copyOverviewToCanv
 ViewerImageDecoder.prototype._opened = function opened() {
     this._isReady = true;
     
-    var imageParams = this._image._getSizesParams();
-    this._levelCalculator = this._image.getLevelCalculator(imageParams);
+    this._levelCalculator = this._image.getLevelCalculator();
 
     var fixedBounds = {
         west: this._cartographicBounds.west,

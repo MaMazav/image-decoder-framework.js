@@ -546,8 +546,7 @@ ImageDecoderImageryProvider.prototype._opened = function opened() {
     
     this._ready = true;
     
-    var imageParams = this._image._getSizesParams();
-    this._levelCalculator = this._factory.getLevelCalculator(imageParams);
+    this._levelCalculator = this._factory.getLevelCalculator();
 
     // This is wrong if COD or COC exists besides main header COD
     this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();

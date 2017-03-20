@@ -30,7 +30,7 @@ function slaveScriptContent() {
             return null;
         }
         
-        var data = { sizesParams: this._getSizesParams() };
+        var data = { sizesParams: this.getImageParams() };
         
         // getTileWidth and getTileHeight exists only in ImageDecoder but not in FetchManager
         if (this.getTileWidth) {

@@ -165,7 +165,7 @@ FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
         }
 
         this._scheduledJobsList.remove(this._scheduledJobsListIterator);
-        this._scheduler.jobDone(this._resource, this);
+        this._schedulerCallbacks.jobDone();
 
         this._resource = null;
     } else if (!isAborted && this._useScheduler) {
@@ -174,13 +174,15 @@ FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {
     
     // Channel is not really terminated, but only fetches a new region
     // (see moveChannel()).
-    if (!this._isChannel) {
-        this._state = FetchJob.FETCH_STATUS_REQUEST_TERMINATED;
-        
-        for (var i = 0; i < this._terminatedListeners.length; ++i) {
-            this._terminatedListeners[i](this._contextVars, isAborted);
-        }
-    }
+    if (this._isChannel) {
+		return;
+	}
+	
+	this._state = FetchJob.FETCH_STATUS_REQUEST_TERMINATED;
+	
+	for (var i = 0; i < this._terminatedListeners.length; ++i) {
+		this._terminatedListeners[i](this._contextVars, isAborted);
+	}
     
     if (this._fetchHandle !== null &&
         this._state !== FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE) {
@@ -200,7 +202,7 @@ FetchJob.prototype.checkIfShouldYield = function checkIfShouldYield() {
             throw 'No resource allocated but fetch callback called';
         }
             
-        if (!this._scheduler.shouldYieldOrAbort(this._resource)) {
+        if (!this._schedulerCallbacks.shouldYieldOrAbort()) {
             return;
         }
         
@@ -212,12 +214,10 @@ FetchJob.prototype.checkIfShouldYield = function checkIfShouldYield() {
                 return;
             }
             
-            var isYielded = self._scheduler.tryYield(
+            var isYielded = self._schedulerCallbacks.tryYield(
                 continueYieldedRequest,
-                self,
                 fetchAbortedByScheduler,
-                fetchYieldedByScheduler,
-                self._resource);
+                fetchYieldedByScheduler);
             
             if (!isYielded) {
                 if (self._state !== FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD) {
@@ -244,7 +244,7 @@ Object.defineProperty(FetchJob.prototype, 'imagePartParams', {
     }
 });
 
-function startRequest(resource, self) {
+function startRequest(resource, self, callbacks) {
     if (self._fetchHandle !== null || self._resource !== null) {
         throw 'Unexpected restart of already started request';
     }
@@ -257,6 +257,7 @@ function startRequest(resource, self) {
     }
     
     self._resource = resource;
+	self._schedulerCallbacks = callbacks;
 
     if (resource !== null) {
         self._scheduledJobsListIterator = self._scheduledJobsList.add(self);
@@ -273,7 +274,7 @@ function continueYieldedRequest(resource, self) {
     if (self._state === FetchJob.FETCH_STATUS_REQUEST_ABOUT_TO_ABORT ||
         self._state === FetchJob.FETCH_STATUS_UNEXPECTED_FAILURE) {
         
-        self._scheduler.jobDone(resource, self);
+        self._schedulerCallbacks.jobDone();
         return;
     }
     
