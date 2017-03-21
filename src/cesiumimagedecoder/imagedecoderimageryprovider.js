@@ -32,7 +32,7 @@ var imageHelperFunctions = require('imagehelperfunctions.js');
  * @see TileMapServiceImageryProvider
  * @see WebMapServiceImageryProvider
  */
-function ImageDecoderImageryProvider(image, options) {
+function ImageDecoderImageryProvider(decoder, options) {
     var url = options.url;
     this._adaptProportions = options.adaptProportions;
     this._rectangle = options.rectangle;
@@ -87,16 +87,11 @@ function ImageDecoderImageryProvider(image, options) {
         imageUrl = this._proxy.getURL(imageUrl);
     }
     
-    this._image = image;
-
-    this._levelCalculator = null;
-    this._factory = image.getFactory();
-    if (!this._factory.getLevelCalculator) {
-        throw 'ImageDecoder.getLevelCalculator() is not implemented by factory ctor argument!';
-    }
+    this._decoder = decoder;
+	this._image = decoder.getImage();
 
     /*
-    this._image = new WorkerProxyImageDecoder(imageImplementationClassName, {
+    this._decoder = new WorkerProxyImageDecoder(imageImplementationClassName, {
         serverRequestPrioritizer: 'frustum',
         decodePrioritizer: 'frustum'
     });*/
@@ -304,7 +299,7 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
             'needed for frustum calculation for the priority mechanism');
     }
     
-    this._image.open(this._url)
+    this._decoder.open(this._url)
 		.then(this._opened.bind(this))
 		.catch(this._onException.bind(this));
     
@@ -317,7 +312,7 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
 
 ImageDecoderImageryProvider.prototype.close = function close() {
     clearInterval(this._updateFrustumIntervalHandle);
-    this._image.close();
+    this._decoder.close();
 };
 
 ImageDecoderImageryProvider.prototype.getTileWidth = function getTileWidth() {
@@ -416,8 +411,8 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
     var maxYExclusive = (y + 1) * this._tileHeight * levelFactor;
     
     var level = alignedParams.imagePartParams.level;
-    var levelWidth  = this._levelCalculator.getLevelWidth(level);
-    var levelHeight = this._levelCalculator.getLevelHeight(level);
+    var levelWidth  = this._image.getLevelWidth(level);
+    var levelHeight = this._image.getLevelHeight(level);
     
     var alignedParams = imageHelperFunctions.alignParamsToTilesAndLevel({
         minX: minX,
@@ -428,7 +423,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         levelHeight: levelHeight,
         screenWidth: this._tileWidth,
         screenHeight: this._tileHeight
-    }, this._image, this._levelCalculator);
+    }, this._decoder, this._image);
     
     var scaledCanvas = document.createElement('canvas');
     scaledCanvas.width = this._tileWidth;
@@ -459,7 +454,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         resolve = resolve_;
         reject = reject_;
         
-        self._image.requestPixelsProgressive(
+        self._decoder.requestPixelsProgressive(
             alignedParams.imagePartParams,
             pixelsDecodedCallback,
             terminatedCallback);
@@ -511,8 +506,8 @@ ImageDecoderImageryProvider.prototype._setPriorityByFrustum =
     frustumData.imageRectangle = this.getRectangle();
     frustumData.exactlevel = null;
 
-    this._image.setServerRequestPrioritizerData(frustumData);
-    this._image.setDecodePrioritizerData(frustumData);
+    this._decoder.setServerRequestPrioritizerData(frustumData);
+    this._decoder.setDecodePrioritizerData(frustumData);
 };
 
 /**
@@ -545,27 +540,25 @@ ImageDecoderImageryProvider.prototype._opened = function opened() {
     }
     
     this._ready = true;
-    
-    this._levelCalculator = this._factory.getLevelCalculator();
 
     // This is wrong if COD or COC exists besides main header COD
-    this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
-    this._quality = this._image.getHighestQuality();
+    this._numResolutionLevels = this._decoder.getNumResolutionLevelsForLimittedViewer();
+    this._quality = this._decoder.getHighestQuality();
     var maximumCesiumLevel = this._numResolutionLevels - 1;
         
-    this._tileWidth = this._image.getTileWidth();
-    this._tileHeight = this._image.getTileHeight();
+    this._tileWidth = this._decoder.getTileWidth();
+    this._tileHeight = this._decoder.getTileHeight();
         
-    var bestLevel = this._image.getImageLevel();
-    var bestLevelWidth  = this._image.getImageWidth ();
-    var bestLevelHeight = this._image.getImageHeight();
+    var bestLevel = this._decoder.getImageLevel();
+    var bestLevelWidth  = this._decoder.getImageWidth ();
+    var bestLevelHeight = this._decoder.getImageHeight();
     
     var lowestLevelTilesX = Math.ceil(bestLevelWidth  / this._tileWidth ) >> maximumCesiumLevel;
     var lowestLevelTilesY = Math.ceil(bestLevelHeight / this._tileHeight) >> maximumCesiumLevel;
 
     imageHelperFunctions.fixBounds(
         this._rectangle,
-        this._image,
+        this._decoder,
         this._adaptProportions);
     var rectangleWidth  = this._rectangle.east  - this._rectangle.west;
     var rectangleHeight = this._rectangle.north - this._rectangle.south;

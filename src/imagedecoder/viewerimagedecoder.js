@@ -64,9 +64,6 @@ function ViewerImageDecoder(decoder, canvasUpdatedCallback, options) {
     */
     
     this._image = decoder.getImage();
-    if (!this._image.getLevelCalculator) {
-        throw 'Image.getLevelCalculator() is not implemented by image ctor argument!';
-    }
 }
 
 ViewerImageDecoder.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
@@ -118,7 +115,7 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
     
     var alignedParams =
         imageHelperFunctions.alignParamsToTilesAndLevel(
-            regionParams, this._decoder, this._levelCalculator);
+            regionParams, this._decoder, this._image);
     
     var isOutsideScreen = alignedParams === null;
     if (isOutsideScreen) {
@@ -593,8 +590,6 @@ ViewerImageDecoder.prototype._copyOverviewToCanvas = function copyOverviewToCanv
 ViewerImageDecoder.prototype._opened = function opened() {
     this._isReady = true;
     
-    this._levelCalculator = this._image.getLevelCalculator();
-
     var fixedBounds = {
         west: this._cartographicBounds.west,
         east: this._cartographicBounds.east,
@@ -628,7 +623,7 @@ ViewerImageDecoder.prototype._opened = function opened() {
     
     var overviewAlignedParams =
         imageHelperFunctions.alignParamsToTilesAndLevel(
-            overviewParams, this._decoder, this._levelCalculator);
+            overviewParams, this._decoder, this._image);
             
     overviewAlignedParams.imagePartParams.requestPriorityData =
         overviewAlignedParams.imagePartParams.requestPriorityData || {};
