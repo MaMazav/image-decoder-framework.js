@@ -28,6 +28,9 @@ var sources = [
     './src/imagedecoder/imagedecoderworkers/workerproxyfetchmanager.js',
     './src/imagedecoder/imagedecoderworkers/workerproxypixelsdecoder.js',
     './src/simplefetcher/promisefetcheradapter.js',
+	'./src/simplefetcher/gridimagebase.js',
+	'./src/simplefetcher/gridfetcherbase.js',
+	'./src/simplefetcher/griddecoderworkerbase.js',
     './src/simplefetcher/promisefetcheradapterfetchhandle.js',
     /*
     './src/simplefetcher/datapublisher.js',
