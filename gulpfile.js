@@ -31,7 +31,7 @@ var sources = [
 	'./src/simplefetcher/gridimagebase.js',
 	'./src/simplefetcher/gridfetcherbase.js',
 	'./src/simplefetcher/griddecoderworkerbase.js',
-    './src/simplefetcher/promisefetcheradapterfetchhandle.js',
+    './src/simplefetcher/simplefetchadapterfetchhandle.js',
     /*
     './src/simplefetcher/datapublisher.js',
     './src/simplefetcher/simpleimagedatacontext.js',

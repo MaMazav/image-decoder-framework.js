@@ -218,12 +218,6 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
 	}
 };
 
-ImageDecoder.prototype.reconnect = function reconnect() {
-    this._validateFetcher();
-    
-    this._fetchManager.reconnect();
-};
-
 ImageDecoder.prototype.getImage = function getImage() {
     return this._image;
 };

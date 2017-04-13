@@ -34,9 +34,6 @@ function FetchManager(fetcher, options) {
     if (!fetcher.close) {
 		throw 'ImageDecoderFramework error: Fetcher has no method close()';
 	}
-    if (!fetcher.reconnect) {
-		throw 'ImageDecoderFramework error: Fetcher has no method reconnect()';
-	}
     if (!fetcher.fetch) {
 		throw 'ImageDecoderFramework error: Fetcher has no method fetch()';
 	}
@@ -168,10 +165,6 @@ FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
     
     fetchJob.manualAbortRequest();
     delete this._requestById[requestId];
-};
-
-FetchManager.prototype.reconnect = function reconnect() {
-    this._fetcher.reconnect();
 };
 
 FetchManager.prototype.setServerRequestPrioritizerData =

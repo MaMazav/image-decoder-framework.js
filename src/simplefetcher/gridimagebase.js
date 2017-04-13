@@ -15,8 +15,16 @@ function GridImageBase(fetchManager) {
 	this._waitingFetches = {};
 }
 
-GridImageBase.prototype.getDecodeTaskTypeOptions = function getDecodeTaskTypeOptions() {
-	throw 'imageDecoderFramework error: GridImageBase.getDecodeTaskTypeOptions is not implemented by inheritor';
+GridImageBase.prototype.getDecodeWorkerTypeOptions = function getDecodeWorkerTypeOptions() {
+	throw 'imageDecoderFramework error: GridImageBase.getDecodeWorkerTypeOptions is not implemented by inheritor';
+};
+
+GridImageBase.prototype.decodeTaskStarted = function decodeTaskStarted(task) {
+	var self = this;
+	task.on('allDependTasksTerminated', function() {
+		self.dataReadyForDecode(task);
+		task.terminate();
+	});
 };
 
 GridImageBase.prototype.getFetchManager = function getFetchManager() {
@@ -26,8 +34,9 @@ GridImageBase.prototype.getFetchManager = function getFetchManager() {
 GridImageBase.prototype.getDecoderWorkers = function getDecoderWorkers() {
 	if (this._decoderWorkers === null) {
 		this._imageParams = this._fetchManager.getImageParams(); // imageParams that returned by fetcher.open()
-		this._decoderWorkers = new AsyncProxy.PromiseDependencyWorkers(this);
+		this._decoderWorkers = new AsyncProxy.DependencyWorkers(this);
 		this._fetchManager.on('data', this._onDataFetched.bind(this));
+		this._fetchManager.on('tileTerminated', this._onTileTerminated.bind(this));
 	}
 	return this._decoderWorkers;
 };
@@ -57,62 +66,13 @@ GridImageBase.prototype.getLevel = function getDefaultNumResolutionLevels(region
 	return level;
 };
 
-// PromiseDependencyWorkersInputRetreiver implementation
+// DependencyWorkersInputRetreiver implementation
 
-GridImageBase.prototype.getPromiseTaskProperties = function(taskKey) {
-	if (taskKey.fetchWaitTask) {
-		return {
-			taskType: FETCH_WAIT_TASK,
-			dependsOnTasks: [],
-			isDisableWorker: true
-		};
-	}
-	
-	var imagePartParams = taskKey;
-	var tilesRange = GridImageBase.getTilesRange(this._imageParams, imagePartParams);
-	
-	var depends = new Array((tilesRange.maxTileX - tilesRange.minTileX) * (tilesRange.maxTileY - tilesRange.minTileY));
-	var i = 0;
-	for (var tileX = tilesRange.minTileX; tileX < tilesRange.maxTileX; ++tileX) {
-		for (var tileY = tilesRange.minTileY; tileY < tilesRange.maxTileY; ++tileY) {
-			depends[i++] = {
-				fetchWaitTask: true,
-				tileX: tileX,
-				tileY: tileY,
-				level: imagePartParams.level
-			};
-		}
-	}
-	
-	return {
-		taskType: DECODE_TASK,
-		dependsOnTasks: depends,
-		isDisableWorker: false
-	};
-};
-
-GridImageBase.prototype.preWorkerProcess = function(dependsTaskResults, dependsTaskKeys, taskKey) {
-	if (taskKey.fetchWaitTask) {
-		var self = this;
-		return new Promise(function(resolve, reject) {
-			var strKey = self.getKeyAsString(taskKey);
-			self._waitingFetches[strKey] = resolve;
-		});
-	}
-	return Promise.resolve({
-		tileContents: dependsTaskResults,
-		tileIndices: dependsTaskKeys,
-		imagePartParams: taskKey,
-		tileWidth: this._imageParams.tileWidth,
-		tileHeight: this._imageParams.tileHeight
-	});
-};
-
-GridImageBase.prototype.getTaskTypeOptions = function(taskType) {
+GridImageBase.prototype.getWorkerTypeOptions = function(taskType) {
 	if (taskType === FETCH_WAIT_TASK) {
-		return {};
+		return null;
 	} else if (taskType === DECODE_TASK) {
-		return this.getDecodeTaskTypeOptions();
+		return this.getDecodeWorkerTypeOptions();
 	} else {
 		throw 'imageDecoderFramework internal error: GridImageBase.getTaskTypeOptions got unexpected task type ' + taskType;
 	}
@@ -126,16 +86,59 @@ GridImageBase.prototype.getKeyAsString = function(key) {
 	return JSON.stringify(key);
 };
 
+GridImageBase.prototype.taskStarted = function(task) {	
+	var self = this;
+	
+	if (task.key.fetchWaitTask) {
+		var strKey = this.getKeyAsString(task.key);
+		this._waitingFetches[strKey] = task;
+		return;
+	}
+
+	var imagePartParams = task.key;
+	var tilesRange = GridImageBase.getTilesRange(this._imageParams, imagePartParams);
+	
+	var i = 0;
+	for (var tileX = tilesRange.minTileX; tileX < tilesRange.maxTileX; ++tileX) {
+		for (var tileY = tilesRange.minTileY; tileY < tilesRange.maxTileY; ++tileY) {
+			task.registerTaskDependency({
+				fetchWaitTask: true,
+				tileX: tileX,
+				tileY: tileY,
+				level: imagePartParams.level
+			});
+		}
+	}
+	
+	this.decodeTaskStarted(task);
+};
+
+GridImageBase.prototype.dataReadyForDecode = function dataReadyForDecode(task) {
+	task.dataReady({
+		tileContents: task.dependTaskResults,
+		tileIndices: task.dependTaskKeys,
+		imagePartParams: task.key,
+		tileWidth: this._imageParams.tileWidth,
+		tileHeight: this._imageParams.tileHeight
+	}, DECODE_TASK);
+};
+
 // Auxiliary methods
 
-GridImageBase.prototype._onDataFetched = function(fetchedTiles, imagePartParams) {
-	for (var i = 0; i < fetchedTiles.length; ++i) {
-		var strKey = this.getKeyAsString(fetchedTiles[i].tileKey);
-		var waitingPromise = this._waitingFetches[strKey];
-		if (waitingPromise) {
-			delete this._waitingFetches[strKey];
-			waitingPromise(fetchedTiles[i].content);
-		}
+GridImageBase.prototype._onDataFetched = function(fetchedTile) {
+	var strKey = this.getKeyAsString(fetchedTile.tileKey);
+	var waitingTask = this._waitingFetches[strKey];
+	if (waitingTask) {
+		waitingTask.dataReady(fetchedTile.tileContent, FETCH_WAIT_TASK);
+	}
+};
+
+GridImageBase.prototype._onTileTerminated = function(tileKey) {
+	var strKey = this.getKeyAsString(tileKey);
+	var waitingTask = this._waitingFetches[strKey];
+	if (waitingTask) {
+		waitingTask.terminate();
+		this._waitingFetches[strKey] = null;
 	}
 };
 
