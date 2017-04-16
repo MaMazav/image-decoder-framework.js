@@ -48,7 +48,7 @@ function createScheduler(
     if (prioritizerType === undefined) {
         prioritizer = null;
         
-        scheduler = new ResourceScheduler.LifoScheduler(
+        scheduler = new resourceScheduler.LifoScheduler(
             createResource,
             resourceLimit);
     } else {
@@ -77,7 +77,7 @@ function createScheduler(
                 prioritizer.minimalLowQualityPriority;
         }
         
-        scheduler = new ResourceScheduler.PriorityScheduler(
+        scheduler = new resourceScheduler.PriorityScheduler(
             createResource,
             resourceLimit,
             prioritizer,
