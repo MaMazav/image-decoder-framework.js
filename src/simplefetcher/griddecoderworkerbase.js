@@ -12,8 +12,8 @@ function GridDecoderWorkerBase() {
         var height = imagePartParams.maxYExclusive - imagePartParams.minY;
         var result = new ImageData(width, height);
         var promises = [];
-		var tilePosition  = {minX: 0, minY: 0, maxXExclusive: 0, maxYExclusive: 0};
-		var regionInImage = {minX: 0, minY: 0, maxXExclusive: 0, maxYExclusive: 0}; 
+		var tilePosition  = {minX: 0, minY: 0, maxXExclusive: 0, maxYExclusive: 0, width: decoderInput.tileWidth, height: decoderInput.tileHeight};
+		var regionInImage = {minX: 0, minY: 0, maxXExclusive: 0, maxYExclusive: 0, width: 0, height: 0}; 
 		var offset = {x: 0, y: 0};
 		var tile = {tileX: 0, tileY: 0, level: 0, position: tilePosition, content: null};
 		for (var i = 0; i < decoderInput.tileIndices.length; ++i) {
@@ -26,6 +26,8 @@ function GridDecoderWorkerBase() {
 			regionInImage.minY          = Math.max(tilePosition.minY, imagePartParams.minY);
 			regionInImage.maxXExclusive = Math.min(tilePosition.maxXExclusive, imagePartParams.maxXExclusive);
 			regionInImage.maxYExclusive = Math.min(tilePosition.maxYExclusive, imagePartParams.maxYExclusive);
+			regionInImage.width         = regionInImage.maxXExclusive - regionInImage.minX;
+			regionInImage.height        = regionInImage.maxYExclusive - regionInImage.minY;
 			
 			offset.x = regionInImage.minX - imagePartParams.minX;
 			offset.y = regionInImage.minY - imagePartParams.minY;
