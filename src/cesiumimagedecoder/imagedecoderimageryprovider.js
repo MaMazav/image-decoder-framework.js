@@ -410,17 +410,11 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
     var maxXExclusive = (x + 1) * this._tileWidth  * levelFactor;
     var maxYExclusive = (y + 1) * this._tileHeight * levelFactor;
     
-    var level = alignedParams.imagePartParams.level;
-    var levelWidth  = this._image.getLevelWidth(level);
-    var levelHeight = this._image.getLevelHeight(level);
-    
     var alignedParams = imageHelperFunctions.alignParamsToTilesAndLevel({
         minX: minX,
         minY: minY,
         maxXExclusive: maxXExclusive,
         maxYExclusive: maxYExclusive,
-        levelWidth: levelWidth,
-        levelHeight: levelHeight,
         screenWidth: this._tileWidth,
         screenHeight: this._tileHeight
     }, this._decoder, this._image);

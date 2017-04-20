@@ -119,7 +119,7 @@ function fixBounds(bounds, image, adaptProportions) {
 }
 
 function alignParamsToTilesAndLevel(
-    region, imageDecoder, image) {
+    region, imageDecoder) {
     
     var tileWidth = imageDecoder.getTileWidth();
     var tileHeight = imageDecoder.getTileHeight();
@@ -151,6 +151,7 @@ function alignParamsToTilesAndLevel(
     //var levelY = Math.log((regionMaxY - regionMinY) / screenHeight) / log2;
     //var level = Math.ceil(Math.min(levelX, levelY));
     //level = Math.max(0, Math.min(maxLevel, level));
+	var image = imageDecoder.getImage();
     var level = image.getLevel(region);
     var levelWidth = image.getLevelWidth(level);
     var levelHeight = image.getLevelHeight(level);
