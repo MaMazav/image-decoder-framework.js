@@ -2,9 +2,8 @@
 
 module.exports = ViewerImageDecoder;
 
-var ImageDecoder = require('imagedecoder.js');
-var WorkerProxyImageDecoder = require('workerproxyimagedecoder.js');
-var imageHelperFunctions = require('imagehelperfunctions.js');
+var ImageDecoder = require('image-decoder.js');
+var imageHelperFunctions = require('image-helper-functions.js');
 
 var PENDING_CALL_TYPE_PIXELS_UPDATED = 1;
 var PENDING_CALL_TYPE_REPOSITION = 2;
@@ -17,8 +16,6 @@ function ViewerImageDecoder(decoder, canvasUpdatedCallback, options) {
     
     this._adaptProportions = options.adaptProportions;
     this._cartographicBounds = options.cartographicBounds;
-    this._isMainImageOnUi = options.isMainImageOnUi;
-    this._showLog = options.showLog;
     this._allowMultipleChannelsInSession =
         options.allowMultipleChannelsInSession;
     this._minFunctionCallIntervalMilliseconds =
@@ -52,17 +49,6 @@ function ViewerImageDecoder(decoder, canvasUpdatedCallback, options) {
     }
     
     this._decoder = decoder;
-    /*
-    var ImageType = this._isMainImageOnUi ?
-        ImageDecoder: WorkerProxyImageDecoder;
-
-    this._image = new ImageType(imageImplementationClassName, {
-        serverRequestPrioritizer: 'frustumOnly',
-        // TODO decodePrioritizer: 'frustumOnly',
-        showLog: this._showLog
-    });
-    */
-    
     this._image = decoder.getImage();
 }
 

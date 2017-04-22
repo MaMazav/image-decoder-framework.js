@@ -4,7 +4,7 @@ module.exports = calculateFrustum;
 
 /* global Cesium: false */
 
-var imageHelperFunctions = require('imagehelperfunctions.js');
+var imageHelperFunctions = require('image-helper-functions.js');
 
 var MAX_RECURSIVE_LEVEL_ON_FAILED_TRANSFORM = 4;
 

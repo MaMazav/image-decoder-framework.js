@@ -2,10 +2,10 @@
 
 module.exports = FetchManager;
 
-var imageHelperFunctions = require('imagehelperfunctions.js');
-var FetchJob = require('fetchjob.js');
-var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
-var LinkedList = require('linkedlist.js');
+var imageHelperFunctions = require('image-helper-functions.js');
+var FetchJob = require('fetch-job.js');
+var ImageParamsRetrieverProxy = require('image-params-retriever-proxy.js');
+var LinkedList = require('linked-list.js');
 
 /* global console: false */
 /* global Promise: false */

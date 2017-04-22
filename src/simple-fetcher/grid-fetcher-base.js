@@ -2,11 +2,10 @@
 
 module.exports = GridFetcherBase;
 
-var GridImageBase = require('gridimagebase');
-var LinkedList = require('linkedlist.js');
-var SimpleFetchAdapterFetchHandle = require('simplefetchadapterfetchhandle.js');
+var GridImageBase = require('grid-image-base');
+var LinkedList = require('linked-list.js');
+var SimpleFetchAdapterFetchHandle = require('simple-fetch-adapter-fetch-handle.js');
 
-/* global console: false */
 /* global Promise: false */
 
 function GridFetcherBase(options) {

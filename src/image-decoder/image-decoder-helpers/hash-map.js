@@ -2,7 +2,7 @@
 
 module.exports = HashMap;
 
-var LinkedList = require('linkedlist.js');
+var LinkedList = require('linked-list.js');
 
 function HashMap(hasher) {
     this._hasher = hasher;

@@ -2,7 +2,7 @@
 
 module.exports = DecodeJob;
 
-var LinkedList = require('linkedlist.js');
+var LinkedList = require('linked-list.js');
 
 var requestIdCounter = 0;
 

@@ -2,9 +2,9 @@
 
 module.exports = WorkerProxyFetchManager;
 
-var imageHelperFunctions = require('imagehelperfunctions.js');
+var imageHelperFunctions = require('image-helper-functions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
-var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
+var ImageParamsRetrieverProxy = require('image-params-retriever-proxy.js');
 
 function WorkerProxyFetchManager(options) {
     ImageParamsRetrieverProxy.call(this);

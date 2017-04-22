@@ -2,10 +2,9 @@
 
 module.exports = ImageDecoder;
 
-var imageHelperFunctions = require('imageHelperFunctions.js');
-var DecodeJobsPool = require('decodejobspool.js');
-var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
-var setDecoderSlaveSideCreator = require('setdecoderslavesidecreator.js');
+var imageHelperFunctions = require('image-helper-functions.js');
+var DecodeJobsPool = require('decode-jobs-pool.js');
+var ImageParamsRetrieverProxy = require('image-params-retriever-proxy.js');
 
 /* global console: false */
 /* global Promise: false */

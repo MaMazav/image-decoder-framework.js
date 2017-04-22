@@ -2,9 +2,9 @@
 
 module.exports = CesiumImageDecoderLayerManager;
 
-var CanvasImageryProvider = require('canvasimageryprovider.js');
-var ViewerImageDecoder = require('viewerimagedecoder.js');
-var calculateCesiumFrustum = require('_cesiumfrustumcalculator.js');
+var CanvasImageryProvider = require('canvas-imagery-provider.js');
+var ViewerImageDecoder = require('viewer-image-decoder.js');
+var calculateCesiumFrustum = require('cesium-frustum-calculator.js');
 
 /* global Cesium: false */
 

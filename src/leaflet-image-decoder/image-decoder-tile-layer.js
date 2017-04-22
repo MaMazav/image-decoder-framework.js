@@ -1,8 +1,8 @@
 'use strict';
 
 var WorkerProxyImageDecoder = require('workerproxyimagedecoder.js');
-var ImageDecoder = require('imagedecoder.js');
-var imageHelperFunctions = require('imagehelperfunctions.js');
+var ImageDecoder = require('image-decoder.js');
+var imageHelperFunctions = require('image-helper-functions.js');
 
 /* global L: false */
 

@@ -2,7 +2,6 @@
 
 module.exports = GridImageBase;
 
-/* global console: false */
 /* global Promise: false */
 
 var FETCH_WAIT_TASK = 0;
@@ -127,7 +126,6 @@ GridImageBase.prototype.dataReadyForDecode = function dataReadyForDecode(task) {
 GridImageBase.prototype._onDataFetched = function(fetchedTile) {
 	var strKey = this.getKeyAsString(fetchedTile.tileKey);
 	var waitingTask = this._waitingFetches[strKey];
-	console.log(strKey + ' onDataFetched');
 	if (waitingTask) {
 		waitingTask.dataReady(fetchedTile.tileContent, FETCH_WAIT_TASK);
 	}
@@ -136,7 +134,6 @@ GridImageBase.prototype._onDataFetched = function(fetchedTile) {
 GridImageBase.prototype._onTileTerminated = function(tileKey) {
 	var strKey = this.getKeyAsString(tileKey);
 	var waitingTask = this._waitingFetches[strKey];
-	console.log(strKey + ' onTileTerminated');
 	if (waitingTask) {
 		waitingTask.terminate();
 		this._waitingFetches[strKey] = null;

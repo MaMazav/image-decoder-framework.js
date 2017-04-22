@@ -3,7 +3,7 @@
 // Suppress "Unnecessary directive 'use strict'" for the slaveScriptContent function
 /*jshint -W034 */
 
-var ImageDecoder = require('imagedecoder.js');
+var ImageDecoder = require('image-decoder.js');
 
 module.exports.getScriptUrl = function getScriptUrl() {
     return slaveScriptUrl;

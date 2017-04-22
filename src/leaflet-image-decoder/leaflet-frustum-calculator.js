@@ -1,6 +1,6 @@
 'use strict';
 
-var imageHelperFunctions = require('imagehelperfunctions.js');
+var imageHelperFunctions = require('image-helper-functions.js');
 
 module.exports = function calculateLeafletFrustum(leafletMap) {
     var screenSize = leafletMap.getSize();

@@ -10,7 +10,7 @@ module.exports.getScriptUrl = function getScriptUrl() {
     return decoderSlaveScriptUrl;
 };
 
-var imageHelperFunctions = require('imagehelperfunctions.js');
+var imageHelperFunctions = require('image-helper-functions.js');
 
 var decoderSlaveScriptBlob = new Blob(
     ['(', decoderSlaveScriptBody.toString(), ')()'],

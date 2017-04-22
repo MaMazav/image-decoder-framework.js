@@ -15,37 +15,28 @@ var filter = require('gulp-filter');
 var mergeStream = require('merge-stream');
 
 var sources = [
-    './src/imagedecoder/imagedecoderhelpers/decodejob.js',
-    './src/imagedecoder/imagedecoderhelpers/decodejobspool.js',
-    './src/imagedecoder/imagedecoderhelpers/fetchmanager.js',
-    './src/imagedecoder/imagedecoderhelpers/frustumrequestsprioritizer.js',
-    './src/imagedecoder/imagedecoderhelpers/imagehelperfunctions.js',
-    './src/imagedecoder/imagedecoderhelpers/linkedlist.js',
-    './src/imagedecoder/imagedecoderhelpers/fetchjob.js',
-    './src/imagedecoder/imagedecoderhelpers/imageparamsretrieverproxy.js',
-    './src/simplefetcher/promisefetcheradapter.js',
-	'./src/simplefetcher/gridimagebase.js',
-	'./src/simplefetcher/gridfetcherbase.js',
-	'./src/simplefetcher/griddecoderworkerbase.js',
-    './src/simplefetcher/simplefetchadapterfetchhandle.js',
-    /*
-    './src/simplefetcher/datapublisher.js',
-    './src/simplefetcher/simpleimagedatacontext.js',
-    './src/simplefetcher/simplenonprogressivefetchhandle.js',
-    './src/simplefetcher/simplepixelsdecoderbase.js',
-    './src/simplefetcher/simplefetcher.js',
-    //*/
-    './src/imagedecoder/imagedecoder.js',
-    './src/imagedecoder/viewerimagedecoder.js',
+    './src/image-decoder/image-decoder-helpers/decode-job.js',
+    './src/image-decoder/image-decoder-helpers/decode-jobs-pool.js',
+    './src/image-decoder/image-decoder-helpers/fetch-manager.js',
+    './src/image-decoder/image-decoder-helpers/frustum-requests-prioritizer.js',
+    './src/image-decoder/image-decoder-helpers/image-helper-functions.js',
+    './src/image-decoder/image-decoder-helpers/linked-list.js',
+    './src/image-decoder/image-decoder-helpers/fetch-job.js',
+    './src/image-decoder/image-decoder-workers/image-params-retriever-proxy.js',
+    './src/image-decoder/image-decoder.js',
+    './src/image-decoder/viewer-image-decoder.js',
+	'./src/simple-fetcher/grid-image-base.js',
+	'./src/simple-fetcher/grid-fetcher-base.js',
+	'./src/simple-fetcher/grid-decoder-worker-base.js',
+    './src/simple-fetcher/simple-fetch-adapter-fetch-handle.js',
 
-    './src/cesiumimagedecoder/_cesiumfrustumcalculator.js',
-    './src/cesiumimagedecoder/_cesiumimagedecoderlayermanager.js',
-    './src/cesiumimagedecoder/canvasimageryprovider.js',
-    './src/cesiumimagedecoder/imagedecoderimageryprovider.js',
+    './src/cesium-image-decoder/cesium-frustum-calculator.js',
+    './src/cesium-image-decoder/cesium-image-decoder-layer-manager.js',
+    './src/cesium-image-decoder/canvas-imagery-provider.js',
+    './src/cesium-image-decoder/image-decoder-imagery-provider.js',
     
-    './src/leafletimagedecoder/imagedecoderregionlayer.js',
-    './src/leafletimagedecoder/imagedecodertilelayer.js',
-    './src/leafletimagedecoder/leafletfrustumcalculator.js'
+    './src/leaflet-image-decoder/image-decoder-region-layer.js',
+    './src/leaflet-image-decoder/leaflet-frustum-calculator.js'
 ];
 
 var vendorsProd = [
@@ -61,14 +52,14 @@ var scriptsProd = vendorsProd.concat(sources);
 
 function build(isDebug) {
     var browserified = browserify({
-        entries: ['./src/imagedecoderexports.js'],
+        entries: ['./src/image-decoder-exports.js'],
         paths: [
-            './src/imagedecoder',
-            './src/imagedecoder/imagedecoderhelpers',
-            './src/imagedecoder/imagedecoderworkers',
-            './src/simplefetcher',
-            './src/cesiumimagedecoder',
-            './src/leafletimagedecoder'
+            './src/image-decoder',
+            './src/image-decoder/image-decoder-helpers',
+            './src/image-decoder/image-decoder-workers',
+            './src/simple-fetcher',
+            './src/cesium-image-decoder',
+            './src/leaflet-image-decoder'
         ],
         standalone: 'image-decoder-framework',
         debug: isDebug

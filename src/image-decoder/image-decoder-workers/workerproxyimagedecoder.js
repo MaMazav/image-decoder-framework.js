@@ -2,10 +2,10 @@
 
 module.exports = WorkerProxyImageDecoder;
 
-var imageHelperFunctions = require('imagehelperfunctions.js');
+var imageHelperFunctions = require('image-helper-functions.js');
 var sendImageParametersToMaster = require('sendimageparameterstomaster.js');
-var createImageDecoderSlaveSide = require('createimagedecoderonslaveside.js');
-var ImageParamsRetrieverProxy = require('imageparamsretrieverproxy.js');
+var createImageDecoderSlaveSide = require('createimage-decoderonslaveside.js');
+var ImageParamsRetrieverProxy = require('image-params-retriever-proxy.js');
 
 function WorkerProxyImageDecoder(imageImplementationClassName, options) {
     ImageParamsRetrieverProxy.call(this);

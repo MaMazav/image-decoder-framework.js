@@ -2,7 +2,7 @@
 
 module.exports = DecodeJobsPool;
 
-var DecodeJob = require('decodejob.js');
+var DecodeJob = require('decode-job.js');
 
 function DecodeJobsPool(
     decodeDependencyWorkers,

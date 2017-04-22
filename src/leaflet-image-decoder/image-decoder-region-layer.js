@@ -1,7 +1,7 @@
 'use strict';
 
-var ViewerImageDecoder = require('viewerimagedecoder.js');
-var calculateLeafletFrustum = require('leafletfrustumcalculator.js');
+var ViewerImageDecoder = require('viewer-image-decoder.js');
+var calculateLeafletFrustum = require('leaflet-frustum-calculator.js');
 
 /* global L: false */
 /* global self: false */

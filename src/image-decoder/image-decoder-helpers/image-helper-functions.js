@@ -1,6 +1,6 @@
 'use strict';
 
-var FrustumRequestsPrioritizer = require('frustumrequestsprioritizer.js');
+var FrustumRequestsPrioritizer = require('frustum-requests-prioritizer.js');
 
 module.exports = {
     calculateFrustum2DFromBounds: calculateFrustum2DFromBounds,
