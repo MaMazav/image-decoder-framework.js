@@ -83,7 +83,8 @@ GridFetcherBase.prototype.moveFetch = function moveFetch(imagePartParams, movabl
 		state: movableFetchState,
 		imagePartParams: imagePartParams,
 		pendingIterator: this._pendingFetchHandles.add(handle),
-		tileListeners: []
+		tileListeners: [],
+		activeTiles: 0
 	};
 	if (movableFetchState.pendingFetch) {
 		this._pendingFetchHandles.remove(movableFetchState.pendingFetch.pendingIterator);
@@ -118,12 +119,15 @@ GridFetcherBase.prototype._checkIfClosed = function checkIfClosed() {
 
 GridFetcherBase.prototype._startAndTerminateFetches = function startAndTerminateFetches(fetchState) {
 	var fetchesToTerminate = fetchState.activeFetchesInChannel.length;
-	if (fetchState.pendingFetch === null) {
-		--fetchesToTerminate; // Don't terminate last fetch if no pending new fetch
+	if (fetchState.pendingFetch === null && fetchesToTerminate > 0) { // Don't terminate last fetch if no pending new fetch
+		var lastFetch = fetchState.activeFetchesInChannel[fetchesToTerminate - 1];
+		if (lastFetch.activeTiles > 0) {
+			--fetchesToTerminate;
+		}
 	}
 	for (var i = fetchesToTerminate - 1; i >= 0; --i) {
 		var fetch = fetchState.activeFetchesInChannel[i];
-		if (fetch.singleListenerCount !== 0) {
+		if (fetch.singleListenerCount !== 0 && fetch.activeTiles > 0) {
 			continue;
 		}
 
@@ -135,10 +139,10 @@ GridFetcherBase.prototype._startAndTerminateFetches = function startAndTerminate
 		
 		for (var j = 0; j < fetch.tileListeners.length; ++j) {
 			var tileListener = fetch.tileListeners[j];
-			tileListener.listeners.remove(tileListener.iterator);
-			if (tileListener.listeners.getCount() === 1) {
-				var it = tileListener.listeners.getFirstIterator();
-				var otherFetch = tileListener.listeners.getValue(it);
+			tileListener.dependFetches.remove(tileListener.iterator);
+			if (tileListener.dependFetches.getCount() === 1) {
+				var it = tileListener.dependFetches.getFirstIterator();
+				var otherFetch = tileListener.dependFetches.getValue(it);
 				++otherFetch.singleListenerCount;
 			}
 		}
@@ -162,6 +166,7 @@ GridFetcherBase.prototype._startAndTerminateFetches = function startAndTerminate
 	
     ++this._activeFetches;
 	var tilesRange = GridImageBase.getTilesRange(this.getImageParams(), newFetch.imagePartParams);
+	newFetch.activeTiles = (tilesRange.maxTileX - tilesRange.minTileX) * (tilesRange.maxTileY - tilesRange.minTileY);
 	
 	for (var tileX = tilesRange.minTileX; tileX < tilesRange.maxTileX; ++tileX) {
 		for (var tileY = tilesRange.minTileY; tileY < tilesRange.maxTileY; ++tileY) {
@@ -171,7 +176,7 @@ GridFetcherBase.prototype._startAndTerminateFetches = function startAndTerminate
 };
 
 GridFetcherBase.prototype._loadTile = function loadTile(tileX, tileY, newFetch) {
-	var listeners = this._addToCache(tileX, tileY, newFetch);
+	var dependFetches = this._addToCache(tileX, tileY, newFetch);
 	var isTerminated = false;
 	var level = newFetch.imagePartParams.level;
 	var tileKey = {
@@ -205,12 +210,24 @@ GridFetcherBase.prototype._loadTile = function loadTile(tileX, tileY, newFetch) 
 				self._terminatedListeners[i](tileKey);
 			}
 			
-			if (listeners.getCount() !== 1) {
+			var iterator = dependFetches.getFirstIterator();
+			var fetchToReduce;
+			while (iterator !== null) {
+				fetchToReduce = dependFetches.getValue(iterator);
+				iterator = dependFetches.getNextIterator(iterator);
+				
+				--fetchToReduce.activeTiles;
+				if (fetchToReduce.activeTiles === 0) {
+					self._startAndTerminateFetches(fetchToReduce.state);
+				}
+			}
+			
+			if (dependFetches.getCount() !== 1 || fetchToReduce.activeTiles === 0) {
 				return;
 			}
 			
-			var it = listeners.getFirstIterator();
-			var fetch = listeners.getValue(it);
+			var it = dependFetches.getFirstIterator();
+			var fetch = dependFetches.getValue(it);
 			--fetch.singleListenerCount;
 			self._startAndTerminateFetches(fetch.state);
 		}
@@ -230,30 +247,30 @@ GridFetcherBase.prototype._addToCache = function addToCache(tileX, tileY, newFet
 		levelCache[tileX] = xCache;
 	}
 	
-	var listeners = xCache[tileY];
-	if (!listeners) {
-		listeners = new LinkedList();
-		xCache[tileY] = listeners;
+	var dependFetches = xCache[tileY];
+	if (!dependFetches) {
+		dependFetches = new LinkedList();
+		xCache[tileY] = dependFetches;
 		++newFetch.singleListenerCount;
 	}
 	
-	if (listeners.getCount() !== 1) {
+	if (dependFetches.getCount() !== 1) {
 		newFetch.tileListeners.push({
-			listeners: listeners,
-			iterator: listeners.add(newFetch)
+			dependFetches: dependFetches,
+			iterator: dependFetches.add(newFetch)
 		});
-		return listeners;
+		return dependFetches;
 	}
 
-	var it = listeners.getFirstIterator();
-	var oldFetch = listeners.getValue(it);
+	var it = dependFetches.getFirstIterator();
+	var oldFetch = dependFetches.getValue(it);
 	newFetch.tileListeners.push({
-		listeners: listeners,
-		iterator: listeners.add(newFetch)
+		dependFetches: dependFetches,
+		iterator: dependFetches.add(newFetch)
 	});
 
 	--oldFetch.singleListenerCount;
 	this._startAndTerminateFetches(oldFetch.state);
 	
-	return listeners;
+	return dependFetches;
 };

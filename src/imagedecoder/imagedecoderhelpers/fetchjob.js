@@ -140,8 +140,11 @@ FetchJob.prototype._startFetch = function startFetch() {
         this._fetchHandle = this._fetcher.startMovableFetch(
             this._imagePartParams, this._movableFetchState);
     }
-    this._fetchHandle.on('terminated', this._fetchTerminatedBound);
-    this._fetchHandle.setIsProgressive(this._isProgressive);
+    
+	this._fetchHandle.on('terminated', this._fetchTerminatedBound);
+	if (this._fetchHandle !== null) { // Might be set to null in immediate call of fetchTerminated on previous line
+		this._fetchHandle.setIsProgressive(this._isProgressive);
+	}
 };
 
 FetchJob.prototype._fetchTerminated = function fetchTerminated(isAborted) {

@@ -11,6 +11,7 @@ function SimpleFetchAdapterFetchHandle(imagePartParams, parentFetcher, parentFet
 	this._stopPromise = null;
 	this._terminatedListeners = [];
 	this._isTerminated = false;
+	this._isAborted = false;
 	this._isDisposed = false;
 }
 
@@ -19,6 +20,7 @@ SimpleFetchAdapterFetchHandle.prototype._onTerminated = function onTerminated(is
 		throw 'imageDecoderFramework error: FetchHandle double terminate';
 	}
 	this._isTerminated = true;
+	this._isAborted = isAborted;
 	for (var i = 0; i < this._terminatedListeners.length; ++i) {
 		this._terminatedListeners[i](isAborted);
 	}
@@ -54,6 +56,9 @@ SimpleFetchAdapterFetchHandle.prototype.on = function on(event, listener) {
 		throw 'imageDecoderFramework error: FetchHandle.on with unsupported event ' + event + '. Only terminated event is supported';
 	}
 	this._terminatedListeners.push(listener);
+	if (this._isTerminated) {
+		listener(this._isAborted);
+	}
 };
 
 SimpleFetchAdapterFetchHandle.prototype.resume = function resume() {

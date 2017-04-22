@@ -10,6 +10,7 @@ var imageHelperFunctions = require('imagehelperfunctions.js');
 /* global DeveloperError: false */
 /* global Credit: false */
 /* global Promise: false */
+/* global console: false */
 
 /**
  * Provides a ImageDecoder client imagery tile.  The image is assumed to use a
@@ -443,6 +444,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         imageRectangle: this._rectangle
     };
     
+	console.log('Requesting ' + x + ',' + y + ':' + cesiumLevel);
     var resolve, reject;
     var requestPixelsPromise = new Promise(function(resolve_, reject_) {
         resolve = resolve_;
@@ -455,6 +457,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
     });
     
     function pixelsDecodedCallback(decoded) {
+		console.log('Decoded ' + x + ',' + y + ':' + cesiumLevel);
         var partialTileWidth = decoded.imageData.width;
         var partialTileHeight = decoded.imageData.height;
 
@@ -467,6 +470,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
     }
 
     function terminatedCallback(isAborted) {
+		console.log('Terminated ' + x + ',' + y + ':' + cesiumLevel + ' (isAborted=' + isAborted + ')');
         if (isAborted) {
             reject('Fetch request or decode aborted');
         } else {
