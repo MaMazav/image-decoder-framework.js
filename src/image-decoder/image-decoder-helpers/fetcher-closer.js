@@ -27,10 +27,14 @@ FetcherCloser.prototype.isCloseRequested = function isCloseRequested() {
 };
 
 FetcherCloser.prototype.close = function close() {
+	if (this.isCloseRequested()) {
+		throw 'imageDecoderFramework error: close() called twice';
+	}
+	var self = this;
 	return new Promise(function(resolve, reject) {
-		this._resolveClose = resolve;
-		if (this._activeFetches === 0) {
-			this._resolveClose();
+		self._resolveClose = resolve;
+		if (self._activeFetches === 0) {
+			self._resolveClose();
 		}
 	});
 };
