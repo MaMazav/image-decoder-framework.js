@@ -36,7 +36,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     var isOrderValid = minX < maxX && minY < maxY;
     
     if (!isMinAligned || !isMaxXAligned || !isMaxYAligned || !isOrderValid) {
-        throw 'imagePartParams for decoders is not aligned to ' +
+        throw 'imageDecoderFramework error: imagePartParams for decoders is not aligned to ' +
             'tile size or not in valid order';
     }
     

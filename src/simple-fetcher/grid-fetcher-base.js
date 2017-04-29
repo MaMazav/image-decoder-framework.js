@@ -2,182 +2,163 @@
 
 module.exports = GridFetcherBase;
 
-var GridImageBase = require('grid-image-base');
+var FetcherBase = require('fetcher-base.js');
+var GridImageBase = require('grid-image-base.js');
 var LinkedList = require('linked-list.js');
-var SimpleFetchAdapterFetchHandle = require('simple-fetch-adapter-fetch-handle.js');
 
 /* global Promise: false */
 
 function GridFetcherBase(options) {
-	options = options || {};
-	var self = this;
-	self._maxActiveFetchesInChannel = options.maxActiveFetchesInChannel || 2;
-	self._gridFetcherBaseCache = [];
-    self._dataListeners = [];
-	self._terminatedListeners = [];
-	self._pendingFetchHandles = new LinkedList();
-    self._isReady = true;
-    self._activeFetches = 0;
-    self._resolveClose = null;
-    self._rejectClose = null;
+	FetcherBase.call(this, options);
+	this._gridFetcherBaseCache = [];
+	this._events = {
+		'data': [],
+		'tile-terminated': []
+	};
 }
+
+GridFetcherBase.prototype = Object.create(FetcherBase.prototype);
 
 GridFetcherBase.prototype.fetchTile = function(level, tileX, tileY, fetchTask) {
 	throw 'imageDecoderFramework error: GridFetcherBase.fetchTile is not implemented by inheritor';
 };
 
-GridFetcherBase.prototype.getImageParams = function() {
-	throw 'imageDecoderFramework error: GridFetcherBase.getImageParams is not implemented by inheritor';
-};
-
-GridFetcherBase.prototype.open = function(url) {
-	throw 'imageDecoderFramework error: GridFetcherBase.open is not implemented by inheritor';
-};
-
-GridFetcherBase.prototype.close = function close(closedCallback) {
-    this._ensureReady();
-    this._isReady = false;
-    var self = this;
-    return new Promise(function(resolve, reject) {
-        self._resolveClose = resolve;
-        self._rejectClose = reject;
-        self._checkIfClosed();
-    });
-};
-
-GridFetcherBase.prototype.on = function on(event, listener) {
-    switch (event) {
-		case 'data':
-			this._dataListeners.push(listener);
-			break;
-		case 'tileTerminated':
-			this._terminatedListeners.push(listener);
-			break;
-        default:
-			throw 'imageDecoderFramework error: Unexpected event ' + event + '. Expected "data" or "tileTerminated"';
-    }
-};
-
-GridFetcherBase.prototype.fetch = function fetch(imagePartParams) {
-	return this.startMovableFetch(imagePartParams, {});
-};
-
-GridFetcherBase.prototype.startMovableFetch = function startMovableFetch(imagePartParams, movableFetchState) {
-    this._ensureReady();
-	
-	movableFetchState.activeFetchesInChannel = [];
-	movableFetchState.pendingFetch = null;
-	movableFetchState.isPendingFetchStopped = false;
-	
-	return this.moveFetch(imagePartParams, movableFetchState);
-};
-
-GridFetcherBase.prototype.moveFetch = function moveFetch(imagePartParams, movableFetchState) {
-    this._ensureReady();
-	
-	var handle = new SimpleFetchAdapterFetchHandle(imagePartParams, this, movableFetchState);
-	var newFetch = {
-		handle: handle,
-		singleListenerCount: 0,
-		state: movableFetchState,
-		imagePartParams: imagePartParams,
-		pendingIterator: this._pendingFetchHandles.add(handle),
-		tileListeners: [],
-		activeTiles: 0
-	};
-	if (movableFetchState.pendingFetch) {
-		this._pendingFetchHandles.remove(movableFetchState.pendingFetch.pendingIterator);
-		movableFetchState.pendingFetch.handle._onTerminated();
+GridFetcherBase.prototype.on = function(event, listener) {
+	var listeners = this._events[event];
+	if (!listeners) {
+		throw 'imageDecoderFramework error: Unexpected event ' + event + ' in GridFetcherBase';
 	}
-	movableFetchState.pendingFetch = newFetch;
-	this._startAndTerminateFetches(movableFetchState);
+	listeners.push(listener);
+};
+
+GridFetcherBase.prototype.startFetch = function startFetch(fetchContext, imagePartParams) {
+	var fetchData = {
+		activeTilesCount: 0,
+		activeTilesCountWithSingleListener: 0,
+		tileListeners: [],
+		fetchContext: fetchContext,
+		isPendingStop: false,
+		isActive: false,
+		imagePartParams: imagePartParams,
+		self: this
+	};
 	
-	return handle;
+	fetchContext.on('stop', onFetchStop, fetchData);
+	fetchContext.on('resume', onFetchResume, fetchData);
+	fetchContext.on('terminate', onFetchTerminate, fetchData);
+
+	var tilesToStartX = [];
+	var tilesToStartY = [];
+	var tilesToStartDependFetches = [];
+	
+	var tilesRange = GridImageBase.getTilesRange(this.getImageParams(), imagePartParams);
+	fetchData.activeTilesCount = (tilesRange.maxTileX - tilesRange.minTileX) * (tilesRange.maxTileY - tilesRange.minTileY);
+	for (var tileX = tilesRange.minTileX; tileX < tilesRange.maxTileX; ++tileX) {
+		for (var tileY = tilesRange.minTileY; tileY < tilesRange.maxTileY; ++tileY) {
+			var dependFetches = this._addToCache(tileX, tileY, fetchData);
+			if (dependFetches === null) {
+				continue;
+			}
+
+			tilesToStartX.push(tileX);
+			tilesToStartY.push(tileY);
+			tilesToStartDependFetches.push(dependFetches);
+		}
+	}
+	
+	onFetchResume.call(fetchData);
+	
+	for (var i = 0; i < tilesToStartX.length; ++i) {
+		this._loadTile(fetchData.imagePartParams.level, tilesToStartX[i], tilesToStartY[i], tilesToStartDependFetches[i]);
+	}
 };
 
-GridFetcherBase.prototype._ensureReady = function ensureReady() {
-    if (!this._isReady) {
-        throw 'imageDecoderFramework error: fetch client is not opened';
-    }
-};
-
-GridFetcherBase.prototype._checkIfClosed = function checkIfClosed() {
-    if (this._activeFetches > 0 || this._isReady) {
+GridFetcherBase.prototype._checkIfShouldStop = function tryStopFetch(fetchData) {
+	if (!fetchData.isPendingStop || fetchData.activeTilesCountWithSingleListener > 0) {
 		return;
 	}
-	this._resolveClose();
-    
-	var it = this._pendingFetchHandles.getFirstIterator();
-	while (it !== null) {
-		var handle = this._pendingFetchHandles.getValue(it);
-		it = this._pendingFetchHandles.getNextIterator(it);
-		
-		handle._onTerminated();
+	
+	fetchData.isPendingStop = false;
+	fetchData.isActive = false;
+	this._changeSingleListenerCountOfOverlappingFetches(fetchData, +1);
+	fetchData.fetchContext.stopped();
+};
+	
+GridFetcherBase.prototype._changeSingleListenerCountOfOverlappingFetches =
+		function changeSingleListenerCountOfOverlappingFetches(fetchData, addValue) {
+			
+	for (var i = 0; i < fetchData.tileListeners.length; ++i) {
+		var tileDependFetches = fetchData.tileListeners[i].dependFetches;
+		this._changeTilesCountOfTileDependFetches(tileDependFetches, /*singleListenerAddValue=*/addValue, /*activeTilesAddValue=*/0);
 	}
 };
 
-GridFetcherBase.prototype._startAndTerminateFetches = function startAndTerminateFetches(fetchState) {
-	var fetchesToTerminate = fetchState.activeFetchesInChannel.length;
-	if (fetchState.pendingFetch === null && fetchesToTerminate > 0) { // Don't terminate last fetch if no pending new fetch
-		var lastFetch = fetchState.activeFetchesInChannel[fetchesToTerminate - 1];
-		if (lastFetch.activeTiles > 0) {
-			--fetchesToTerminate;
-		}
-	}
-	for (var i = fetchesToTerminate - 1; i >= 0; --i) {
-		var fetch = fetchState.activeFetchesInChannel[i];
-		if (fetch.singleListenerCount !== 0 && fetch.activeTiles > 0) {
-			continue;
+GridFetcherBase.prototype._changeTilesCountOfTileDependFetches = function(tileDependFetches, singleListenerAddValue, activeTilesAddValue) {
+	var singleActiveFetch = null;
+	var hasActiveFetches = false;
+	var iterator = tileDependFetches.getFirstIterator();
+	while (iterator !== null) {
+		var fetchData = tileDependFetches.getValue(iterator);
+		iterator = tileDependFetches.getNextIterator(iterator);
+
+		fetchData.activeTilesCount += activeTilesAddValue;
+		if (fetchData.activeTilesCount === 0) {
+			fetchData.isActive = false;
+			fetchData.fetchContext.done();
 		}
 
-		this._pendingFetchHandles.remove(fetch.pendingIterator);
-		fetch.handle._onTerminated();
-		--this._activeFetches;
-		// Inefficient for large maxActiveFetchesInChannel, but maxActiveFetchesInChannel should be small
-		fetchState.activeFetchesInChannel.splice(i, 1);
-		
-		for (var j = 0; j < fetch.tileListeners.length; ++j) {
-			var tileListener = fetch.tileListeners[j];
-			tileListener.dependFetches.remove(tileListener.iterator);
-			if (tileListener.dependFetches.getCount() === 1) {
-				var it = tileListener.dependFetches.getFirstIterator();
-				var otherFetch = tileListener.dependFetches.getValue(it);
-				++otherFetch.singleListenerCount;
+		if (!fetchData.isActive) {
+			continue;
+		} else if (singleActiveFetch === null) {
+			singleActiveFetch = fetchData;
+			hasActiveFetches = true;
+		} else if (hasActiveFetches) {
+			// Not single anymore
+			singleActiveFetch = null;
+			if (!activeTilesAddValue) {
+				break;
 			}
 		}
 	}
 	
-	this._checkIfClosed();
-	if (!this._isReady) {
-		return;
-	}
-
-	var newFetch = fetchState.pendingFetch;
-	if (fetchState.activeFetchesInChannel.length >= this._maxActiveFetchesInChannel ||
-		newFetch === null ||
-		fetchState.isPendingFetchStopped) {
-
-			return;
-	}
-	
-	fetchState.pendingFetch = null;
-	fetchState.activeFetchesInChannel.push(newFetch);
-	
-    ++this._activeFetches;
-	var tilesRange = GridImageBase.getTilesRange(this.getImageParams(), newFetch.imagePartParams);
-	newFetch.activeTiles = (tilesRange.maxTileX - tilesRange.minTileX) * (tilesRange.maxTileY - tilesRange.minTileY);
-	
-	for (var tileX = tilesRange.minTileX; tileX < tilesRange.maxTileX; ++tileX) {
-		for (var tileY = tilesRange.minTileY; tileY < tilesRange.maxTileY; ++tileY) {
-			this._loadTile(tileX, tileY, newFetch);
-		}
+	if (singleActiveFetch !== null) {
+		singleActiveFetch.activeTilesCountWithSingleListener += singleListenerAddValue;
+		this._checkIfShouldStop(singleActiveFetch);
 	}
 };
 
-GridFetcherBase.prototype._loadTile = function loadTile(tileX, tileY, newFetch) {
-	var dependFetches = this._addToCache(tileX, tileY, newFetch);
+function onFetchStop() {
+	/* jshint validthis: true */
+	var fetchData = this;
+
+	fetchData.isPendingStop = true;
+	fetchData.self._checkIfShouldStop(fetchData);
+}
+
+function onFetchResume() {
+	/* jshint validthis: true */
+	var fetchData = this;
+	fetchData.isPendingStop = false;
+	
+	fetchData.self._changeSingleListenerCountOfOverlappingFetches(fetchData, -1);
+	fetchData.isActive = true;
+}
+
+function onFetchTerminate() {
+	/* jshint validthis: true */
+	var fetchData = this;
+	
+	if (fetchData.isActive) {
+		throw 'imageDecoderFramework error: Unexpected grid fetch terminated of a still active fetch';
+	}
+	
+	for (var i = 0; i < fetchData.tileListeners.length; ++i) {
+		fetchData.tileListeners[i].dependFetches.remove(fetchData.tileListeners[i].iterator);
+	}
+}
+
+GridFetcherBase.prototype._loadTile = function loadTile(level, tileX, tileY, dependFetches) {
 	var isTerminated = false;
-	var level = newFetch.imagePartParams.level;
 	var tileKey = {
 		fetchWaitTask: true,
 		tileX: tileX,
@@ -191,11 +172,12 @@ GridFetcherBase.prototype._loadTile = function loadTile(tileX, tileY, newFetch) 
 			if (isTerminated) {
 				throw 'imageDecoderFramework error: already terminated in GridFetcherBase.fetchTile()';
 			}
-			for (var i = 0; i < self._dataListeners.length; ++i) {
-				self._dataListeners[i]({
-					tileKey: tileKey,
-					tileContent: result
-				}, newFetch.imagePartParams);
+			var data = {
+				tileKey: tileKey,
+				tileContent: result
+			};
+			for (var i = 0; i < self._events.data.length; ++i) {
+				self._events.data[i](data);
 			}
 		},
 		
@@ -203,41 +185,25 @@ GridFetcherBase.prototype._loadTile = function loadTile(tileX, tileY, newFetch) 
 			if (isTerminated) {
 				throw 'imageDecoderFramework error: double termination in GridFetcherBase.fetchTile()';
 			}
-			self._gridFetcherBaseCache[newFetch.imagePartParams.level][tileX][tileY] = null;
+			if (self._gridFetcherBaseCache[level][tileX][tileY] !== dependFetches) {
+				throw 'imageDecoderFramework error: Unexpected fetch in GridFetcherBase.gridFetcherBaseCache';
+			}
+			self._gridFetcherBaseCache[level][tileX][tileY] = null;
 			
-			for (var i = 0; i < self._terminatedListeners.length; ++i) {
-				self._terminatedListeners[i](tileKey);
+			for (var i = 0; i < self._events['tile-terminated'].length; ++i) {
+				self._events['tile-terminated'][i](tileKey);
 			}
 			
-			var iterator = dependFetches.getFirstIterator();
-			var fetchToReduce;
-			while (iterator !== null) {
-				fetchToReduce = dependFetches.getValue(iterator);
-				iterator = dependFetches.getNextIterator(iterator);
-				
-				--fetchToReduce.activeTiles;
-				if (fetchToReduce.activeTiles === 0) {
-					self._startAndTerminateFetches(fetchToReduce.state);
-				}
-			}
-			
-			if (dependFetches.getCount() !== 1 || fetchToReduce.activeTiles === 0) {
-				return;
-			}
-			
-			var it = dependFetches.getFirstIterator();
-			var fetch = dependFetches.getValue(it);
-			--fetch.singleListenerCount;
-			self._startAndTerminateFetches(fetch.state);
+			self._changeTilesCountOfTileDependFetches(dependFetches, /*singleListenerAddValue=*/-1, /*activeTilesAddValue=*/-1);
 		}
 	});
 };
 
-GridFetcherBase.prototype._addToCache = function addToCache(tileX, tileY, newFetch) {
-	var levelCache = this._gridFetcherBaseCache[newFetch.imagePartParams.level];
+GridFetcherBase.prototype._addToCache = function addToCache(tileX, tileY, fetchData) {
+	var levelCache = this._gridFetcherBaseCache[fetchData.imagePartParams.level];
 	if (!levelCache) {
 		levelCache = [];
-		this._gridFetcherBaseCache[newFetch.imagePartParams.level] = levelCache;
+		this._gridFetcherBaseCache[fetchData.imagePartParams.level] = levelCache;
 	}
 	
 	var xCache = levelCache[tileX];
@@ -247,29 +213,17 @@ GridFetcherBase.prototype._addToCache = function addToCache(tileX, tileY, newFet
 	}
 	
 	var dependFetches = xCache[tileY];
+	var isSingle = false;
 	if (!dependFetches) {
 		dependFetches = new LinkedList();
 		xCache[tileY] = dependFetches;
-		++newFetch.singleListenerCount;
+		++fetchData.activeTilesCountWithSingleListener;
+		isSingle = true;
 	}
 	
-	if (dependFetches.getCount() !== 1) {
-		newFetch.tileListeners.push({
-			dependFetches: dependFetches,
-			iterator: dependFetches.add(newFetch)
-		});
-		return dependFetches;
-	}
-
-	var it = dependFetches.getFirstIterator();
-	var oldFetch = dependFetches.getValue(it);
-	newFetch.tileListeners.push({
+	fetchData.tileListeners.push({
 		dependFetches: dependFetches,
-		iterator: dependFetches.add(newFetch)
+		iterator: dependFetches.add(fetchData)
 	});
-
-	--oldFetch.singleListenerCount;
-	this._startAndTerminateFetches(oldFetch.state);
-	
-	return dependFetches;
+	return isSingle ? dependFetches : null;
 };

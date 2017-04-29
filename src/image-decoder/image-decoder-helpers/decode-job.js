@@ -45,7 +45,7 @@ DecodeJob.prototype.onTerminated = function onTerminated() {
     
     var remaining = --this._listenerHandle.remainingDecodeJobs;
     if (remaining < 0) {
-        throw 'Inconsistent number of done requests';
+        throw 'imageDecoderFramework error: Inconsistent number of done requests';
     }
     
     var isListenerDone = remaining === 0;

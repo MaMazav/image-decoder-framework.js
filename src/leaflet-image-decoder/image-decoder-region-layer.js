@@ -1,6 +1,6 @@
 'use strict';
 
-var ViewerImageDecoder = require('viewer-image-decoder.js');
+var ImageViewer = require('image-viewer.js');
 var calculateLeafletFrustum = require('leaflet-frustum-calculator.js');
 
 /* global L: false */
@@ -10,7 +10,7 @@ if (self.L) {
     module.exports = L.Class.extend(createImageDecoderRegionLayerFunctions());
 } else {
     module.exports = function() {
-        throw new Error('Cannot instantiate ImageDecoderRegionLayer: No Leaflet namespace in scope');
+        throw new Error('imageDecoderFramework error: Cannot instantiate ImageDecoderRegionLayer: No Leaflet namespace in scope');
     };
 }
 
@@ -35,35 +35,35 @@ function createImageDecoderRegionLayerFunctions() {
             this._targetCanvas = null;
             this._canvasPosition = null;
             this._canvasUpdatedCallbackBound = this._canvasUpdatedCallback.bind(this);
-            this._viewerImageDecoder = null;
+            this._imageViewer = null;
             this._exceptionCallback = null;
         },
         
         setExceptionCallback: function setExceptionCallback(exceptionCallback) {
             this._exceptionCallback = exceptionCallback;
-            if (this._viewerImageDecoder !== null) {
-                this._viewerImageDecoder.setExceptionCallback(exceptionCallback);
+            if (this._imageViewer !== null) {
+                this._imageViewer.setExceptionCallback(exceptionCallback);
             }
         },
         
         _createImage: function createImage() {
-            if (this._viewerImageDecoder === null) {
-                this._viewerImageDecoder = new ViewerImageDecoder(
-                    this._options.imageDecoder,
+            if (this._imageViewer === null) {
+                this._imageViewer = new ImageViewer(
+                    this._options.image,
                     this._canvasUpdatedCallbackBound,
                     this._options);
                 
                 if (this._exceptionCallback !== null) {
-                    this._viewerImageDecoder.setExceptionCallback(this._exceptionCallback);
+                    this._imageViewer.setExceptionCallback(this._exceptionCallback);
                 }
                 
-                this._viewerImageDecoder.open(this._options.url).catch(this._exceptionCallback);
+                this._imageViewer.open(this._options.url).catch(this._exceptionCallback);
             }
         },
 
         onAdd: function onAdd(map) {
             if (this._map !== undefined) {
-                throw 'Cannot add this layer to two maps';
+                throw 'imageDecoderFramework error: Cannot add this layer to two maps';
             }
             
             this._map = map;
@@ -73,7 +73,7 @@ function createImageDecoderRegionLayerFunctions() {
             this._targetCanvas = L.DomUtil.create(
                 'canvas', 'image-decoder-layer-canvas leaflet-zoom-animated');
             
-            this._viewerImageDecoder.setTargetCanvas(this._targetCanvas);
+            this._imageViewer.setTargetCanvas(this._targetCanvas);
             
             this._canvasPosition = null;
                 
@@ -92,7 +92,7 @@ function createImageDecoderRegionLayerFunctions() {
 
         onRemove: function onRemove(map) {
             if (map !== this._map) {
-                throw 'Removed from wrong map';
+                throw 'imageDecoderFramework error: Removed from wrong map';
             }
             
             map.off('viewreset', this._moved, this);
@@ -106,8 +106,8 @@ function createImageDecoderRegionLayerFunctions() {
 
             this._map = undefined;
             
-            this._viewerImageDecoder.close();
-            this._viewerImageDecoder = null;
+            this._imageViewer.close();
+            this._imageViewer = null;
         },
         
         _moved: function () {
@@ -115,7 +115,7 @@ function createImageDecoderRegionLayerFunctions() {
 
             var frustumData = calculateLeafletFrustum(this._map);
             
-            this._viewerImageDecoder.updateViewArea(frustumData);
+            this._imageViewer.updateViewArea(frustumData);
         },
         
         _canvasUpdatedCallback: function canvasUpdatedCallback(newPosition) {

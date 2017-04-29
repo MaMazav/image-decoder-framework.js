@@ -31,7 +31,7 @@ var imageHelperFunctions = require('image-helper-functions.js');
  * @see TileMapServiceImageryProvider
  * @see WebMapServiceImageryProvider
  */
-function ImageDecoderImageryProvider(decoder, options) {
+function ImageDecoderImageryProvider(image, options) {
     var url = options.url;
     this._adaptProportions = options.adaptProportions;
     this._rectangle = options.rectangle;
@@ -86,9 +86,7 @@ function ImageDecoderImageryProvider(decoder, options) {
         imageUrl = this._proxy.getURL(imageUrl);
     }
     
-    this._decoder = decoder;
-	this._image = decoder.getImage();
-
+    this._image = image;
     this._url = imageUrl;
 }
 
@@ -292,7 +290,7 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
             'needed for frustum calculation for the priority mechanism');
     }
     
-    this._decoder.open(this._url)
+    this._image.open(this._url)
 		.then(this._opened.bind(this))
 		.catch(this._onException.bind(this));
     
@@ -305,7 +303,7 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
 
 ImageDecoderImageryProvider.prototype.close = function close() {
     clearInterval(this._updateFrustumIntervalHandle);
-    this._decoder.close();
+    this._image.close();
 };
 
 ImageDecoderImageryProvider.prototype.getTileWidth = function getTileWidth() {
@@ -410,7 +408,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         maxYExclusive: maxYExclusive,
         screenWidth: this._tileWidth,
         screenHeight: this._tileHeight
-    }, this._decoder, this._image);
+    }, this._image, this._image);
     
     var scaledCanvas = document.createElement('canvas');
     scaledCanvas.width = this._tileWidth;
@@ -441,7 +439,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         resolve = resolve_;
         reject = reject_;
         
-        self._decoder.requestPixelsProgressive(
+        self._image.requestPixelsProgressive(
             alignedParams.imagePartParams,
             pixelsDecodedCallback,
             terminatedCallback);
@@ -493,8 +491,8 @@ ImageDecoderImageryProvider.prototype._setPriorityByFrustum =
     frustumData.imageRectangle = this.getRectangle();
     frustumData.exactlevel = null;
 
-    this._decoder.setServerRequestPrioritizerData(frustumData);
-    this._decoder.setDecodePrioritizerData(frustumData);
+    this._image.setServerRequestPrioritizerData(frustumData);
+    this._image.setDecodePrioritizerData(frustumData);
 };
 
 /**
@@ -523,29 +521,29 @@ ImageDecoderImageryProvider.prototype._onException = function onException(reason
 
 ImageDecoderImageryProvider.prototype._opened = function opened() {
     if (this._ready) {
-        throw 'ImageDecoderImageryProvider error: opened() was called more than once!';
+        throw 'imageDecoderImageryProvider error: opened() was called more than once!';
     }
     
     this._ready = true;
 
     // This is wrong if COD or COC exists besides main header COD
-    this._numResolutionLevels = this._decoder.getNumResolutionLevelsForLimittedViewer();
-    this._quality = this._decoder.getHighestQuality();
+    this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
+    this._quality = this._image.getHighestQuality();
     var maximumCesiumLevel = this._numResolutionLevels - 1;
         
-    this._tileWidth = this._decoder.getTileWidth();
-    this._tileHeight = this._decoder.getTileHeight();
+    this._tileWidth = this._image.getTileWidth();
+    this._tileHeight = this._image.getTileHeight();
         
-    var bestLevel = this._decoder.getImageLevel();
-    var bestLevelWidth  = this._decoder.getImageWidth ();
-    var bestLevelHeight = this._decoder.getImageHeight();
+    var bestLevel = this._image.getImageLevel();
+    var bestLevelWidth  = this._image.getImageWidth ();
+    var bestLevelHeight = this._image.getImageHeight();
     
     var lowestLevelTilesX = Math.ceil(bestLevelWidth  / this._tileWidth ) >> maximumCesiumLevel;
     var lowestLevelTilesY = Math.ceil(bestLevelHeight / this._tileHeight) >> maximumCesiumLevel;
 
     imageHelperFunctions.fixBounds(
         this._rectangle,
-        this._decoder,
+        this._image,
         this._adaptProportions);
     var rectangleWidth  = this._rectangle.east  - this._rectangle.west;
     var rectangleHeight = this._rectangle.north - this._rectangle.south;

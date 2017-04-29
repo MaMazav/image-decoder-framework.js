@@ -3,7 +3,7 @@
 module.exports = CesiumImageDecoderLayerManager;
 
 var CanvasImageryProvider = require('canvas-imagery-provider.js');
-var ViewerImageDecoder = require('viewer-image-decoder.js');
+var ImageViewer = require('image-viewer.js');
 var calculateCesiumFrustum = require('cesium-frustum-calculator.js');
 
 /* global Cesium: false */
@@ -39,19 +39,19 @@ function CesiumImageDecoderLayerManager(imageDecoder, options) {
     this._isWhileReplaceLayerShown = false;
     this._pendingPositionRectangle = null;
     
-    this._viewerImageDecoder = new ViewerImageDecoder(
+    this._imageViewer = new ImageViewer(
         imageDecoder,
         this._canvasUpdatedCallbackBound,
         this._options);
     
-    this._viewerImageDecoder.setTargetCanvas(this._targetCanvas);
+    this._imageViewer.setTargetCanvas(this._targetCanvas);
     
     this._updateFrustumBound = this._updateFrustum.bind(this);
     this._postRenderBound = this._postRender.bind(this);
 }
 
 CesiumImageDecoderLayerManager.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
-    this._viewerImageDecoder.setExceptionCallback(exceptionCallback);
+    this._imageViewer.setExceptionCallback(exceptionCallback);
 };
 
 CesiumImageDecoderLayerManager.prototype.open = function open(widgetOrViewer) {
@@ -59,7 +59,7 @@ CesiumImageDecoderLayerManager.prototype.open = function open(widgetOrViewer) {
     this._layers = widgetOrViewer.scene.imageryLayers;
     widgetOrViewer.scene.postRender.addEventListener(this._postRenderBound);
     
-    this._viewerImageDecoder.open(this._url);
+    this._imageViewer.open(this._url);
     this._layers.add(this._imageryLayerShown);
     
     // NOTE: Is there an event handler to register instead?
@@ -72,7 +72,7 @@ CesiumImageDecoderLayerManager.prototype.open = function open(widgetOrViewer) {
 };
 
 CesiumImageDecoderLayerManager.prototype.close = function close() {
-    this._viewerImageDecoder.close();
+    this._imageViewer.close();
     clearInterval(this._intervalHandle);
 
     this._layers.remove(this._imageryLayerShown);
@@ -91,7 +91,7 @@ CesiumImageDecoderLayerManager.prototype.getImageryLayers = function getImageryL
 CesiumImageDecoderLayerManager.prototype._updateFrustum = function updateFrustum() {
     var frustum = calculateCesiumFrustum(this._widget);
     if (frustum !== null) {
-        this._viewerImageDecoder.updateViewArea(frustum);
+        this._imageViewer.updateViewArea(frustum);
     }
 };
 

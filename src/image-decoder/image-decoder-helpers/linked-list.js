@@ -87,6 +87,6 @@ LinkedList.prototype._validateIteratorOfThis =
     function validateIteratorOfThis(iterator) {
     
     if (iterator._parent !== this) {
-        throw 'iterator must be of the current LinkedList';
+        throw 'imageDecoderFramework error: iterator must be of the current LinkedList';
     }
 };

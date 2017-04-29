@@ -46,31 +46,31 @@ ImageParamsRetrieverProxy.prototype.getImageParams = function getImageParams() {
     if (!this._sizesParams) {
         this._sizesParams = this._getImageParamsInternal();
         if (!this._sizesParams) {
-            throw 'getImageParamsInternal() returned falsy value; Maybe image not ready yet?';
+            throw 'imageDecoderFramework error: getImageParamsInternal() returned falsy value; Maybe image not ready yet?';
         }
         
         if (this._sizesParams.imageLevel === undefined) {
-            throw 'getImageParamsInternal() result has no imageLevel property';
+            throw 'imageDecoderFramework error: getImageParamsInternal() result has no imageLevel property';
         }
         
         if (this._sizesParams.imageWidth === undefined) {
-            throw 'getImageParamsInternal() result has no imageWidth property';
+            throw 'imageDecoderFramework error: getImageParamsInternal() result has no imageWidth property';
         }
         
         if (this._sizesParams.imageHeight === undefined) {
-            throw 'getImageParamsInternal() result has no imageHeight property';
+            throw 'imageDecoderFramework error: getImageParamsInternal() result has no imageHeight property';
         }
         
         if (this._sizesParams.numResolutionLevelsForLimittedViewer === undefined) {
-            throw 'getImageParamsInternal() result has no numResolutionLevelsForLimittedViewer property';
+            throw 'imageDecoderFramework error: getImageParamsInternal() result has no numResolutionLevelsForLimittedViewer property';
         }
         
         if (this._sizesParams.lowestQuality === undefined) {
-            throw 'getImageParamsInternal() result has no lowestQuality property';
+            throw 'imageDecoderFramework error: getImageParamsInternal() result has no lowestQuality property';
         }
         
         if (this._sizesParams.highestQuality === undefined) {
-            throw 'getImageParamsInternal() result has no highestQuality property';
+            throw 'imageDecoderFramework error: getImageParamsInternal() result has no highestQuality property';
         }
     }
     
@@ -78,5 +78,5 @@ ImageParamsRetrieverProxy.prototype.getImageParams = function getImageParams() {
 };
 
 ImageParamsRetrieverProxy.prototype._getImageParamsInternal = function getImageParamsInternal() {
-    throw 'ImageParamsRetrieverProxy inheritor did not implement _getImageParamsInternal()';
+    throw 'imageDecoderFramework error: ImageParamsRetrieverProxy inheritor did not implement _getImageParamsInternal()';
 };

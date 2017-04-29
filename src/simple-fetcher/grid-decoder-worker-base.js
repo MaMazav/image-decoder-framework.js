@@ -45,6 +45,6 @@ function GridDecoderWorkerBase() {
     };
     
     GridDecoderWorkerBase.prototype.decodeRegion = function decodeRegion(targetImageData, imagePartParams, key, fetchedData) {
-        throw 'SimplePixelsDecoderBase error: decodeRegion is not implemented';
+        throw 'imageDecoderFramework error: decodeRegion is not implemented';
     };
 }

@@ -1,7 +1,7 @@
 'use strict';
 
 var WorkerProxyImageDecoder = require('workerproxyimagedecoder.js');
-var ImageDecoder = require('image-decoder.js');
+var ImageDecoder = require('image-base.js');
 var imageHelperFunctions = require('image-helper-functions.js');
 
 /* global L: false */
@@ -41,7 +41,7 @@ module.exports = L.Class.extend({
 
     onAdd: function onAdd(map) {
         if (this._map !== undefined) {
-            throw 'Cannot add this layer to two maps';
+            throw 'imageDecoderFramework error: Cannot add this layer to two maps';
         }
         
         this._map = map;
@@ -55,7 +55,7 @@ module.exports = L.Class.extend({
     
     onRemove: function onRemove(map) {
         if (map !== this._map) {
-            throw 'Removed from wrong map';
+            throw 'imageDecoderFramework error: Removed from wrong map';
         }
         
         if (this._overviewLayer !== null) {
@@ -166,7 +166,7 @@ var ImageDecoderOverviewTileLayer = L.Class.extend({
     
     onAdd: function onAdd(map) {
         if (this._map !== undefined) {
-            throw 'Cannot add this layer to two maps';
+            throw 'imageDecoderFramework error: Cannot add this layer to two maps';
         }
         
         this._map = map;
@@ -185,7 +185,7 @@ var ImageDecoderOverviewTileLayer = L.Class.extend({
     
     onRemove: function onRemove(map) {
         if (map !== this._map) {
-            throw 'Removed from wrong map';
+            throw 'imageDecoderFramework error: Removed from wrong map';
         }
         
         map.off('viewreset', this._moved, this);
@@ -241,7 +241,7 @@ var ImageDecoderOverviewTileLayer = L.Class.extend({
             return;
         }
         if (this._isAlreadyRetried) {
-            throw 'Aborted overview fetch twice';
+            throw 'imageDecoderFramework error: Aborted overview fetch twice';
         }
         this._isAlreadyRetried = true;
         
@@ -260,7 +260,7 @@ var ImageDecoderInternalTileLayer = L.TileLayer.Canvas.extend({
     initialize: function initialize(imageDecoder, options) {
         var tileSize = imageDecoder.getTileWidth();
         if (imageDecoder.getTileHeight() !== tileSize) {
-            throw 'Non square tile size is not supported';
+            throw 'imageDecoderFramework error: Non square tile size is not supported';
         }
         
         var modifiedOptions = Object.create(options || {});

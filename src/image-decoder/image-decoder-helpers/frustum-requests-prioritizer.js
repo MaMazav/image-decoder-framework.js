@@ -69,13 +69,13 @@ FrustumRequestsPrioritizer.prototype._getPriorityInternal = function getPriority
     }
     
     if (this._frustumData.imageRectangle === undefined) {
-        throw 'No imageRectangle information passed in setPrioritizerData';
+        throw 'imageDecoderFramework error: No imageRectangle information passed in setPrioritizerData';
     }
     
     var exactFrustumLevel = this._frustumData.exactlevel;
     
     if (this._frustumData.exactlevel === undefined) {
-        throw 'No exactlevel information passed in ' +
+        throw 'imageDecoderFramework error: No exactlevel information passed in ' +
             'setPrioritizerData. Use null if unknown';
     }
     

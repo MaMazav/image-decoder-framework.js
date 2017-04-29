@@ -1,5 +1,7 @@
 'use strict';
 
+var ImageBase = require('image-base.js');
+
 module.exports = GridImageBase;
 
 /* global Promise: false */
@@ -7,14 +9,18 @@ module.exports = GridImageBase;
 var FETCH_WAIT_TASK = 0;
 var DECODE_TASK = 1;
 
-function GridImageBase(fetchManager) {
-	this._fetchManager = fetchManager;
+function GridImageBase(fetcher) {
+	ImageBase.call(this);
+	
+	this._fetcher = fetcher;
 	this._imageParams = null;
 	this._waitingFetches = {};
 
-	this._fetchManager.on('data', this._onDataFetched.bind(this));
-	this._fetchManager.on('tileTerminated', this._onTileTerminated.bind(this));
+	this._fetcher.on('data', this._onDataFetched.bind(this));
+	this._fetcher.on('tile-terminated', this._onTileTerminated.bind(this));
 }
+
+GridImageBase.prototype = Object.create(ImageBase.prototype);
 
 GridImageBase.prototype.getDecodeWorkerTypeOptions = function getDecodeWorkerTypeOptions() {
 	throw 'imageDecoderFramework error: GridImageBase.getDecodeWorkerTypeOptions is not implemented by inheritor';
@@ -32,24 +38,24 @@ GridImageBase.prototype.decodeTaskStarted = function decodeTaskStarted(task) {
 	});
 };
 
-GridImageBase.prototype.getFetchManager = function getFetchManager() {
-	return this._fetchManager;
+GridImageBase.prototype.getFetcher = function getFetcher() {
+	return this._fetcher;
 };
 
 // level calculations
 
 GridImageBase.prototype.getLevelWidth = function getLevelWidth(level) {
-	var imageParams = this._fetchManager.getImageParams();
+	var imageParams = this.getImageParams();
 	return imageParams.imageWidth * Math.pow(2, level - imageParams.imageLevel);
 };
 
 GridImageBase.prototype.getLevelHeight = function getLevelHeight(level) {
-	var imageParams = this._fetchManager.getImageParams();
+	var imageParams = this.getImageParams();
 	return imageParams.imageHeight * Math.pow(2, level - imageParams.imageLevel);
 };
 
 GridImageBase.prototype.getLevel = function getLevel(regionImageLevel) {
-	var imageParams = this._fetchManager.getImageParams();
+	var imageParams = this.getImageParams();
 	
 	var log2 = Math.log(2);
 	var levelX = Math.log(regionImageLevel.screenWidth  / (regionImageLevel.maxXExclusive - regionImageLevel.minX)) / log2;
@@ -90,7 +96,7 @@ GridImageBase.prototype.taskStarted = function(task) {
 	}
 
 	if (this._imageParams === null) {
-		this._imageParams = this._fetchManager.getImageParams(); // imageParams that returned by fetcher.open()
+		this._imageParams = this.getImageParams(); // imageParams that returned by fetcher.open()
 	}
 
 	var imagePartParams = task.key;
@@ -143,8 +149,8 @@ GridImageBase.prototype._onTileTerminated = function(tileKey) {
 GridImageBase.getTilesRange = function(imageParams, imagePartParams) {
 	var levelWidth  = imageParams.imageWidth  * Math.pow(2, imagePartParams.level - imageParams.imageLevel);
 	var levelHeight = imageParams.imageHeight * Math.pow(2, imagePartParams.level - imageParams.imageLevel);
-	var levelTilesX = levelWidth  / imageParams.tileWidth ;
-	var levelTilesY = levelHeight / imageParams.tileHeight;
+	var levelTilesX = Math.ceil(levelWidth  / imageParams.tileWidth );
+	var levelTilesY = Math.ceil(levelHeight / imageParams.tileHeight);
 	return {
 		minTileX: Math.max(0, Math.floor(imagePartParams.minX / imageParams.tileWidth )),
 		minTileY: Math.max(0, Math.floor(imagePartParams.minY / imageParams.tileHeight)),

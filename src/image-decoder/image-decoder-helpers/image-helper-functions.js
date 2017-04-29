@@ -119,10 +119,10 @@ function fixBounds(bounds, image, adaptProportions) {
 }
 
 function alignParamsToTilesAndLevel(
-    region, imageDecoder) {
+    region, image) {
     
-    var tileWidth = imageDecoder.getTileWidth();
-    var tileHeight = imageDecoder.getTileHeight();
+    var tileWidth = image.getTileWidth();
+    var tileHeight = image.getTileHeight();
     
     var regionMinX = region.minX;
     var regionMinY = region.minY;
@@ -133,11 +133,11 @@ function alignParamsToTilesAndLevel(
     
     var isValidOrder = regionMinX < regionMaxX && regionMinY < regionMaxY;
     if (!isValidOrder) {
-        throw 'Parameters order is invalid';
+        throw 'imageDecoderFramework error: Parameters order is invalid';
     }
     
-    var defaultLevelWidth = imageDecoder.getImageWidth();
-    var defaultLevelHeight = imageDecoder.getImageHeight();
+    var defaultLevelWidth = image.getImageWidth();
+    var defaultLevelHeight = image.getImageHeight();
     if (regionMaxX < 0 || regionMinX >= defaultLevelWidth ||
         regionMaxY < 0 || regionMinY >= defaultLevelHeight) {
         
@@ -145,13 +145,12 @@ function alignParamsToTilesAndLevel(
     }
     
     //var maxLevel =
-    //    imageDecoder.getDefaultNumResolutionLevels() - 1;
+    //    image.getDefaultNumResolutionLevels() - 1;
 
     //var levelX = Math.log((regionMaxX - regionMinX) / screenWidth ) / log2;
     //var levelY = Math.log((regionMaxY - regionMinY) / screenHeight) / log2;
     //var level = Math.ceil(Math.min(levelX, levelY));
     //level = Math.max(0, Math.min(maxLevel, level));
-	var image = imageDecoder.getImage();
     var level = image.getLevel(region);
     var levelWidth = image.getLevelWidth(level);
     var levelHeight = image.getLevelHeight(level);

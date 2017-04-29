@@ -1,8 +1,7 @@
 'use strict';
 
-module.exports = ViewerImageDecoder;
+module.exports = ImageViewer;
 
-var ImageDecoder = require('image-decoder.js');
 var imageHelperFunctions = require('image-helper-functions.js');
 
 var PENDING_CALL_TYPE_PIXELS_UPDATED = 1;
@@ -11,13 +10,13 @@ var PENDING_CALL_TYPE_REPOSITION = 2;
 var REGION_OVERVIEW = 0;
 var REGION_DYNAMIC = 1;
 
-function ViewerImageDecoder(decoder, canvasUpdatedCallback, options) {
+function ImageViewer(image, canvasUpdatedCallback, options) {
     this._canvasUpdatedCallback = canvasUpdatedCallback;
     
     this._adaptProportions = options.adaptProportions;
     this._cartographicBounds = options.cartographicBounds;
-    this._allowMultipleChannelsInSession =
-        options.allowMultipleChannelsInSession;
+    this._allowMultipleMovableFetchesInSession =
+        options.allowMultipleMovableFetchesInSession;
     this._minFunctionCallIntervalMilliseconds =
         options.minFunctionCallIntervalMilliseconds;
     this._overviewResolutionX = options.overviewResolutionX || 100;
@@ -29,7 +28,7 @@ function ViewerImageDecoder(decoder, canvasUpdatedCallback, options) {
     this._targetCanvas = null;
     
     this._callPendingCallbacksBound = this._callPendingCallbacks.bind(this);
-    this._createdChannelBound = this._createdChannel.bind(this);
+    this._createdMovableFetchBound = this._createdMovableFetch.bind(this);
     
     this._pendingCallbacksIntervalHandle = 0;
     this._pendingCallbackCalls = [];
@@ -48,23 +47,22 @@ function ViewerImageDecoder(decoder, canvasUpdatedCallback, options) {
         this._adaptProportions = true;
     }
     
-    this._decoder = decoder;
-    this._image = decoder.getImage();
+    this._image = image;
 }
 
-ViewerImageDecoder.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
+ImageViewer.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
     // TODO: Support exceptionCallback in every place needed
 	this._exceptionCallback = exceptionCallback;
 };
     
-ViewerImageDecoder.prototype.open = function open(url) {
-    return this._decoder.open(url)
+ImageViewer.prototype.open = function open(url) {
+    return this._image.open(url)
         .then(this._opened.bind(this))
         .catch(this._exceptionCallback);
 };
 
-ViewerImageDecoder.prototype.close = function close() {
-    var promise = this._decoder.close();
+ImageViewer.prototype.close = function close() {
+    var promise = this._image.close();
     promise.catch(this._exceptionCallback);
     this._isReady = false;
     this._canShowDynamicRegion = false;
@@ -72,13 +70,13 @@ ViewerImageDecoder.prototype.close = function close() {
 	return promise;
 };
 
-ViewerImageDecoder.prototype.setTargetCanvas = function setTargetCanvas(canvas) {
+ImageViewer.prototype.setTargetCanvas = function setTargetCanvas(canvas) {
     this._targetCanvas = canvas;
 };
 
-ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumData) {
+ImageViewer.prototype.updateViewArea = function updateViewArea(frustumData) {
     if (this._targetCanvas === null) {
-        throw 'Cannot update dynamic region before setTargetCanvas()';
+        throw 'imageDecoderFramework error: Cannot update dynamic region before setTargetCanvas()';
     }
     
     if (!this._canShowDynamicRegion) {
@@ -101,7 +99,7 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
     
     var alignedParams =
         imageHelperFunctions.alignParamsToTilesAndLevel(
-            regionParams, this._decoder, this._image);
+            regionParams, this._image, this._image);
     
     var isOutsideScreen = alignedParams === null;
     if (isOutsideScreen) {
@@ -124,28 +122,28 @@ ViewerImageDecoder.prototype.updateViewArea = function updateViewArea(frustumDat
     frustumData.exactlevel =
         alignedParams.imagePartParams.level;
     
-    this._decoder.setDecodePrioritizerData(frustumData);
-    this._decoder.setServerRequestPrioritizerData(frustumData);
+    this._image.setDecodePrioritizerData(frustumData);
+    this._image.setServerRequestPrioritizerData(frustumData);
 
     this._dynamicFetchParams = alignedParams;
     
     var startDynamicRegionOnTermination = false;
-    var moveExistingChannel = !this._allowMultipleChannelsInSession;
+    var moveExistingFetch = !this._allowMultipleMovableFetchesInSession;
     this._fetch(
         REGION_DYNAMIC,
         alignedParams,
         startDynamicRegionOnTermination,
-        moveExistingChannel);
+        moveExistingFetch);
 };
 
-ViewerImageDecoder.prototype.getBounds = function getCartographicBounds() {
+ImageViewer.prototype.getBounds = function getCartographicBounds() {
     if (!this._isReady) {
-        throw 'ViewerImageDecoder error: Image is not ready yet';
+        throw 'imageDecoderFramework error: ImageViewer error: Image is not ready yet';
     }
     return this._cartographicBoundsFixed;
 };
 
-ViewerImageDecoder.prototype._isImagePartsEqual = function isImagePartsEqual(first, second) {
+ImageViewer.prototype._isImagePartsEqual = function isImagePartsEqual(first, second) {
     var isEqual =
         this._dynamicFetchParams !== undefined &&
         first.minX === second.minX &&
@@ -157,11 +155,11 @@ ViewerImageDecoder.prototype._isImagePartsEqual = function isImagePartsEqual(fir
     return isEqual;
 };
 
-ViewerImageDecoder.prototype._fetch = function fetch(
+ImageViewer.prototype._fetch = function fetch(
     regionId,
     fetchParams,
     startDynamicRegionOnTermination,
-    moveExistingChannel) {
+    moveExistingFetch) {
     
     var requestIndex = ++this._lastRequestIndex;
     
@@ -214,14 +212,14 @@ ViewerImageDecoder.prototype._fetch = function fetch(
     
     var self = this;
     
-    var channelHandle = moveExistingChannel ? this._channelHandle: undefined;
+    var movableHandle = moveExistingFetch ? this._movableHandle: undefined;
 
-    this._decoder.requestPixelsProgressive(
+    this._image.requestPixelsProgressive(
         fetchParams.imagePartParams,
         callback,
         terminatedCallback,
         fetchParamsNotNeeded,
-        channelHandle);
+        movableHandle);
     
     function callback(decoded) {
         self._tilesDecodedCallback(
@@ -239,7 +237,7 @@ ViewerImageDecoder.prototype._fetch = function fetch(
             // Then Chrome raises ERR_INVALID_CHUNKED_ENCODING and the request
             // never returns. Thus perform second request.
             
-            self._decoder.requestPixelsProgressive(
+            self._image.requestPixelsProgressive(
                 fetchParams.imagePartParams,
                 callback,
                 terminatedCallback,
@@ -254,7 +252,7 @@ ViewerImageDecoder.prototype._fetch = function fetch(
     }
 };
 
-ViewerImageDecoder.prototype._fetchTerminatedCallback = function fetchTerminatedCallback(
+ImageViewer.prototype._fetchTerminatedCallback = function fetchTerminatedCallback(
     regionId, priorityData, isAborted, startDynamicRegionOnTermination) {
     
     var region = this._regions[regionId];
@@ -274,16 +272,16 @@ ViewerImageDecoder.prototype._fetchTerminatedCallback = function fetchTerminated
 	}
     
     if (startDynamicRegionOnTermination) {
-        this._decoder.createChannel().then(this._createdChannelBound);
+        this._image.createMovableFetch().then(this._createdMovableFetchBound);
     }
 };
 
-ViewerImageDecoder.prototype._createdChannel = function createdChannel(channelHandle) {
-    this._channelHandle = channelHandle;
+ImageViewer.prototype._createdMovableFetch = function createdMovableFetch(movableHandle) {
+    this._movableHandle = movableHandle;
     this._startShowingDynamicRegion();
 };
 
-ViewerImageDecoder.prototype._startShowingDynamicRegion = function startShowingDynamicRegion() {
+ImageViewer.prototype._startShowingDynamicRegion = function startShowingDynamicRegion() {
     this._canShowDynamicRegion = true;
     
     if (this._pendingUpdateViewArea !== null) {
@@ -293,7 +291,7 @@ ViewerImageDecoder.prototype._startShowingDynamicRegion = function startShowingD
     }
 };
 
-ViewerImageDecoder.prototype._tilesDecodedCallback = function tilesDecodedCallback(
+ImageViewer.prototype._tilesDecodedCallback = function tilesDecodedCallback(
     regionId, fetchParams, position, decoded) {
     
     if (!this._isReady) {
@@ -315,7 +313,7 @@ ViewerImageDecoder.prototype._tilesDecodedCallback = function tilesDecodedCallba
                 break;
             
             default:
-                throw 'Unexpected regionId ' + regionId;
+                throw 'imageDecoderFramework error: Unexpected regionId ' + regionId;
         }
     }
     
@@ -337,7 +335,7 @@ ViewerImageDecoder.prototype._tilesDecodedCallback = function tilesDecodedCallba
     this._notifyNewPendingCalls();
 };
 
-ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositionNeeded(
+ImageViewer.prototype._checkIfRepositionNeeded = function checkIfRepositionNeeded(
     region, newPartParams, newPosition) {
     
     var oldPartParams = region.imagePartParams;
@@ -418,13 +416,13 @@ ViewerImageDecoder.prototype._checkIfRepositionNeeded = function checkIfRepositi
     return true;
 };
 
-ViewerImageDecoder.prototype._notifyNewPendingCalls = function notifyNewPendingCalls() {
+ImageViewer.prototype._notifyNewPendingCalls = function notifyNewPendingCalls() {
     if (!this._isNearCallbackCalled) {
         this._callPendingCallbacks();
     }
 };
 
-ViewerImageDecoder.prototype._callPendingCallbacks = function callPendingCallbacks() {
+ImageViewer.prototype._callPendingCallbacks = function callPendingCallbacks() {
     if (this._pendingCallbackCalls.length === 0 || !this._isReady) {
         this._isNearCallbackCalled = false;
         return;
@@ -453,7 +451,7 @@ ViewerImageDecoder.prototype._callPendingCallbacks = function callPendingCallbac
         } else if (callArgs.type === PENDING_CALL_TYPE_PIXELS_UPDATED) {
             this._pixelsUpdated(callArgs);
         } else {
-            throw 'Internal ViewerImageDecoder Error: Unexpected call type ' +
+            throw 'imageDecoderFramework error: Internal ImageViewer Error: Unexpected call type ' +
                 callArgs.type;
         }
     }
@@ -463,7 +461,7 @@ ViewerImageDecoder.prototype._callPendingCallbacks = function callPendingCallbac
     this._canvasUpdatedCallback(newPosition);
 };
 
-ViewerImageDecoder.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdatedArgs) {
+ImageViewer.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdatedArgs) {
     var region = pixelsUpdatedArgs.region;
     var decoded = pixelsUpdatedArgs.decoded;
     if (decoded.imageData.width === 0 || decoded.imageData.height === 0) {
@@ -480,7 +478,7 @@ ViewerImageDecoder.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdat
     context.putImageData(decoded.imageData, x, y);
 };
 
-ViewerImageDecoder.prototype._repositionCanvas = function repositionCanvas(repositionArgs) {
+ImageViewer.prototype._repositionCanvas = function repositionCanvas(repositionArgs) {
     var region = repositionArgs.region;
     var position = repositionArgs.position;
 	var donePartParams = repositionArgs.donePartParams;
@@ -529,7 +527,7 @@ ViewerImageDecoder.prototype._repositionCanvas = function repositionCanvas(repos
 	region.donePartParams = donePartParams;
 };
 
-ViewerImageDecoder.prototype._copyOverviewToCanvas = function copyOverviewToCanvas(
+ImageViewer.prototype._copyOverviewToCanvas = function copyOverviewToCanvas(
     context, canvasPosition, canvasPixelsWidth, canvasPixelsHeight) {
     
     var sourcePosition = this._regions[REGION_OVERVIEW].position;
@@ -573,7 +571,7 @@ ViewerImageDecoder.prototype._copyOverviewToCanvas = function copyOverviewToCanv
         0, 0, canvasPixelsWidth, canvasPixelsHeight);
 };
 
-ViewerImageDecoder.prototype._opened = function opened() {
+ImageViewer.prototype._opened = function opened() {
     this._isReady = true;
     
     var fixedBounds = {
@@ -583,12 +581,12 @@ ViewerImageDecoder.prototype._opened = function opened() {
         north: this._cartographicBounds.north
     };
     imageHelperFunctions.fixBounds(
-        fixedBounds, this._decoder, this._adaptProportions);
+        fixedBounds, this._image, this._adaptProportions);
     this._cartographicBoundsFixed = fixedBounds;
     
-    var imageWidth  = this._decoder.getImageWidth ();
-    var imageHeight = this._decoder.getImageHeight();
-    this._quality = this._decoder.getHighestQuality();
+    var imageWidth  = this._image.getImageWidth ();
+    var imageHeight = this._image.getImageHeight();
+    this._quality = this._image.getHighestQuality();
 
     var rectangleWidth = fixedBounds.east - fixedBounds.west;
     var rectangleHeight = fixedBounds.north - fixedBounds.south;
@@ -609,23 +607,23 @@ ViewerImageDecoder.prototype._opened = function opened() {
     
     var overviewAlignedParams =
         imageHelperFunctions.alignParamsToTilesAndLevel(
-            overviewParams, this._decoder, this._image);
+            overviewParams, this._image, this._image);
             
     overviewAlignedParams.imagePartParams.requestPriorityData =
         overviewAlignedParams.imagePartParams.requestPriorityData || {};
     
     overviewAlignedParams.imagePartParams.requestPriorityData.overrideHighestPriority = true;
-    overviewAlignedParams.imagePartParams.quality = this._decoder.getLowestQuality();
+    overviewAlignedParams.imagePartParams.quality = this._image.getLowestQuality();
     
     var startDynamicRegionOnTermination =
-        !this._allowMultipleChannelsInSession;
+        !this._allowMultipleMovableFetchesInSession;
         
     this._fetch(
         REGION_OVERVIEW,
         overviewAlignedParams,
         startDynamicRegionOnTermination);
     
-    if (this._allowMultipleChannelsInSession) {
+    if (this._allowMultipleMovableFetchesInSession) {
         this._startShowingDynamicRegion();
     }
 };
