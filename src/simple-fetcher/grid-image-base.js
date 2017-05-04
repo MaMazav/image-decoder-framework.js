@@ -9,8 +9,8 @@ module.exports = GridImageBase;
 var FETCH_WAIT_TASK = 0;
 var DECODE_TASK = 1;
 
-function GridImageBase(fetcher) {
-	ImageBase.call(this);
+function GridImageBase(fetcher, options) {
+	ImageBase.call(this, options);
 	
 	this._fetcher = fetcher;
 	this._imageParams = null;
@@ -26,8 +26,8 @@ GridImageBase.prototype.getDecodeWorkerTypeOptions = function getDecodeWorkerTyp
 	throw 'imageDecoderFramework error: GridImageBase.getDecodeWorkerTypeOptions is not implemented by inheritor';
 };
 
-GridImageBase.prototype.getDecoderWorkers = function getDecoderWorkers() {
-	throw 'imageDecoderFramework error: GridImageBase.getDecoderWorkers is not implemented by inheritor';
+GridImageBase.prototype.getDecoderWorkersInputRetreiver = function getDecoderWorkersInputRetreiver() {
+	return this;
 };
 
 GridImageBase.prototype.decodeTaskStarted = function decodeTaskStarted(task) {

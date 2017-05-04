@@ -34,8 +34,8 @@ Object.defineProperty(
     }
 );
     
-FrustumRequestsPrioritizer.prototype.setPrioritizerData = function setPrioritizerData(prioritizerData) {
-    this._frustumData = prioritizerData;
+FrustumRequestsPrioritizer.prototype.setPrioritizerData = function setPrioritizerData(data) {
+    this._frustumData = data;
 };
 
 FrustumRequestsPrioritizer.prototype.getPriority = function getPriority(jobContext) {

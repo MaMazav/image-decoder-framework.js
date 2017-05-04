@@ -188,6 +188,7 @@ GridFetcherBase.prototype._loadTile = function loadTile(level, tileX, tileY, dep
 			if (self._gridFetcherBaseCache[level][tileX][tileY] !== dependFetches) {
 				throw 'imageDecoderFramework error: Unexpected fetch in GridFetcherBase.gridFetcherBaseCache';
 			}
+			isTerminated = true;
 			self._gridFetcherBaseCache[level][tileX][tileY] = null;
 			
 			for (var i = 0; i < self._events['tile-terminated'].length; ++i) {

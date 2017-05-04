@@ -48,6 +48,8 @@ function ImageViewer(image, canvasUpdatedCallback, options) {
     }
     
     this._image = image;
+	image.setDecodePrioritizerType('frustumOnly');
+	image.setFetchPrioritizerType('frustumOnly');
 }
 
 ImageViewer.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
@@ -123,7 +125,7 @@ ImageViewer.prototype.updateViewArea = function updateViewArea(frustumData) {
         alignedParams.imagePartParams.level;
     
     this._image.setDecodePrioritizerData(frustumData);
-    this._image.setServerRequestPrioritizerData(frustumData);
+    this._image.setFetchPrioritizerData(frustumData);
 
     this._dynamicFetchParams = alignedParams;
     

@@ -42,11 +42,11 @@ var sources = [
 ];
 
 var vendorsProd = [
-    './vendor/resource-scheduler.dev.js'
+    './vendor/async-proxy.dev.js'
 ];
 
 var vendorsDebug = [
-    './vendor/resource-scheduler.dev.debug.js'
+    './vendor/async-proxy.dev.debug.js'
 ];
 
 var scriptsDebug = vendorsDebug.concat(sources);

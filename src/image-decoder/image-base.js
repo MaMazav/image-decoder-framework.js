@@ -15,7 +15,7 @@ function ImageBase(options) {
     ImageParamsRetrieverProxy.call(this);
     
     this._options = options || {};
-    //var decodeWorkersLimit = this._options.workersLimit || 5;
+    this._decodeWorkersLimit = this._options.decodeWorkersLimit || 5;
     
     this._tileWidth = this._options.tileWidth || 256;
     this._tileHeight = this._options.tileHeight || 256;
@@ -33,19 +33,10 @@ function ImageBase(options) {
 
     this._movableStates = [];
     this._decoders = [];
-
-    /* TODO
-    var decodeScheduler = imageHelperFunctions.createScheduler(
-        this._showLog,
-        this._options.decodePrioritizer,
-        'decode',
-        function createResource() {
-            return {};
-        },
-        decodeWorkersLimit);
-    */
-    
-    //this._decodePrioritizer = decodeScheduler.prioritizer;
+	
+	this._decodeScheduler = null;
+	this._decodePrioritizer = null;
+	this._prioritizerType = null;
 }
 
 ImageBase.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
@@ -54,8 +45,8 @@ ImageBase.prototype.getFetcher = function getFetcher() {
 	throw 'imageDecoderFramework error: Image.getFetcher() is not implemented by ImageBase inheritor';
 };
 
-ImageBase.prototype.getDecoderWorkers = function getDecoderWorkers() {
-	throw 'imageDecoderFramework error: Image.getDecoderWorkers() is not implemented by ImageBase inheritor';
+ImageBase.prototype.getDecoderWorkersInputRetreiver = function getDecoderWorkersInputRetreiver() {
+	throw 'imageDecoderFramework error: Image.getDecoderWorkersInputRetreiver() is not implemented by ImageBase inheritor';
 };
 
 ImageBase.prototype.getTileWidth = function getTileWidth() {
@@ -66,14 +57,13 @@ ImageBase.prototype.getTileHeight = function getTileHeight() {
     return this._tileHeight;
 };
     
-ImageBase.prototype.setServerRequestPrioritizerData =
-    function setServerRequestPrioritizerData(prioritizerData) {
+ImageBase.prototype.setFetchPrioritizerData =
+    function setFetchPrioritizerData(prioritizerData) {
 
     this._validateFetcher();
     
-    // TODO
-    //this._fetcher.setServerRequestPrioritizerData(
-    //    prioritizerData);
+    this._fetcher.setFetchPrioritizerData(
+        prioritizerData);
 };
 
 ImageBase.prototype.setDecodePrioritizerData =
@@ -81,10 +71,6 @@ ImageBase.prototype.setDecodePrioritizerData =
 
     this._validateDecoder();
     
-    // TODO
-    if (!ImageBase.undefinedVar) { // Avoid unreachable warning
-        return;
-    }
     if (this._decodePrioritizer === null) {
         throw 'imageDecoderFramework error: No decode prioritizer has been set';
     }
@@ -99,9 +85,21 @@ ImageBase.prototype.setDecodePrioritizerData =
     this._decodePrioritizer.setPrioritizerData(prioritizerDataModified);
 };
 
+ImageBase.prototype.setDecodePrioritizerType = function setPrioritizerType(prioritizerType) {
+	if (this._decodeScheduler !== null) {
+		throw 'imageDecoderFramework error: Cannot set prioritizer type at this time';
+	}
+	
+	this._prioritizerType = prioritizerType;
+};
+
+ImageBase.prototype.setFetchPrioritizerType = function setPrioritizerType(prioritizerType) {
+	this._fetcher.setPrioritizerType(prioritizerType);
+};
+
 ImageBase.prototype.open = function open(url) {
     this._validateFetcher();
-    
+
     var self = this;
     var promise = this._fetcher.openInternal(url);
     return promise.then(function (sizesParams) {
@@ -122,7 +120,10 @@ ImageBase.prototype.close = function close() {
         this._decoders[i].terminate();
     }
 
-    return this._fetcher.close();
+	var self = this;
+    return this._fetcher.close().then(function() {
+		self._decodeDependencyWorkers.terminateInactiveWorkers();
+	});
 };
 
 ImageBase.prototype.createMovableFetch = function createMovableFetch() {
@@ -230,15 +231,37 @@ ImageBase.prototype._validateDecoder = function validateComponents() {
         return;
     }
     
-    this._decodeDependencyWorkers = this.getDecoderWorkers();
+    var decodeScheduling = imageHelperFunctions.createPrioritizer(
+        this._decodeWorkersLimit,
+        this._prioritizerType,
+        'decode',
+        this._showLog);
+	
+	if (decodeScheduling.prioritizer !== null) {
+		this._decodeScheduler = new asyncProxy.DependencyWorkersTaskScheduler(
+			this._decodeWorkersLimit, decodeScheduling.schedulerOptions);
+		this._decodePrioritizer = decodeScheduling.prioritizer;
+	} else {
+		this._decodeScheduler = new resourceScheduler.LifoScheduler(
+			createDummyResource,
+			this._decodeWorkersLimit,
+			decodeScheduling.schedulerOptions);
+		this._decodePrioritizer = null;
+	}
+
+	var inputRetreiver = this.getDecoderWorkersInputRetreiver();
+	this._decodeDependencyWorkers = new asyncProxy.SchedulerDependencyWorkers(
+		this._decodeScheduler, inputRetreiver);
     
     this._requestsDecodeJobsPool = new DecodeJobsPool(
         this._decodeDependencyWorkers,
+		this._decodePrioritizer,
         this._tileWidth,
         this._tileHeight);
         
     this._movablesDecodeJobsPool = new DecodeJobsPool(
         this._decodeDependencyWorkers,
+		this._decodePrioritizer,
         this._tileWidth,
         this._tileHeight);
 };
@@ -290,3 +313,7 @@ ImageBase.prototype._copyPixelsToAccumulatedResult =
         targetOffset += targetStride;
     }
 };
+
+function createDummyResource()
+{
+}

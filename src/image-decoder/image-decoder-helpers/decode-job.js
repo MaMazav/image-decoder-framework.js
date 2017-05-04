@@ -7,7 +7,7 @@ var LinkedList = require('linked-list.js');
 var requestIdCounter = 0;
 
 function DecodeJob(listenerHandle, imagePartParams) {
-    this._isFirstStage = true;
+    this._progressiveStagesDone = 0;
     this._listenerHandle = listenerHandle;
     this._imagePartParams = imagePartParams;
     this._allRelevantBytesLoaded = 0;
@@ -19,7 +19,7 @@ function DecodeJob(listenerHandle, imagePartParams) {
 }
 
 DecodeJob.prototype.onData = function onData(decodeResult) {
-    this._isFirstStage = false;
+    ++this._progressiveStagesDone;
 
     var relevantBytesLoadedDiff =
         decodeResult.allRelevantBytesLoaded - this._allRelevantBytesLoaded;
@@ -55,3 +55,15 @@ DecodeJob.prototype.onTerminated = function onTerminated() {
             this._listenerHandle.isAnyDecoderAborted);
     }
 };
+
+Object.defineProperty(DecodeJob.prototype, 'imagePartParams', {
+	get: function getImagePartParams() {
+		return this._imagePartParams;
+	}
+});
+
+Object.defineProperty(DecodeJob.prototype, 'progressiveStagesDone', {
+	get: function getProgressiveStagesDone() {
+		return this._progressiveStagesDone;
+	}
+});

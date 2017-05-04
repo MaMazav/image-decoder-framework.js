@@ -6,9 +6,11 @@ var DecodeJob = require('decode-job.js');
 
 function DecodeJobsPool(
     decodeDependencyWorkers,
+	prioritizer,
     tileWidth,
     tileHeight) {
     
+	this._prioritizer = prioritizer;
     this._tileWidth = tileWidth;
     this._tileHeight = tileHeight;
     
@@ -51,7 +53,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
         isAnyDecoderAborted: false,
         isTerminatedCallbackCalled: false,
         allRelevantBytesLoaded: 0,
-        unregisterHandles: []
+        taskContexts: []
     };
     
     for (var x = minX; x < maxX; x += this._tileWidth) {
@@ -71,7 +73,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                 --listenerHandle.remainingDecodeJobs;
                 continue;
             }
-            
+			
             var singleTileImagePartParams = {
                 minX: x,
                 minY: y,
@@ -84,15 +86,8 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                 requestPriorityData: priorityData
             };
 
-            var decodeJob = new DecodeJob(
-                listenerHandle,
-                singleTileImagePartParams);
-
-            var taskHandle =
-                this._decodeDependencyWorkers.startTask(
-                    singleTileImagePartParams, decodeJob);
+			this._startNewTask(listenerHandle, singleTileImagePartParams);
             
-            listenerHandle.unregisterHandles.push(taskHandle);
         }
     }
     
@@ -106,6 +101,22 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
     return listenerHandle;
 };
 
+DecodeJobsPool.prototype._startNewTask = function startNewTask(listenerHandle, imagePartParams) {
+	var decodeJob = new DecodeJob(listenerHandle, imagePartParams);
+	var taskContext = this._decodeDependencyWorkers.startTask(imagePartParams, decodeJob);
+	listenerHandle.taskContexts.push(taskContext);
+	
+	if (this._prioritizer === null) {
+		return;
+	}
+	
+	var self = this;
+	
+	taskContext.setPriorityCalculator(function() {
+		return self._prioritizer.getPriority(decodeJob);
+	});
+};
+
 DecodeJobsPool.prototype.unregisterForkedJobs = function unregisterForkedJobs(
     listenerHandle) {
             
@@ -114,8 +125,8 @@ DecodeJobsPool.prototype.unregisterForkedJobs = function unregisterForkedJobs(
         return;
     }
     
-    for (var i = 0; i < listenerHandle.unregisterHandles.length; ++i) {
-        listenerHandle.unregisterHandles[i].unregister();
+    for (var i = 0; i < listenerHandle.taskContexts.length; ++i) {
+        listenerHandle.taskContexts[i].unregister();
     }
 };
 

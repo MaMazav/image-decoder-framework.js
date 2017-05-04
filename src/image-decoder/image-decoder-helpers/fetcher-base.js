@@ -12,29 +12,23 @@ var SimpleMovableFetch = require('simple-movable-fetch.js');
 /* global Promise: false */
 
 function FetcherBase(options) {
-    options = options || {};
+    this._options = options || {};
 	
 	var self = this;
-    var serverRequestsLimit = options.serverRequestsLimit || 5;
+    this._fetchesLimit = this._options.fetchesLimit || 5;
     
-    self._showLog = options.showLog;
-	self._maxActiveFetchesInMovableFetch = options.maxActiveFetchesInMovableFetch || 2;
+    self._showLog = this._options.showLog;
+	self._maxActiveFetchesInMovableFetch = this._options.maxActiveFetchesInMovableFetch || 2;
     
     if (self._showLog) {
         // Old IE
         throw 'imageDecoderFramework error: showLog is not supported on this browser';
     }
 	
-    var serverRequestScheduler = imageHelperFunctions.createScheduler(
-        options.showLog,
-        options.serverRequestPrioritizer,
-        'serverRequest',
-        createServerRequestDummyResource,
-        serverRequestsLimit);
-    
-    self._serverRequestPrioritizer = serverRequestScheduler.prioritizer;
-    
-    self._scheduler = serverRequestScheduler.scheduler;
+    self._scheduler = null;
+	self._fetchPrioritizer = null;
+	self._prioritizerType = null;
+		
     self._movableHandleCounter = 0;
     self._movableHandles = [];
     self._requestById = [];
@@ -59,11 +53,38 @@ FetcherBase.prototype.close = function close() {
 };
 
 FetcherBase.prototype.openInternal = function openInternal(url) {
+    var fetchScheduler = imageHelperFunctions.createPrioritizer(
+        this._fetchesLimit,
+        this._prioritizerType,
+        'fetch',
+        this._options.showLog);
+    
+    this._fetchPrioritizer = fetchScheduler.prioritizer;
+	if (fetchScheduler.prioritizer !== null) {
+		this._scheduler = new resourceScheduler.PriorityScheduler(
+			createDummyResource,
+			this._fetchesLimit,
+			fetchScheduler.prioritizer,
+			fetchScheduler.schedulerOptions);
+	} else {
+		this._scheduler = new resourceScheduler.LifoScheduler(
+			createDummyResource,
+			this._fetchesLimit,
+			fetchScheduler.schedulerOptions);
+	}
+
 	var self = this;
     return this.open(url).then(function(result) {
 		self._imageParams = result;
 		return result;
 	});
+};
+
+FetcherBase.prototype.setPrioritizerType = function setPrioritizerType(prioritizerType) {
+	if (this._scheduler !== null) {
+		throw 'imageDecoderFramework error: cannot set prioritizer type after FetcherBase.open() called';
+	}
+	this._prioritizerType = prioritizerType;
 };
 
 FetcherBase.prototype.getImageParams = function getImageParams() {
@@ -169,19 +190,19 @@ FetcherBase.prototype.manualAbortRequest = function manualAbortRequest(
     delete this._requestById[requestId];
 };
 
-FetcherBase.prototype.setServerRequestPrioritizerData =
-    function setServerRequestPrioritizerData(prioritizerData) {
+FetcherBase.prototype.setFetchPrioritizerData =
+    function setFetchPrioritizerData(prioritizerData) {
 
-    if (this._serverRequestPrioritizer === null) {
-        throw 'imageDecoderFramework error: No serverRequest prioritizer has been set';
+    if (this._fetchPrioritizer === null) {
+        throw 'imageDecoderFramework error: No fetch prioritizer has been set';
     }
     
     if (this._showLog) {
-        console.log('setServerRequestPrioritizerData(' + prioritizerData + ')');
+        console.log('setFetchPrioritizerData(' + prioritizerData + ')');
     }
     
     prioritizerData.image = this;
-    this._serverRequestPrioritizer.setPrioritizerData(prioritizerData);
+    this._fetchPrioritizer.setPrioritizerData(prioritizerData);
     this._yieldFetchJobs();
 };
 
@@ -199,6 +220,6 @@ function internalTerminatedCallback(contextVars) {
     delete contextVars.self._requestById[contextVars.requestId];
 }
 
-function createServerRequestDummyResource() {
-    return {};
+function createDummyResource() {
+	return {};
 }

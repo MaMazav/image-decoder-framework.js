@@ -28,7 +28,7 @@ module.exports = L.Class.extend({
             this._image = new ImageType(this._imageImplementation, {
                 tileWidth: this._tileSize,
                 tileHeight: this._tileSize,
-                serverRequestPrioritizer: 'frustum',
+                fetchPrioritizer: 'frustum',
                 decodePrioritizer: 'frustum',
                 showLog: this._options.showLog
             });

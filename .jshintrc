@@ -1,6 +1,7 @@
 {
 	"browserify": true,
 	"globals": {
+		"asyncProxy": false,
 		"resourceScheduler": false
 	}
 }

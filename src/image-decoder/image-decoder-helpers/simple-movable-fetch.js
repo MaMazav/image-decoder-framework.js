@@ -17,7 +17,8 @@ function SimpleMovableFetch(fetcher, fetcherCloser, fetchContext, maxActiveFetch
 	this._movableFetchContext = fetchContext;
 	this._maxActiveFetchesInMovableFetch = maxActiveFetchesInMovableFetch;
 	
-	this._activeFetchesInMovableFetch = new LinkedList();
+	this._lastFetch = null;
+	this._activeFetchesInMovableFetch = 0;
 	this._pendingImagePartParams = null;
 	this._movableState = FETCH_STATE_WAIT_FOR_MOVE;
 	
@@ -37,7 +38,7 @@ SimpleMovableFetch.prototype.start = function start(imagePartParams) {
 
 SimpleMovableFetch.prototype._onIsProgressiveChanged = function isProgressiveChanged(isProgressive) {
 	this._isProgressive = isProgressive;
-	var lastActiveFetch = this._getLastFetch();
+	var lastActiveFetch = this._getLastFetchActive();
 	if (lastActiveFetch !== null) {
 		lastActiveFetch._onEvent('isProgressiveChanged', isProgressive);
 	} else {
@@ -47,7 +48,7 @@ SimpleMovableFetch.prototype._onIsProgressiveChanged = function isProgressiveCha
 
 SimpleMovableFetch.prototype._onStop = function stop(isAborted) {
 	this._switchState(FETCH_STATE_STOPPING, FETCH_STATE_ACTIVE);
-	var lastActiveFetch = this._getLastFetch();
+	var lastActiveFetch = this._getLastFetchActive();
 	if (lastActiveFetch !== null) {
 		lastActiveFetch._onEvent('stop', isAborted);
 	}
@@ -56,17 +57,15 @@ SimpleMovableFetch.prototype._onStop = function stop(isAborted) {
 SimpleMovableFetch.prototype._onResume = function resume() {
 	this._switchState(FETCH_STATE_ACTIVE, FETCH_STATE_STOPPED, FETCH_STATE_STOPPING);
 
-	var lastFetchIterator = this._activeFetchesInMovableFetch.getLastIterator();
-	if (lastFetchIterator !== null) {
+	if (this._lastFetch === null) {
 		throw 'imageDecoderFramework error: resuming non stopped fetch';
 	}
 	
-	var lastFetch = this._activeFetchesInMovableFetch.getValue(lastFetchIterator);
 	if (this._isProgressiveChangedCalled) {
 		this._isProgressiveChangedCalled = false;
-		lastFetch._onEvent('isProgressiveChanged', this._isProgressive);
+		this._lastFetch._onEvent('isProgressiveChanged', this._isProgressive);
 	}
-	lastFetch._onEvent('resume');
+	this._lastFetch._onEvent('resume');
 };
 
 SimpleMovableFetch.prototype._onTerminated = function onTerminated(isAborted) {
@@ -81,7 +80,7 @@ SimpleMovableFetch.prototype._onMove = function move(imagePartParams) {
 
 SimpleMovableFetch.prototype._tryStartPendingFetch = function tryStartPendingFetch() {
 	if (this._fetcherCloser.isCloseRequested() ||
-		this._activeFetchesInMovableFetch.getCount() >= this._maxActiveFetchesInMovableFetch ||
+		this._activeFetchesInMovableFetch >= this._maxActiveFetchesInMovableFetch ||
 		this._pendingImagePartParams === null ||
 		this._movableState !== FETCH_STATE_ACTIVE) {
 
@@ -93,12 +92,11 @@ SimpleMovableFetch.prototype._tryStartPendingFetch = function tryStartPendingFet
 		state: FETCH_STATE_ACTIVE,
 
 		fetchContext: null,
-		parentIterator: null,
 		self: this
 	};
 	
 	this._pendingImagePartParams = null;
-	newFetch.parentIterator = this._activeFetchesInMovableFetch.add(newFetch);
+	++this._activeFetchesInMovableFetch;
 	
     this._fetcherCloser.changeActiveFetchesCount(+1);
 	
@@ -111,24 +109,18 @@ SimpleMovableFetch.prototype._tryStartPendingFetch = function tryStartPendingFet
 
 SimpleMovableFetch.prototype._singleFetchStopped = function singleFetchStopped(fetch, isDone) {
 	this._fetcherCloser.changeActiveFetchesCount(-1);
-	this._activeFetchesInMovableFetch.remove(fetch.parentIterator);
+	--this._activeFetchesInMovableFetch;
+	this._lastFetch = null;
 	fetch.state = FETCH_STATE_TERMINATED;
-	fetch.parentIterator = null;
 };
 
-SimpleMovableFetch.prototype._getLastFetch = function getLastFetch() {
-	if (this._movableState === FETCH_STATE_STOPPED) {
+SimpleMovableFetch.prototype._getLastFetchActive = function getLastFetchActive() {
+	if (this._movableState === FETCH_STATE_STOPPED || this._lastFetch === null) {
 		return null;
 	}
 	
-	var lastFetchIterator = this._activeFetchesInMovableFetch.getLastIterator();
-	if (lastFetchIterator === null) {
-		return null;
-	}
-	
-	var lastFetch = this._activeFetchesInMovableFetch.getValue(lastFetchIterator);
-	if (lastFetch.state === FETCH_STATE_ACTIVE) {
-		return lastFetch.fetchContext;
+	if (this._lastFetch.state === FETCH_STATE_ACTIVE) {
+		return this._lastFetch.fetchContext;
 	}
 	return null;
 };
@@ -141,8 +133,7 @@ SimpleMovableFetch.prototype._switchState = function switchState(targetState, ex
 };
 
 SimpleMovableFetch.prototype._isLastFetch = function isLastFetch(fetch) {
-	return	this._activeFetchesInMovableFetch.getNextIterator(fetch.parentIterator) === null &&
-			this._pendingImagePartParams === null;
+	return this._lastFetch === fetch && this._pendingImagePartParams === null;
 };
 
 function onSingleFetchStopped() {

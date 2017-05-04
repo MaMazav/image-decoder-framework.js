@@ -491,7 +491,7 @@ ImageDecoderImageryProvider.prototype._setPriorityByFrustum =
     frustumData.imageRectangle = this.getRectangle();
     frustumData.exactlevel = null;
 
-    this._image.setServerRequestPrioritizerData(frustumData);
+    this._image.setFetchPrioritizerData(frustumData);
     this._image.setDecodePrioritizerData(frustumData);
 };
 
