@@ -238,7 +238,7 @@ ImageBase.prototype._validateDecoder = function validateComponents() {
         this._showLog);
 	
 	if (decodeScheduling.prioritizer !== null) {
-		this._decodeScheduler = new asyncProxy.DependencyWorkersTaskScheduler(
+		this._decodeScheduler = new dependencyWorkers.DependencyWorkersTaskScheduler(
 			this._decodeWorkersLimit, decodeScheduling.schedulerOptions);
 		this._decodePrioritizer = decodeScheduling.prioritizer;
 	} else {
@@ -250,7 +250,7 @@ ImageBase.prototype._validateDecoder = function validateComponents() {
 	}
 
 	var inputRetreiver = this.getDecoderWorkersInputRetreiver();
-	this._decodeDependencyWorkers = new asyncProxy.SchedulerDependencyWorkers(
+	this._decodeDependencyWorkers = new dependencyWorkers.SchedulerDependencyWorkers(
 		this._decodeScheduler, inputRetreiver);
     
     this._requestsDecodeJobsPool = new DecodeJobsPool(
