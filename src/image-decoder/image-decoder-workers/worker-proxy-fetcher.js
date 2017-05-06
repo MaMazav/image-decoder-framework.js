@@ -1,5 +1,75 @@
 'use strict';
 
+module.exports = WorkerProxyFetcher;
+
+function WorkerProxyFetcher(scriptsToImport, ctorName, options) {
+	this._options = options || {};
+	this._internalSizesParams = null;
+	this._tileWidth = 0;
+	this._tileHeight = 0;
+
+	asyncProxy.AsyncProxyFactory.initialize(this, scriptsToImport, ctorName, [options]);
+}
+
+asyncProxy.AsyncProxyFactory.addMethods(WorkerProxyFetcher, {
+	close: [{isReturnPromise: true}],
+	setPrioritizerType: [],
+	setFetchPrioritizerData: [],
+	setIsProgressiveRequest: [],
+	createMovableFetch: [{isReturnPromise: true}],
+	moveFetch: [],
+	createRequest: [],
+	manualAbortRequest: []
+});
+
+WorkerProxyFetcher.prototype.open = function open(url) {
+	throw 'imageDecoderFramework error: open() should not be called on WorkerProxyFetcher; Call openInternal() instead';
+};
+
+WorkerProxyFetcher.prototype.startFetch = function startFetch(fetchContext, imagePartParams) {
+    throw 'imageDecoderFramework error: startFetch() should not be called on WorkerProxyFetcher; Call createRequest() instead';
+};
+
+WorkerProxyFetcher.prototype.startMovableFetch = function startFetch(fetchContext, imagePartParams) {
+    throw 'imageDecoderFramework error: startFetch() should not be called on WorkerProxyFetcher; Call createMovableFetch() instead';
+};
+
+WorkerProxyFetcher.prototype.openInternal = function openInternal(url) {
+	var self = this;
+	var workerHelper = asyncProxy.AsyncProxyFactory.getWorkerHelper(this);
+
+	return workerHelper.callFunction('openInternal', [url], { isReturnPromise: true })
+		.then(function(data) {
+			self._internalSizesParams = data;
+			self.getImageParams();
+			return data;
+		});
+};
+
+WorkerProxyFetcher.prototype.getImageParams = function getImageParams() {
+	if (!this._internalSizesParams) {
+		throw 'imageDecoderFramework error: not opened yet';
+	}
+	return this._internalSizesParams;
+};
+
+WorkerProxyFetcher.prototype.on = function on(event, callback) {
+    var transferablePaths = this._options.transferablePathsOfDataCallback;
+	var workerHelper = asyncProxy.AsyncProxyFactory.getWorkerHelper(this);
+    
+    var callbackWrapper = workerHelper.wrapCallback(
+        callback, event + '-callback', {
+            isMultipleTimeCallback: true,
+            pathsToTransferables: transferablePaths
+        }
+    );
+	
+	return workerHelper.callFunction('on', [event, callbackWrapper]);
+};
+
+/*
+'use strict';
+
 module.exports = WorkerProxyFetchManager;
 
 var imageHelperFunctions = require('image-helper-functions.js');
@@ -80,7 +150,7 @@ WorkerProxyFetchManager.prototype.createRequest = function createRequest(
             
     var args = [
         fetchParams,
-        /*callbackThis=*/{ dummyThis: 'dummyThis' },
+        { dummyThis: 'dummyThis' },
         internalTerminatedCallbackWrapper,
         isOnlyWaitForData,
         requestId];
@@ -128,4 +198,4 @@ WorkerProxyFetchManager.prototype._getImageParamsInternal = function getImagePar
 
 WorkerProxyFetchManager.prototype._userDataHandler = function userDataHandler(data) {
     this._internalSizesParams = data.sizesParams;
-};
+};*/

@@ -2,6 +2,7 @@
 	"browserify": true,
 	"globals": {
 		"asyncProxy": false,
-		"resourceScheduler": false
+		"resourceScheduler": false,
+		"dependencyWorkers": false
 	}
 }

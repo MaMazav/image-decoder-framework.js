@@ -26,6 +26,8 @@ var sources = [
     './src/image-decoder/image-decoder-helpers/image-helper-functions.js',
     './src/image-decoder/image-decoder-helpers/linked-list.js',
     './src/image-decoder/image-decoder-workers/image-params-retriever-proxy.js',
+    './src/image-decoder/image-decoder-workers/worker-proxy-fetcher.js',
+    './src/image-decoder/image-decoder-workers/worker-proxy-image.js',
     './src/image-decoder/image-base.js',
     './src/image-decoder/image-viewer.js',
 	'./src/simple-fetcher/grid-fetcher-base.js',
