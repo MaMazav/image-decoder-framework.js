@@ -1,6 +1,6 @@
 'use strict';
 
-var ImageBase = require('image-base.js');
+var GridLevelCalculator = require('grid-level-calculator.js');
 
 module.exports = GridImageBase;
 
@@ -9,18 +9,25 @@ module.exports = GridImageBase;
 var FETCH_WAIT_TASK = 0;
 var DECODE_TASK = 1;
 
-function GridImageBase(fetcher, options) {
-	ImageBase.call(this, options);
-	
+function GridImageBase(fetcher) {
 	this._fetcher = fetcher;
 	this._imageParams = null;
 	this._waitingFetches = {};
-
-	this._fetcher.on('data', this._onDataFetched.bind(this));
-	this._fetcher.on('tile-terminated', this._onTileTerminated.bind(this));
+    this._levelCalculator = null;
 }
 
-GridImageBase.prototype = Object.create(ImageBase.prototype);
+GridImageBase.prototype.opened = function opened(imageDecoder) {
+    this._imageParams = imageDecoder.getImageParams();
+    imageDecoder.onFetcherEvent('data', this._onDataFetched.bind(this));
+    imageDecoder.onFetcherEvent('tile-terminated', this._onTileTerminated.bind(this));
+};
+
+GridImageBase.prototype.getLevelCalculator = function getLevelCalculator() {
+    if (this._levelCalculator === null) {
+        this._levelCalculator = new GridLevelCalculator(this._imageParams);
+    }
+	return this._levelCalculator;
+};
 
 GridImageBase.prototype.getDecodeWorkerTypeOptions = function getDecodeWorkerTypeOptions() {
 	throw 'imageDecoderFramework error: GridImageBase.getDecodeWorkerTypeOptions is not implemented by inheritor';
@@ -40,30 +47,6 @@ GridImageBase.prototype.decodeTaskStarted = function decodeTaskStarted(task) {
 
 GridImageBase.prototype.getFetcher = function getFetcher() {
 	return this._fetcher;
-};
-
-// level calculations
-
-GridImageBase.prototype.getLevelWidth = function getLevelWidth(level) {
-	var imageParams = this.getImageParams();
-	return imageParams.imageWidth * Math.pow(2, level - imageParams.imageLevel);
-};
-
-GridImageBase.prototype.getLevelHeight = function getLevelHeight(level) {
-	var imageParams = this.getImageParams();
-	return imageParams.imageHeight * Math.pow(2, level - imageParams.imageLevel);
-};
-
-GridImageBase.prototype.getLevel = function getLevel(regionImageLevel) {
-	var imageParams = this.getImageParams();
-	
-	var log2 = Math.log(2);
-	var levelX = Math.log(regionImageLevel.screenWidth  / (regionImageLevel.maxXExclusive - regionImageLevel.minX)) / log2;
-	var levelY = Math.log(regionImageLevel.screenHeight / (regionImageLevel.maxYExclusive - regionImageLevel.minY)) / log2;
-	var level = Math.ceil(Math.min(levelX, levelY));
-	level += imageParams.imageLevel;
-	
-	return level;
 };
 
 // DependencyWorkersInputRetreiver implementation

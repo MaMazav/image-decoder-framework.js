@@ -31,7 +31,7 @@ var imageHelperFunctions = require('image-helper-functions.js');
  * @see TileMapServiceImageryProvider
  * @see WebMapServiceImageryProvider
  */
-function ImageDecoderImageryProvider(image, options) {
+function ImageDecoderImageryProvider(imageDecoder, options) {
     var url = options.url;
     this._adaptProportions = options.adaptProportions;
     this._rectangle = options.rectangle;
@@ -86,7 +86,7 @@ function ImageDecoderImageryProvider(image, options) {
         imageUrl = this._proxy.getURL(imageUrl);
     }
     
-    this._image = image;
+    this._imageDecoder = imageDecoder;
     this._url = imageUrl;
 }
 
@@ -290,7 +290,7 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
             'needed for frustum calculation for the priority mechanism');
     }
     
-    this._image.open(this._url)
+    this._imageDecoder.open(this._url)
 		.then(this._opened.bind(this))
 		.catch(this._onException.bind(this));
     
@@ -303,7 +303,7 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
 
 ImageDecoderImageryProvider.prototype.close = function close() {
     clearInterval(this._updateFrustumIntervalHandle);
-    this._image.close();
+    this._imageDecoder.close();
 };
 
 ImageDecoderImageryProvider.prototype.getTileWidth = function getTileWidth() {
@@ -408,7 +408,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         maxYExclusive: maxYExclusive,
         screenWidth: this._tileWidth,
         screenHeight: this._tileHeight
-    }, this._image, this._image);
+    }, this._imageDecoder);
     
     var scaledCanvas = document.createElement('canvas');
     scaledCanvas.width = this._tileWidth;
@@ -439,7 +439,7 @@ ImageDecoderImageryProvider.prototype.requestImage = function(x, y, cesiumLevel)
         resolve = resolve_;
         reject = reject_;
         
-        self._image.requestPixelsProgressive(
+        self._imageDecoder.requestPixelsProgressive(
             alignedParams.imagePartParams,
             pixelsDecodedCallback,
             terminatedCallback);
@@ -491,8 +491,8 @@ ImageDecoderImageryProvider.prototype._setPriorityByFrustum =
     frustumData.imageRectangle = this.getRectangle();
     frustumData.exactlevel = null;
 
-    this._image.setFetchPrioritizerData(frustumData);
-    this._image.setDecodePrioritizerData(frustumData);
+    this._imageDecoder.setFetchPrioritizerData(frustumData);
+    this._imageDecoder.setDecodePrioritizerData(frustumData);
 };
 
 /**
@@ -527,23 +527,23 @@ ImageDecoderImageryProvider.prototype._opened = function opened() {
     this._ready = true;
 
     // This is wrong if COD or COC exists besides main header COD
-    this._numResolutionLevels = this._image.getNumResolutionLevelsForLimittedViewer();
-    this._quality = this._image.getHighestQuality();
+    this._numResolutionLevels = this._imageDecoder.getNumResolutionLevelsForLimittedViewer();
+    this._quality = this._imageDecoder.getHighestQuality();
     var maximumCesiumLevel = this._numResolutionLevels - 1;
         
-    this._tileWidth = this._image.getTileWidth();
-    this._tileHeight = this._image.getTileHeight();
+    this._tileWidth = this._imageDecoder.getTileWidth();
+    this._tileHeight = this._imageDecoder.getTileHeight();
         
-    var bestLevel = this._image.getImageLevel();
-    var bestLevelWidth  = this._image.getImageWidth ();
-    var bestLevelHeight = this._image.getImageHeight();
+    var bestLevel = this._imageDecoder.getImageLevel();
+    var bestLevelWidth  = this._imageDecoder.getImageWidth ();
+    var bestLevelHeight = this._imageDecoder.getImageHeight();
     
     var lowestLevelTilesX = Math.ceil(bestLevelWidth  / this._tileWidth ) >> maximumCesiumLevel;
     var lowestLevelTilesY = Math.ceil(bestLevelHeight / this._tileHeight) >> maximumCesiumLevel;
 
     imageHelperFunctions.fixBounds(
         this._rectangle,
-        this._image,
+        this._imageDecoder,
         this._adaptProportions);
     var rectangleWidth  = this._rectangle.east  - this._rectangle.west;
     var rectangleHeight = this._rectangle.north - this._rectangle.south;

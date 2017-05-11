@@ -1,9 +1,8 @@
 'use strict';
 
-module.exports = SimpleMovableFetch;
-function SimpleMovableFetch(){}
-var LinkedList = require('linked-list.js');
 var FetchContextApi = require('fetch-context-api.js');
+
+module.exports = SimpleMovableFetch;
 
 var FETCH_STATE_WAIT_FOR_MOVE = 1;
 var FETCH_STATE_ACTIVE = 2;
@@ -11,9 +10,9 @@ var FETCH_STATE_STOPPING = 3;
 var FETCH_STATE_STOPPED = 4;
 var FETCH_STATE_TERMINATED = 5;
 
-function SimpleMovableFetch(fetcher, fetcherCloser, fetchContext, maxActiveFetchesInMovableFetch) {
+function SimpleMovableFetch(fetcher, indirectCloseIndication, fetchContext, maxActiveFetchesInMovableFetch) {
 	this._fetcher = fetcher;
-	this._fetcherCloser = fetcherCloser;
+	this._indirectCloseIndication = indirectCloseIndication;
 	this._movableFetchContext = fetchContext;
 	this._maxActiveFetchesInMovableFetch = maxActiveFetchesInMovableFetch;
 	
@@ -79,7 +78,7 @@ SimpleMovableFetch.prototype._onMove = function move(imagePartParams) {
 };
 
 SimpleMovableFetch.prototype._tryStartPendingFetch = function tryStartPendingFetch() {
-	if (this._fetcherCloser.isCloseRequested() ||
+	if (this._indirectCloseIndication.isCloseRequested ||
 		this._activeFetchesInMovableFetch >= this._maxActiveFetchesInMovableFetch ||
 		this._pendingImagePartParams === null ||
 		this._movableState !== FETCH_STATE_ACTIVE) {
@@ -98,8 +97,6 @@ SimpleMovableFetch.prototype._tryStartPendingFetch = function tryStartPendingFet
 	this._pendingImagePartParams = null;
 	++this._activeFetchesInMovableFetch;
 	
-    this._fetcherCloser.changeActiveFetchesCount(+1);
-	
 	newFetch.fetchContext = new FetchContextApi();
 	newFetch.fetchContext.on('internalStopped', onSingleFetchStopped, newFetch);
 	newFetch.fetchContext.on('internalDone', onSingleFetchDone, newFetch);
@@ -108,7 +105,6 @@ SimpleMovableFetch.prototype._tryStartPendingFetch = function tryStartPendingFet
 };
 
 SimpleMovableFetch.prototype._singleFetchStopped = function singleFetchStopped(fetch, isDone) {
-	this._fetcherCloser.changeActiveFetchesCount(-1);
 	--this._activeFetchesInMovableFetch;
 	this._lastFetch = null;
 	fetch.state = FETCH_STATE_TERMINATED;

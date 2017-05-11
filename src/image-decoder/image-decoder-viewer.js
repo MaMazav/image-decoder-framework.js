@@ -1,6 +1,6 @@
 'use strict';
 
-module.exports = ImageViewer;
+module.exports = ImageDecoderViewer;
 
 var imageHelperFunctions = require('image-helper-functions.js');
 
@@ -10,7 +10,7 @@ var PENDING_CALL_TYPE_REPOSITION = 2;
 var REGION_OVERVIEW = 0;
 var REGION_DYNAMIC = 1;
 
-function ImageViewer(image, canvasUpdatedCallback, options) {
+function ImageDecoderViewer(imageDecoder, canvasUpdatedCallback, options) {
     this._canvasUpdatedCallback = canvasUpdatedCallback;
     
     this._adaptProportions = options.adaptProportions;
@@ -47,24 +47,24 @@ function ImageViewer(image, canvasUpdatedCallback, options) {
         this._adaptProportions = true;
     }
     
-    this._image = image;
-	image.setDecodePrioritizerType('frustumOnly');
-	image.setFetchPrioritizerType('frustumOnly');
+    this._imageDecoder = imageDecoder;
+	imageDecoder.setDecodePrioritizerType('frustumOnly');
+	imageDecoder.setFetchPrioritizerType('frustumOnly');
 }
 
-ImageViewer.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
+ImageDecoderViewer.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
     // TODO: Support exceptionCallback in every place needed
 	this._exceptionCallback = exceptionCallback;
 };
     
-ImageViewer.prototype.open = function open(url) {
-    return this._image.open(url)
+ImageDecoderViewer.prototype.open = function open(url) {
+    return this._imageDecoder.open(url)
         .then(this._opened.bind(this))
         .catch(this._exceptionCallback);
 };
 
-ImageViewer.prototype.close = function close() {
-    var promise = this._image.close();
+ImageDecoderViewer.prototype.close = function close() {
+    var promise = this._imageDecoder.close();
     promise.catch(this._exceptionCallback);
     this._isReady = false;
     this._canShowDynamicRegion = false;
@@ -72,11 +72,11 @@ ImageViewer.prototype.close = function close() {
 	return promise;
 };
 
-ImageViewer.prototype.setTargetCanvas = function setTargetCanvas(canvas) {
+ImageDecoderViewer.prototype.setTargetCanvas = function setTargetCanvas(canvas) {
     this._targetCanvas = canvas;
 };
 
-ImageViewer.prototype.updateViewArea = function updateViewArea(frustumData) {
+ImageDecoderViewer.prototype.updateViewArea = function updateViewArea(frustumData) {
     if (this._targetCanvas === null) {
         throw 'imageDecoderFramework error: Cannot update dynamic region before setTargetCanvas()';
     }
@@ -101,7 +101,7 @@ ImageViewer.prototype.updateViewArea = function updateViewArea(frustumData) {
     
     var alignedParams =
         imageHelperFunctions.alignParamsToTilesAndLevel(
-            regionParams, this._image, this._image);
+            regionParams, this._imageDecoder);
     
     var isOutsideScreen = alignedParams === null;
     if (isOutsideScreen) {
@@ -124,8 +124,8 @@ ImageViewer.prototype.updateViewArea = function updateViewArea(frustumData) {
     frustumData.exactlevel =
         alignedParams.imagePartParams.level;
     
-    this._image.setDecodePrioritizerData(frustumData);
-    this._image.setFetchPrioritizerData(frustumData);
+    this._imageDecoder.setDecodePrioritizerData(frustumData);
+    this._imageDecoder.setFetchPrioritizerData(frustumData);
 
     this._dynamicFetchParams = alignedParams;
     
@@ -138,14 +138,14 @@ ImageViewer.prototype.updateViewArea = function updateViewArea(frustumData) {
         moveExistingFetch);
 };
 
-ImageViewer.prototype.getBounds = function getCartographicBounds() {
+ImageDecoderViewer.prototype.getBounds = function getCartographicBounds() {
     if (!this._isReady) {
-        throw 'imageDecoderFramework error: ImageViewer error: Image is not ready yet';
+        throw 'imageDecoderFramework error: ImageDecoderViewer error: Image is not ready yet';
     }
     return this._cartographicBoundsFixed;
 };
 
-ImageViewer.prototype._isImagePartsEqual = function isImagePartsEqual(first, second) {
+ImageDecoderViewer.prototype._isImagePartsEqual = function isImagePartsEqual(first, second) {
     var isEqual =
         this._dynamicFetchParams !== undefined &&
         first.minX === second.minX &&
@@ -157,7 +157,7 @@ ImageViewer.prototype._isImagePartsEqual = function isImagePartsEqual(first, sec
     return isEqual;
 };
 
-ImageViewer.prototype._fetch = function fetch(
+ImageDecoderViewer.prototype._fetch = function fetch(
     regionId,
     fetchParams,
     startDynamicRegionOnTermination,
@@ -216,7 +216,7 @@ ImageViewer.prototype._fetch = function fetch(
     
     var movableHandle = moveExistingFetch ? this._movableHandle: undefined;
 
-    this._image.requestPixelsProgressive(
+    this._imageDecoder.requestPixelsProgressive(
         fetchParams.imagePartParams,
         callback,
         terminatedCallback,
@@ -239,7 +239,7 @@ ImageViewer.prototype._fetch = function fetch(
             // Then Chrome raises ERR_INVALID_CHUNKED_ENCODING and the request
             // never returns. Thus perform second request.
             
-            self._image.requestPixelsProgressive(
+            self._imageDecoder.requestPixelsProgressive(
                 fetchParams.imagePartParams,
                 callback,
                 terminatedCallback,
@@ -254,7 +254,7 @@ ImageViewer.prototype._fetch = function fetch(
     }
 };
 
-ImageViewer.prototype._fetchTerminatedCallback = function fetchTerminatedCallback(
+ImageDecoderViewer.prototype._fetchTerminatedCallback = function fetchTerminatedCallback(
     regionId, priorityData, isAborted, startDynamicRegionOnTermination) {
     
     var region = this._regions[regionId];
@@ -274,16 +274,16 @@ ImageViewer.prototype._fetchTerminatedCallback = function fetchTerminatedCallbac
 	}
     
     if (startDynamicRegionOnTermination) {
-        this._image.createMovableFetch().then(this._createdMovableFetchBound);
+        this._imageDecoder.createMovableFetch().then(this._createdMovableFetchBound);
     }
 };
 
-ImageViewer.prototype._createdMovableFetch = function createdMovableFetch(movableHandle) {
+ImageDecoderViewer.prototype._createdMovableFetch = function createdMovableFetch(movableHandle) {
     this._movableHandle = movableHandle;
     this._startShowingDynamicRegion();
 };
 
-ImageViewer.prototype._startShowingDynamicRegion = function startShowingDynamicRegion() {
+ImageDecoderViewer.prototype._startShowingDynamicRegion = function startShowingDynamicRegion() {
     this._canShowDynamicRegion = true;
     
     if (this._pendingUpdateViewArea !== null) {
@@ -293,7 +293,7 @@ ImageViewer.prototype._startShowingDynamicRegion = function startShowingDynamicR
     }
 };
 
-ImageViewer.prototype._tilesDecodedCallback = function tilesDecodedCallback(
+ImageDecoderViewer.prototype._tilesDecodedCallback = function tilesDecodedCallback(
     regionId, fetchParams, position, decoded) {
     
     if (!this._isReady) {
@@ -337,7 +337,7 @@ ImageViewer.prototype._tilesDecodedCallback = function tilesDecodedCallback(
     this._notifyNewPendingCalls();
 };
 
-ImageViewer.prototype._checkIfRepositionNeeded = function checkIfRepositionNeeded(
+ImageDecoderViewer.prototype._checkIfRepositionNeeded = function checkIfRepositionNeeded(
     region, newPartParams, newPosition) {
     
     var oldPartParams = region.imagePartParams;
@@ -418,13 +418,13 @@ ImageViewer.prototype._checkIfRepositionNeeded = function checkIfRepositionNeede
     return true;
 };
 
-ImageViewer.prototype._notifyNewPendingCalls = function notifyNewPendingCalls() {
+ImageDecoderViewer.prototype._notifyNewPendingCalls = function notifyNewPendingCalls() {
     if (!this._isNearCallbackCalled) {
         this._callPendingCallbacks();
     }
 };
 
-ImageViewer.prototype._callPendingCallbacks = function callPendingCallbacks() {
+ImageDecoderViewer.prototype._callPendingCallbacks = function callPendingCallbacks() {
     if (this._pendingCallbackCalls.length === 0 || !this._isReady) {
         this._isNearCallbackCalled = false;
         return;
@@ -453,7 +453,7 @@ ImageViewer.prototype._callPendingCallbacks = function callPendingCallbacks() {
         } else if (callArgs.type === PENDING_CALL_TYPE_PIXELS_UPDATED) {
             this._pixelsUpdated(callArgs);
         } else {
-            throw 'imageDecoderFramework error: Internal ImageViewer Error: Unexpected call type ' +
+            throw 'imageDecoderFramework error: Internal ImageDecoderViewer Error: Unexpected call type ' +
                 callArgs.type;
         }
     }
@@ -463,7 +463,7 @@ ImageViewer.prototype._callPendingCallbacks = function callPendingCallbacks() {
     this._canvasUpdatedCallback(newPosition);
 };
 
-ImageViewer.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdatedArgs) {
+ImageDecoderViewer.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdatedArgs) {
     var region = pixelsUpdatedArgs.region;
     var decoded = pixelsUpdatedArgs.decoded;
     if (decoded.imageData.width === 0 || decoded.imageData.height === 0) {
@@ -480,7 +480,7 @@ ImageViewer.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdatedArgs)
     context.putImageData(decoded.imageData, x, y);
 };
 
-ImageViewer.prototype._repositionCanvas = function repositionCanvas(repositionArgs) {
+ImageDecoderViewer.prototype._repositionCanvas = function repositionCanvas(repositionArgs) {
     var region = repositionArgs.region;
     var position = repositionArgs.position;
 	var donePartParams = repositionArgs.donePartParams;
@@ -529,7 +529,7 @@ ImageViewer.prototype._repositionCanvas = function repositionCanvas(repositionAr
 	region.donePartParams = donePartParams;
 };
 
-ImageViewer.prototype._copyOverviewToCanvas = function copyOverviewToCanvas(
+ImageDecoderViewer.prototype._copyOverviewToCanvas = function copyOverviewToCanvas(
     context, canvasPosition, canvasPixelsWidth, canvasPixelsHeight) {
     
     var sourcePosition = this._regions[REGION_OVERVIEW].position;
@@ -573,7 +573,7 @@ ImageViewer.prototype._copyOverviewToCanvas = function copyOverviewToCanvas(
         0, 0, canvasPixelsWidth, canvasPixelsHeight);
 };
 
-ImageViewer.prototype._opened = function opened() {
+ImageDecoderViewer.prototype._opened = function opened() {
     this._isReady = true;
     
     var fixedBounds = {
@@ -583,12 +583,12 @@ ImageViewer.prototype._opened = function opened() {
         north: this._cartographicBounds.north
     };
     imageHelperFunctions.fixBounds(
-        fixedBounds, this._image, this._adaptProportions);
+        fixedBounds, this._imageDecoder, this._adaptProportions);
     this._cartographicBoundsFixed = fixedBounds;
     
-    var imageWidth  = this._image.getImageWidth ();
-    var imageHeight = this._image.getImageHeight();
-    this._quality = this._image.getHighestQuality();
+    var imageWidth  = this._imageDecoder.getImageWidth ();
+    var imageHeight = this._imageDecoder.getImageHeight();
+    this._quality = this._imageDecoder.getHighestQuality();
 
     var rectangleWidth = fixedBounds.east - fixedBounds.west;
     var rectangleHeight = fixedBounds.north - fixedBounds.south;
@@ -609,13 +609,13 @@ ImageViewer.prototype._opened = function opened() {
     
     var overviewAlignedParams =
         imageHelperFunctions.alignParamsToTilesAndLevel(
-            overviewParams, this._image, this._image);
+            overviewParams, this._imageDecoder);
             
     overviewAlignedParams.imagePartParams.requestPriorityData =
         overviewAlignedParams.imagePartParams.requestPriorityData || {};
     
     overviewAlignedParams.imagePartParams.requestPriorityData.overrideHighestPriority = true;
-    overviewAlignedParams.imagePartParams.quality = this._image.getLowestQuality();
+    overviewAlignedParams.imagePartParams.quality = this._imageDecoder.getLowestQuality();
     
     var startDynamicRegionOnTermination =
         !this._allowMultipleMovableFetchesInSession;

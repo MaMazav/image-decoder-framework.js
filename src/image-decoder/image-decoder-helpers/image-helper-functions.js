@@ -6,7 +6,10 @@ module.exports = {
     calculateFrustum2DFromBounds: calculateFrustum2DFromBounds,
     createPrioritizer: createPrioritizer,
     fixBounds: fixBounds,
+    ensureLevelCalculator: ensureLevelCalculator,
     alignParamsToTilesAndLevel: alignParamsToTilesAndLevel,
+    getOrCreateInstance: getOrCreateInstance,
+    isIndirectCreationNeeded: isIndirectCreationNeeded
 };
 
 // Avoid jshint error
@@ -104,11 +107,21 @@ function fixBounds(bounds, image, adaptProportions) {
     }
 }
 
-function alignParamsToTilesAndLevel(
-    region, image) {
-    
-    var tileWidth = image.getTileWidth();
-    var tileHeight = image.getTileHeight();
+function ensureLevelCalculator(levelCalculator) {
+    if ('function' !== typeof levelCalculator.getLevel) {
+        throw 'imageDecoderFramework error: Missing method levelCalculator.getLevel()';
+    }
+    if ('function' !== typeof levelCalculator.getLevelWidth) {
+        throw 'imageDecoderFramework error: Missing method levelCalculator.getLevelWidth()';
+    }
+    if ('function' !== typeof levelCalculator.getLevelHeight) {
+        throw 'imageDecoderFramework error: Missing method levelCalculator.getLevelHeight()';
+    }
+}
+
+function alignParamsToTilesAndLevel(region, imageDecoder) {
+    var tileWidth = imageDecoder.getTileWidth();
+    var tileHeight = imageDecoder.getTileHeight();
     
     var regionMinX = region.minX;
     var regionMinY = region.minY;
@@ -122,24 +135,18 @@ function alignParamsToTilesAndLevel(
         throw 'imageDecoderFramework error: Parameters order is invalid';
     }
     
-    var defaultLevelWidth = image.getImageWidth();
-    var defaultLevelHeight = image.getImageHeight();
+    var defaultLevelWidth = imageDecoder.getImageWidth();
+    var defaultLevelHeight = imageDecoder.getImageHeight();
     if (regionMaxX < 0 || regionMinX >= defaultLevelWidth ||
         regionMaxY < 0 || regionMinY >= defaultLevelHeight) {
         
         return null;
     }
     
-    //var maxLevel =
-    //    image.getDefaultNumResolutionLevels() - 1;
-
-    //var levelX = Math.log((regionMaxX - regionMinX) / screenWidth ) / log2;
-    //var levelY = Math.log((regionMaxY - regionMinY) / screenHeight) / log2;
-    //var level = Math.ceil(Math.min(levelX, levelY));
-    //level = Math.max(0, Math.min(maxLevel, level));
-    var level = image.getLevel(region);
-    var levelWidth = image.getLevelWidth(level);
-    var levelHeight = image.getLevelHeight(level);
+    var levelCalculator = imageDecoder.getLevelCalculator();
+    var level = levelCalculator.getLevel(region);
+    var levelWidth = levelCalculator.getLevelWidth(level);
+    var levelHeight = levelCalculator.getLevelHeight(level);
     
     var scaleX = defaultLevelWidth / levelWidth;
     var scaleY = defaultLevelHeight / levelHeight;
@@ -191,6 +198,77 @@ function alignParamsToTilesAndLevel(
         positionInImage: positionInImage,
         croppedScreen: croppedScreen
     };
+}
+
+function getOrCreateInstance(obj, objName, expectedMethods) {
+    if (!isIndirectCreationNeeded(obj, objName, expectedMethods)) {
+        return obj;
+    }
+    
+    var classToCreate = null;
+    try {
+        classToCreate = getClassInGlobalObject(window, obj.ctorName);
+    } catch(e) { }
+
+    if (!classToCreate) {
+        try {
+            classToCreate = getClassInGlobalObject(globals, obj.ctorName);
+        } catch(e) { }
+    }
+    
+    if (!classToCreate) {
+        try {
+            classToCreate = getClassInGlobalObject(self, obj.ctorName);
+        } catch(e) { }
+    }
+    
+    if (!classToCreate) {
+        throw 'imageDecoderFramework error: Could not find class ' + obj.ctorName + ' in global ' +
+            ' scope to create an instance of ' + objName;
+    }
+    
+    var result = new classToCreate();
+    
+    // Throw exception if methods not exist
+    isIndirectCreationNeeded(result, objName, expectedMethods, /*disableCtorNameSearch=*/true);
+    
+    return result;
+}
+
+function isIndirectCreationNeeded(obj, objName, expectedMethods, disableCtorNameSearch) {
+    if (!obj) {
+        throw 'imageDecoderFramework error: missing argument ' + objName;
+    }
+    
+    var nonexistingMethod;
+    for (var i = 0; i < expectedMethods.length; ++i) {
+        if ('function' !== typeof obj[expectedMethods[i]]) {
+            nonexistingMethod = expectedMethods[i];
+            break;
+        }
+    }
+    
+    if (i === expectedMethods.length) {
+        return false;
+    }
+
+    if (disableCtorNameSearch) {
+        throw 'imageDecoderFramework error: Could not find method ' +
+            nonexistingMethod + ' in object ' + objName;
+    }
+    
+    if ('string' !== typeof obj.ctorName) {
+        throw 'imageDecoderFramework error: Could not find method ' + nonexistingMethod +
+            ' in object ' + objName + '. Either method should be exist or the object\'s ' +
+            'ctorName property should point to a class to create instance from';
+    }
+    if (!obj.scriptsToImport) {
+        throw 'imageDecoderFramework error: Could not find method ' + nonexistingMethod +
+            ' in object ' + objName + '. Either method should be exist or the object\'s ' +
+            'scriptsToImport property should be exist';
+    }
+
+    return true;
 }
 
 function getClassInGlobalObject(globalObject, className) {

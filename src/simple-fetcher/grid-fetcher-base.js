@@ -2,14 +2,14 @@
 
 module.exports = GridFetcherBase;
 
-var FetcherBase = require('fetcher-base.js');
+var SimpleFetcherBase = require('simple-fetcher-base.js');
 var GridImageBase = require('grid-image-base.js');
 var LinkedList = require('linked-list.js');
 
 /* global Promise: false */
 
 function GridFetcherBase(options) {
-	FetcherBase.call(this, options);
+	SimpleFetcherBase.call(this, options);
 	this._gridFetcherBaseCache = [];
 	this._events = {
 		'data': [],
@@ -17,7 +17,7 @@ function GridFetcherBase(options) {
 	};
 }
 
-GridFetcherBase.prototype = Object.create(FetcherBase.prototype);
+GridFetcherBase.prototype = Object.create(SimpleFetcherBase.prototype);
 
 GridFetcherBase.prototype.fetchTile = function(level, tileX, tileY, fetchTask) {
 	throw 'imageDecoderFramework error: GridFetcherBase.fetchTile is not implemented by inheritor';

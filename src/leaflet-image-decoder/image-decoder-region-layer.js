@@ -1,6 +1,6 @@
 'use strict';
 
-var ImageViewer = require('image-viewer.js');
+var ImageViewer = require('image-decoder-viewer.js');
 var calculateLeafletFrustum = require('leaflet-frustum-calculator.js');
 
 /* global L: false */
@@ -49,7 +49,7 @@ function createImageDecoderRegionLayerFunctions() {
         _createImage: function createImage() {
             if (this._imageViewer === null) {
                 this._imageViewer = new ImageViewer(
-                    this._options.image,
+                    this._options.imageDecoder,
                     this._canvasUpdatedCallbackBound,
                     this._options);
                 

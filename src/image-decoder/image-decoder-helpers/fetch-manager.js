@@ -1,63 +1,49 @@
 'use strict';
 
-module.exports = FetcherBase;
+module.exports = FetchManager;
 
 var imageHelperFunctions = require('image-helper-functions.js');
 var FetchContext = require('fetch-context.js');
 var LinkedList = require('linked-list.js');
 var FetcherCloser = require('fetcher-closer.js');
-var SimpleMovableFetch = require('simple-movable-fetch.js');
 
 /* global console: false */
 /* global Promise: false */
 
-function FetcherBase(options) {
-    this._options = options || {};
+FetchManager.fetcherExpectedMethods = ['open', 'on', 'close', 'startFetch', 'startMovableFetch'];
+
+function FetchManager(fetcher, options) {
+    options = options || {};
 	
-	var self = this;
-    this._fetchesLimit = this._options.fetchesLimit || 5;
+    this._fetchesLimit = options.fetchesLimit || 5;
+    this._showLog = options.showLog;
     
-    self._showLog = this._options.showLog;
-	self._maxActiveFetchesInMovableFetch = this._options.maxActiveFetchesInMovableFetch || 2;
-    
-    if (self._showLog) {
+    if (this._showLog) {
         // Old IE
         throw 'imageDecoderFramework error: showLog is not supported on this browser';
     }
 	
-    self._scheduler = null;
-	self._fetchPrioritizer = null;
-	self._prioritizerType = null;
+    this._scheduler = null;
+	this._fetchPrioritizer = null;
+	this._prioritizerType = null;
 		
-    self._movableHandleCounter = 0;
-    self._movableHandles = [];
-    self._requestById = [];
-	self._imageParams = null;
-    self._scheduledJobsList = new LinkedList();
-	self._fetcherCloser = new FetcherCloser();
+    this._movableHandleCounter = 0;
+    this._movableHandles = [];
+    this._requestById = [];
+	this._imageParams = null;
+    this._scheduledJobsList = new LinkedList();
+	this._fetcherCloser = new FetcherCloser();
+    
+    this._fetcher = imageHelperFunctions.getOrCreateInstance(
+        fetcher, 'fetcher', FetchManager.fetcherExpectedMethods);
 }
 
-FetcherBase.prototype.open = function open(url) {
-    throw 'imageDecoderFramework error: open() is not implemented by FetcherBase inheritor';
-};
-
-FetcherBase.prototype.on = function on(event, callback) {
-    throw 'imageDecoderFramework error: on() is not implemented by FetcherBase inheritor';
-};
-
-FetcherBase.prototype.close = function close() {
-	if (this.startMovableFetch !== FetcherBase.prototype.startMovableFetch) {
-		throw 'imageDecoderFramework error: Must override FetcherBase.close() when FetcherBase.startMovableFetch() was override';
-	}
-    return this._fetcherCloser.close();
-};
-
-FetcherBase.prototype.openInternal = function openInternal(url) {
+FetchManager.prototype.open = function open(url) {
     var fetchScheduler = imageHelperFunctions.createPrioritizer(
         this._fetchesLimit,
         this._prioritizerType,
         'fetch',
-        this._options.showLog);
+        this._showLog);
     
     this._fetchPrioritizer = fetchScheduler.prioritizer;
 	if (fetchScheduler.prioritizer !== null) {
@@ -74,42 +60,56 @@ FetcherBase.prototype.openInternal = function openInternal(url) {
 	}
 
 	var self = this;
-    return this.open(url).then(function(result) {
+    return this._fetcher.open(url).then(function(result) {
 		self._imageParams = result;
 		return result;
 	});
 };
 
-FetcherBase.prototype.setPrioritizerType = function setPrioritizerType(prioritizerType) {
+FetchManager.prototype.on = function on(event, callback, arg) {
+    return this._fetcher.on(event, callback, arg);
+};
+
+FetchManager.prototype.close = function close() {
+    var self = this;
+    var resolve_ = null;
+    var reject_ = null;
+
+    function waitForActiveFetches(result) {
+        self._fetcherCloser.close()
+            .then(function() {
+                resolve_(result);
+            }).catch(reject_);
+    }
+    
+    return new Promise(function(resolve, reject) {
+        resolve_ = resolve;
+        reject_ = reject;
+        self._fetcher.close()
+            .then(waitForActiveFetches)
+            .catch(reject);
+    });
+};
+
+FetchManager.prototype.setPrioritizerType = function setPrioritizerType(prioritizerType) {
 	if (this._scheduler !== null) {
-		throw 'imageDecoderFramework error: cannot set prioritizer type after FetcherBase.open() called';
+		throw 'imageDecoderFramework error: cannot set prioritizer type after FetchManager.open() called';
 	}
 	this._prioritizerType = prioritizerType;
 };
 
-FetcherBase.prototype.getImageParams = function getImageParams() {
+FetchManager.prototype.getImageParams = function getImageParams() {
 	return this._imageParams;
 };
 
-FetcherBase.prototype.startFetch = function startFetch(fetchContext, imagePartParams) {
-    throw 'imageDecoderFramework error: startFetch() is not implemented by FetcherBase inheritor';
-};
-
-FetcherBase.prototype.startMovableFetch = function startFetch(fetchContext, imagePartParams) {
-    var movableFetch = new SimpleMovableFetch(
-		this, this._fetcherCloser, fetchContext, this._maxActiveFetchesInMovableFetch);
-	
-	movableFetch.start(imagePartParams);
-};
-
-FetcherBase.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
+FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
     requestId, isProgressive) {
     
     var fetchJob = this._requestById[requestId];
     if (fetchJob === undefined) {
         // This situation might occur if request has been terminated,
         // but user's terminatedCallback has not been called yet. It
-        // happens on WorkerProxyFetcherBase due to thread
+        // happens on WorkerProxyFetchManager due to thread
         // message delay.
         
         return null;
@@ -118,12 +118,13 @@ FetcherBase.prototype.setIsProgressiveRequest = function setIsProgressiveRequest
     fetchJob.setIsProgressive(isProgressive);
 };
 
-FetcherBase.prototype.createMovableFetch = function createMovableFetch() {
+FetchManager.prototype.createMovableFetch = function createMovableFetch() {
 	var self = this;
     return new Promise(function(resolve, reject) {
         var movableHandle = ++self._movableHandleCounter;
         self._movableHandles[movableHandle] = new FetchContext(
-            self,
+            self._fetcher,
+            self._fetcherCloser,
             self._scheduler,
             self._scheduledJobsList,
             FetchContext.FETCH_TYPE_MOVABLE,
@@ -133,14 +134,14 @@ FetcherBase.prototype.createMovableFetch = function createMovableFetch() {
     });
 };
 
-FetcherBase.prototype.moveFetch = function moveFetch(
+FetchManager.prototype.moveFetch = function moveFetch(
     movableHandle, imagePartParams) {
     
     var movable = this._movableHandles[movableHandle];
     movable.fetch(imagePartParams);
 };
 
-FetcherBase.prototype.createRequest = function createRequest(
+FetchManager.prototype.createRequest = function createRequest(
     requestId, imagePartParams) {
     
     var contextVars = {
@@ -155,7 +156,12 @@ FetcherBase.prototype.createRequest = function createRequest(
         FetchContext.FETCH_TYPE_ONLY_WAIT_FOR_DATA : */FetchContext.FETCH_TYPE_REQUEST;
     
     var fetchJob = new FetchContext(
-        this, this._scheduler, this._scheduledJobsList, fetchType, contextVars);
+        this._fetcher,
+        this._fetcherCloser,
+        this._scheduler,
+        this._scheduledJobsList,
+        fetchType,
+        contextVars);
     
     contextVars.fetchJob = fetchJob;
     
@@ -172,7 +178,7 @@ FetcherBase.prototype.createRequest = function createRequest(
     this._yieldFetchJobs();
 };
 
-FetcherBase.prototype.manualAbortRequest = function manualAbortRequest(
+FetchManager.prototype.manualAbortRequest = function manualAbortRequest(
     requestId) {
     
     var fetchJob = this._requestById[requestId];
@@ -180,7 +186,7 @@ FetcherBase.prototype.manualAbortRequest = function manualAbortRequest(
     if (fetchJob === undefined) {
         // This situation might occur if request has been terminated,
         // but user's terminatedCallback has not been called yet. It
-        // happens on WorkerProxyFetcherBase due to web worker
+        // happens on WorkerProxyFetchManager due to web worker
         // message delay.
         
         return;
@@ -190,7 +196,7 @@ FetcherBase.prototype.manualAbortRequest = function manualAbortRequest(
     delete this._requestById[requestId];
 };
 
-FetcherBase.prototype.setFetchPrioritizerData =
+FetchManager.prototype.setFetchPrioritizerData =
     function setFetchPrioritizerData(prioritizerData) {
 
     if (this._fetchPrioritizer === null) {
@@ -206,7 +212,7 @@ FetcherBase.prototype.setFetchPrioritizerData =
     this._yieldFetchJobs();
 };
 
-FetcherBase.prototype._yieldFetchJobs = function yieldFetchJobs() {
+FetchManager.prototype._yieldFetchJobs = function yieldFetchJobs() {
     var iterator = this._scheduledJobsList.getFirstIterator();
     while (iterator !== null) {
         var fetchJob = this._scheduledJobsList.getValue(iterator);

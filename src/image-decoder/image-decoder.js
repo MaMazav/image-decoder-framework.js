@@ -1,17 +1,33 @@
 'use strict';
 
-module.exports = ImageBase;
+module.exports = ImageDecoder;
 
 var imageHelperFunctions = require('image-helper-functions.js');
 var DecodeJobsPool = require('decode-jobs-pool.js');
 var ImageParamsRetrieverProxy = require('image-params-retriever-proxy.js');
+var FetchManager = require('fetch-manager.js');
+var WorkerProxyFetchManager = require('worker-proxy-fetch-manager.js');
+var WorkerProxyImageDecoder = require('worker-proxy-image-decoder.js');
 
 /* global console: false */
 /* global Promise: false */
 
-ImageBase.alignParamsToTilesAndLevel = imageHelperFunctions.alignParamsToTilesAndLevel;
+ImageDecoder.alignParamsToTilesAndLevel = imageHelperFunctions.alignParamsToTilesAndLevel;
 
-function ImageBase(options) {
+ImageDecoder.fromImage = function fromImage(image, options) {
+    var isIndirectCreationNeeded = imageHelperFunctions.isIndirectCreationNeeded(
+        image, 'image', ImageDecoder._imageExpectedMethods);
+    
+    if (!isIndirectCreationNeeded || !image.useWorker) {
+        return new ImageDecoder(image, options);
+    } else {
+        return new WorkerProxyImageDecoder(image, options);
+    }
+};
+
+ImageDecoder._imageExpectedMethods = ['opened', 'getLevelCalculator', 'getFetcher', 'getDecoderWorkersInputRetreiver'];
+
+function ImageDecoder(image, options) {
     ImageParamsRetrieverProxy.call(this);
     
     this._options = options || {};
@@ -20,10 +36,11 @@ function ImageBase(options) {
     this._tileWidth = this._options.tileWidth || 256;
     this._tileHeight = this._options.tileHeight || 256;
     this._showLog = !!this._options.showLog;
-    this._fetcher = null;
+    this._fetchManager = null;
     this._decodeDependencyWorkers = null;
     this._requestsDecodeJobsPool = null;
     this._movablesDecodeJobsPool = null;
+    this._levelCalculator = null;
 	this._fetchRequestId = 0;
     
     /*if (this._showLog) {
@@ -37,36 +54,31 @@ function ImageBase(options) {
 	this._decodeScheduler = null;
 	this._decodePrioritizer = null;
 	this._prioritizerType = null;
+
+    this._image = imageHelperFunctions.getOrCreateInstance(
+        image, 'image', ImageDecoder._imageExpectedMethods);
 }
 
-ImageBase.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
+ImageDecoder.prototype = Object.create(ImageParamsRetrieverProxy.prototype);
 
-ImageBase.prototype.getFetcher = function getFetcher() {
-	throw 'imageDecoderFramework error: Image.getFetcher() is not implemented by ImageBase inheritor';
-};
-
-ImageBase.prototype.getDecoderWorkersInputRetreiver = function getDecoderWorkersInputRetreiver() {
-	throw 'imageDecoderFramework error: Image.getDecoderWorkersInputRetreiver() is not implemented by ImageBase inheritor';
-};
-
-ImageBase.prototype.getTileWidth = function getTileWidth() {
+ImageDecoder.prototype.getTileWidth = function getTileWidth() {
     return this._tileWidth;
 };
 
-ImageBase.prototype.getTileHeight = function getTileHeight() {
+ImageDecoder.prototype.getTileHeight = function getTileHeight() {
     return this._tileHeight;
 };
     
-ImageBase.prototype.setFetchPrioritizerData =
+ImageDecoder.prototype.setFetchPrioritizerData =
     function setFetchPrioritizerData(prioritizerData) {
 
     this._validateFetcher();
     
-    this._fetcher.setFetchPrioritizerData(
+    this._fetchManager.setFetchPrioritizerData(
         prioritizerData);
 };
 
-ImageBase.prototype.setDecodePrioritizerData =
+ImageDecoder.prototype.setDecodePrioritizerData =
     function setDecodePrioritizerData(prioritizerData) {
 
     this._validateDecoder();
@@ -85,7 +97,7 @@ ImageBase.prototype.setDecodePrioritizerData =
     this._decodePrioritizer.setPrioritizerData(prioritizerDataModified);
 };
 
-ImageBase.prototype.setDecodePrioritizerType = function setPrioritizerType(prioritizerType) {
+ImageDecoder.prototype.setDecodePrioritizerType = function setPrioritizerType(prioritizerType) {
 	if (this._decodeScheduler !== null) {
 		throw 'imageDecoderFramework error: Cannot set prioritizer type at this time';
 	}
@@ -93,17 +105,21 @@ ImageBase.prototype.setDecodePrioritizerType = function setPrioritizerType(prior
 	this._prioritizerType = prioritizerType;
 };
 
-ImageBase.prototype.setFetchPrioritizerType = function setPrioritizerType(prioritizerType) {
-	this._fetcher.setPrioritizerType(prioritizerType);
+ImageDecoder.prototype.setFetchPrioritizerType = function setPrioritizerType(prioritizerType) {
+    this._validateFetcher();
+	this._fetchManager.setPrioritizerType(prioritizerType);
 };
 
-ImageBase.prototype.open = function open(url) {
+ImageDecoder.prototype.open = function open(url) {
     this._validateFetcher();
 
     var self = this;
-    var promise = this._fetcher.openInternal(url);
+    var promise = this._fetchManager.open(url);
     return promise.then(function (sizesParams) {
         self._internalSizesParams = sizesParams;
+        self._image.opened(self);
+        self._levelCalculator = self._image.getLevelCalculator();
+        imageHelperFunctions.ensureLevelCalculator(self._levelCalculator);
         return {
             sizesParams: sizesParams,
             applicativeTileWidth : self.getTileWidth(),
@@ -112,7 +128,7 @@ ImageBase.prototype.open = function open(url) {
     });
 };
 
-ImageBase.prototype.close = function close() {
+ImageDecoder.prototype.close = function close() {
     this._validateFetcher();
     this._validateDecoder();
     
@@ -121,18 +137,23 @@ ImageBase.prototype.close = function close() {
     }
 
 	var self = this;
-    return this._fetcher.close().then(function() {
+    return this._fetchManager.close().then(function() {
 		self._decodeDependencyWorkers.terminateInactiveWorkers();
 	});
 };
 
-ImageBase.prototype.createMovableFetch = function createMovableFetch() {
+ImageDecoder.prototype.onFetcherEvent = function onFetcherEvent(event, callback) {
+    this._validateFetcher();
+    this._fetchManager.on(event, callback);
+};
+
+ImageDecoder.prototype.createMovableFetch = function createMovableFetch() {
     this._validateFetcher();
     this.getImageParams();
     
     var self = this;
     
-    return this._fetcher.createMovableFetch().then(function(movableHandle) {
+    return this._fetchManager.createMovableFetch().then(function(movableHandle) {
         self._movableStates[movableHandle] = {
             decodeJobsListenerHandle: null
         };
@@ -141,7 +162,7 @@ ImageBase.prototype.createMovableFetch = function createMovableFetch() {
     });
 };
 
-ImageBase.prototype.requestPixels = function requestPixels(imagePartParams) {
+ImageDecoder.prototype.requestPixels = function requestPixels(imagePartParams) {
     this._validateDecoder();
     this.getImageParams();
     
@@ -175,7 +196,7 @@ ImageBase.prototype.requestPixels = function requestPixels(imagePartParams) {
     }
 };
 
-ImageBase.prototype.requestPixelsProgressive = function requestPixelsProgressive(
+ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgressive(
     imagePartParams,
     callback,
     terminatedCallback,
@@ -212,21 +233,36 @@ ImageBase.prototype.requestPixelsProgressive = function requestPixelsProgressive
                 movableState.decodeJobsListenerHandle);
         }
         movableState.decodeJobsListenerHandle = listenerHandle;
-        this._fetcher.moveFetch(movableHandle, imagePartParams);
+        this._fetchManager.moveFetch(movableHandle, imagePartParams);
     } else {
-		this._fetcher.createRequest(++this._fetchRequestId, imagePartParams);
+		this._fetchManager.createRequest(++this._fetchRequestId, imagePartParams);
 	}
+};
+
+ImageDecoder.prototype.getLevelCalculator = function getLevelCalculator() {
+    return this._levelCalculator;
 };
 
 // Internal Methods
 
-ImageBase.prototype._validateFetcher = function validateFetcher() {
-    if (this._fetcher === null) {
-        this._fetcher = this.getFetcher();
+ImageDecoder.prototype._validateFetcher = function validateFetcher() {
+    if (this._fetchManager !== null) {
+        return;
+    }
+
+    var fetcher = this._image.getFetcher();
+    var isIndirectCreationNeeded = imageHelperFunctions.isIndirectCreationNeeded(
+        fetcher, 'fetcher', FetchManager.fetcherExpectedMethods);
+    
+    if (!isIndirectCreationNeeded || !fetcher.useWorker) {
+        this._fetchManager = new FetchManager(fetcher, this._options);
+    } else {
+        this._fetchManager = new WorkerProxyFetchManager(
+            fetcher, this._options);
     }
 };
 
-ImageBase.prototype._validateDecoder = function validateComponents() {
+ImageDecoder.prototype._validateDecoder = function validateComponents() {
     if (this._decodeDependencyWorkers !== null) {
         return;
     }
@@ -249,7 +285,7 @@ ImageBase.prototype._validateDecoder = function validateComponents() {
 		this._decodePrioritizer = null;
 	}
 
-	var inputRetreiver = this.getDecoderWorkersInputRetreiver();
+	var inputRetreiver = this._image.getDecoderWorkersInputRetreiver();
 	this._decodeDependencyWorkers = new dependencyWorkers.SchedulerDependencyWorkers(
 		this._decodeScheduler, inputRetreiver);
     
@@ -266,11 +302,11 @@ ImageBase.prototype._validateDecoder = function validateComponents() {
         this._tileHeight);
 };
 
-ImageBase.prototype._getImageParamsInternal = function getImageParamsInternal() {
+ImageDecoder.prototype._getImageParamsInternal = function getImageParamsInternal() {
     return this._internalSizesParams;
 };
 
-ImageBase.prototype._copyPixelsToAccumulatedResult =
+ImageDecoder.prototype._copyPixelsToAccumulatedResult =
     function copyPixelsToAccumulatedResult(decodedData, accumulatedResult) {
         
     var bytesPerPixel = 4;
