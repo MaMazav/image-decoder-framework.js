@@ -45,6 +45,16 @@ GridImageBase.prototype.decodeTaskStarted = function decodeTaskStarted(task) {
 	});
 };
 
+GridImageBase.prototype.dataReadyForDecode = function dataReadyForDecode(task) {
+	task.dataReady({
+		tileContents: task.dependTaskResults,
+		tileIndices: task.dependTaskKeys,
+		imagePartParams: task.key,
+		tileWidth: this._imageParams.tileWidth,
+		tileHeight: this._imageParams.tileHeight
+	}, DECODE_TASK);
+};
+
 GridImageBase.prototype.getFetcher = function getFetcher() {
 	return this._fetcher;
 };
@@ -98,16 +108,6 @@ GridImageBase.prototype.taskStarted = function(task) {
 	}
 	
 	this.decodeTaskStarted(task);
-};
-
-GridImageBase.prototype.dataReadyForDecode = function dataReadyForDecode(task) {
-	task.dataReady({
-		tileContents: task.dependTaskResults,
-		tileIndices: task.dependTaskKeys,
-		imagePartParams: task.key,
-		tileWidth: this._imageParams.tileWidth,
-		tileHeight: this._imageParams.tileHeight
-	}, DECODE_TASK);
 };
 
 // Auxiliary methods

@@ -33,6 +33,8 @@ FetchContextApi.prototype.on = function on(event, listener, listenerThis) {
 		listener: listener,
 		listenerThis: listenerThis || this
 	});
+	
+	return this;
 };
 
 FetchContextApi.prototype._onEvent = function onEvent(event, arg1, arg2) {
