@@ -78,7 +78,7 @@ FetchContext.prototype.manualAbortRequest = function manualAbortRequest() {
             if (this._isOnlyWaitForData) {
                 this._fetchStopped(/*isAborted=*/true);
             } else {
-				this._fetchContextApi._onEvent('stop', /*isAborted=*/true);
+                this._fetchContextApi._onEvent('stop', /*isAborted=*/true);
             }
             break;
         case FetchContext.FETCH_STATUS_WAIT_FOR_FETCH_CALL:
@@ -122,7 +122,7 @@ FetchContext.prototype.getIsProgressive = function getIsProgressive() {
 FetchContext.prototype._startFetch = function startFetch() {
     var prevState = this._state;
     this._state = FetchContext.FETCH_STATUS_ACTIVE;
-	
+    
     if (prevState === FetchContext.FETCH_STATUS_WAIT_FOR_FETCH_CALL ||
         prevState === FetchContext.FETCH_STATUS_MOVABLE_WAIT_FOR_MOVE_CALL) {
         
@@ -132,26 +132,26 @@ FetchContext.prototype._startFetch = function startFetch() {
     if (this._isOnlyWaitForData) {
         this._fetchContextApi = this._extractAlreadyFetchedData();
     } else if (!this._isMovable || prevState === FetchContext.FETCH_STATUS_WAIT_FOR_FETCH_CALL) {
-		if (this._fetchContextApi !== null) {
-			throw 'imageDecoderFramework error: Cannot start fetch of already started fetch';
-		}
+        if (this._fetchContextApi !== null) {
+            throw 'imageDecoderFramework error: Cannot start fetch of already started fetch';
+        }
 
         this._fetchContextApi = new FetchContextApi(this);
-		this._fetchContextApi.on('internalStopped', this._fetchStopped, this);
-		this._fetchContextApi.on('internalDone', this._fetchDone, this);
-		
-		if (this._isMovable) {
-			this._fetcher.startMovableFetch(this._fetchContextApi, this._imagePartParams);
-		} else {
-			this._fetcher.startFetch(this._fetchContextApi, this._imagePartParams);
-		}
+        this._fetchContextApi.on('internalStopped', this._fetchStopped, this);
+        this._fetchContextApi.on('internalDone', this._fetchDone, this);
+        
+        if (this._isMovable) {
+            this._fetcher.startMovableFetch(this._fetchContextApi, this._imagePartParams);
+        } else {
+            this._fetcher.startFetch(this._fetchContextApi, this._imagePartParams);
+        }
     } else {
         this._fetchContextApi._onEvent('move', this._imagePartParams);
     }
     
-	if (this._fetchContextApi !== null) { // Might be set to null in immediate call of fetchTerminated on previous line
-		this._fetchContextApi._onEvent('isProgressiveChanged', this._isProgressive);
-	}
+    if (this._fetchContextApi !== null) { // Might be set to null in immediate call of fetchTerminated on previous line
+        this._fetchContextApi._onEvent('isProgressiveChanged', this._isProgressive);
+    }
 };
 
 FetchContext.prototype.checkIfShouldYield = function checkIfShouldYield() {
@@ -169,7 +169,7 @@ FetchContext.prototype.checkIfShouldYield = function checkIfShouldYield() {
         }
         
         this._state = FetchContext.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD;
-		this._fetchContextApi._onEvent('stop', /*isAborted=*/false);
+        this._fetchContextApi._onEvent('stop', /*isAborted=*/false);
     } catch (e) {
         this._state = FetchContext.FETCH_STATUS_UNEXPECTED_FAILURE;
         fetchAbortedByScheduler(this);
@@ -191,7 +191,7 @@ FetchContext.prototype._fetchDone = function fetchDone() {
     }
     this._fetcherCloser.changeActiveFetchesCount(-1);
 
-	if (this._resource !== null) {
+    if (this._resource !== null) {
         this._scheduledJobsList.remove(this._scheduledJobsListIterator);
         this._schedulerCallbacks.jobDone();
 
@@ -199,29 +199,29 @@ FetchContext.prototype._fetchDone = function fetchDone() {
     } else if (this._useScheduler) {
         throw 'imageDecoderFramework error: Job expected to have resource on successful termination';
     }
-	
-	this._terminateNonMovableFetch();
+    
+    this._terminateNonMovableFetch();
 };
 
 FetchContext.prototype._fetchStopped = function fetchStopped(isAborted) {
     switch (this._state) {
         case FetchContext.FETCH_STATUS_REQUEST_ABOUT_TO_ABORT:
-			isAborted = true; // force aborted
+            isAborted = true; // force aborted
             break;
         case FetchContext.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD:
-			var isYielded = this._schedulerCallbacks.tryYield(
-				continueYieldedRequest,
-				fetchAbortedByScheduler,
-				fetchYieldedByScheduler);
-			
-			if (!isYielded) {
-				if (this._state !== FetchContext.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD) {
-					throw 'imageDecoderFramework error: Unexpected state on tryYield() false: ' + this._state;
-				}
-				this._state = FetchContext.FETCH_STATUS_ACTIVE;
-				this._fetchContextApi._onEvent('resume');
-				return;
-			}
+            var isYielded = this._schedulerCallbacks.tryYield(
+                continueYieldedRequest,
+                fetchAbortedByScheduler,
+                fetchYieldedByScheduler);
+            
+            if (!isYielded) {
+                if (this._state !== FetchContext.FETCH_STATUS_REQUEST_ABOUT_TO_YIELD) {
+                    throw 'imageDecoderFramework error: Unexpected state on tryYield() false: ' + this._state;
+                }
+                this._state = FetchContext.FETCH_STATUS_ACTIVE;
+                this._fetchContextApi._onEvent('resume');
+                return;
+            }
             break;
         default:
             throw 'imageDecoderFramework error: Unexpected state on fetch stopped: ' + this._state;
@@ -229,27 +229,27 @@ FetchContext.prototype._fetchStopped = function fetchStopped(isAborted) {
 
     
     if (this._resource !== null) {
-		throw 'imageDecoderFramework error: Unexpected request termination without resource allocated';
+        throw 'imageDecoderFramework error: Unexpected request termination without resource allocated';
     }
     
     this._fetcherCloser.changeActiveFetchesCount(-1);
     if (this._isMovable) {
         this._state = FetchContext.FETCH_STATUS_MOVABLE_WAIT_FOR_MOVE_CALL;
     } else if (!isAborted) {
-		this._terminateNonMovableFetch();
-	}
+        this._terminateNonMovableFetch();
+    }
 };
   
 FetchContext.prototype._terminateNonMovableFetch = function terminateNonMovableFetch() {  
     if (this._isMovable) {
-		return;
-	}
-	
-	this._state = FetchContext.FETCH_STATUS_REQUEST_TERMINATED;
-	
-	for (var i = 0; i < this._terminatedListeners.length; ++i) {
-		this._terminatedListeners[i](this._contextVars);
-	}
+        return;
+    }
+    
+    this._state = FetchContext.FETCH_STATUS_REQUEST_TERMINATED;
+    
+    for (var i = 0; i < this._terminatedListeners.length; ++i) {
+        this._terminatedListeners[i](this._contextVars);
+    }
     
     if (this._fetchContextApi !== null &&
         this._state !== FetchContext.FETCH_STATUS_UNEXPECTED_FAILURE) {
@@ -280,7 +280,7 @@ function startRequest(resource, self, callbacks) {
     }
     
     self._resource = resource;
-	self._schedulerCallbacks = callbacks;
+    self._schedulerCallbacks = callbacks;
 
     if (resource !== null) {
         self._scheduledJobsListIterator = self._scheduledJobsList.add(self);

@@ -41,7 +41,7 @@ function ImageDecoder(image, options) {
     this._requestsDecodeJobsPool = null;
     this._movablesDecodeJobsPool = null;
     this._levelCalculator = null;
-	this._fetchRequestId = 0;
+    this._fetchRequestId = 0;
     
     /*if (this._showLog) {
         // Old IE
@@ -50,10 +50,10 @@ function ImageDecoder(image, options) {
 
     this._movableStates = [];
     this._decoders = [];
-	
-	this._decodeScheduler = null;
-	this._decodePrioritizer = null;
-	this._prioritizerType = null;
+    
+    this._decodeScheduler = null;
+    this._decodePrioritizer = null;
+    this._prioritizerType = null;
 
     this._image = imageHelperFunctions.getOrCreateInstance(
         image, 'image', ImageDecoder._imageExpectedMethods);
@@ -98,16 +98,16 @@ ImageDecoder.prototype.setDecodePrioritizerData =
 };
 
 ImageDecoder.prototype.setDecodePrioritizerType = function setPrioritizerType(prioritizerType) {
-	if (this._decodeScheduler !== null) {
-		throw 'imageDecoderFramework error: Cannot set prioritizer type at this time';
-	}
-	
-	this._prioritizerType = prioritizerType;
+    if (this._decodeScheduler !== null) {
+        throw 'imageDecoderFramework error: Cannot set prioritizer type at this time';
+    }
+    
+    this._prioritizerType = prioritizerType;
 };
 
 ImageDecoder.prototype.setFetchPrioritizerType = function setPrioritizerType(prioritizerType) {
     this._validateFetcher();
-	this._fetchManager.setPrioritizerType(prioritizerType);
+    this._fetchManager.setPrioritizerType(prioritizerType);
 };
 
 ImageDecoder.prototype.open = function open(url) {
@@ -136,10 +136,10 @@ ImageDecoder.prototype.close = function close() {
         this._decoders[i].terminate();
     }
 
-	var self = this;
+    var self = this;
     return this._fetchManager.close().then(function() {
-		self._decodeDependencyWorkers.terminateInactiveWorkers();
-	});
+        self._decodeDependencyWorkers.terminateInactiveWorkers();
+    });
 };
 
 ImageDecoder.prototype.onFetcherEvent = function onFetcherEvent(event, callback) {
@@ -235,8 +235,8 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
         movableState.decodeJobsListenerHandle = listenerHandle;
         this._fetchManager.moveFetch(movableHandle, imagePartParams);
     } else {
-		this._fetchManager.createRequest(++this._fetchRequestId, imagePartParams);
-	}
+        this._fetchManager.createRequest(++this._fetchRequestId, imagePartParams);
+    }
 };
 
 ImageDecoder.prototype.getLevelCalculator = function getLevelCalculator() {
@@ -272,32 +272,32 @@ ImageDecoder.prototype._validateDecoder = function validateComponents() {
         this._prioritizerType,
         'decode',
         this._showLog);
-	
-	if (decodeScheduling.prioritizer !== null) {
-		this._decodeScheduler = new dependencyWorkers.DependencyWorkersTaskScheduler(
-			this._decodeWorkersLimit, decodeScheduling.schedulerOptions);
-		this._decodePrioritizer = decodeScheduling.prioritizer;
-	} else {
-		this._decodeScheduler = new resourceScheduler.LifoScheduler(
-			createDummyResource,
-			this._decodeWorkersLimit,
-			decodeScheduling.schedulerOptions);
-		this._decodePrioritizer = null;
-	}
+    
+    if (decodeScheduling.prioritizer !== null) {
+        this._decodeScheduler = new dependencyWorkers.DependencyWorkersTaskScheduler(
+            this._decodeWorkersLimit, decodeScheduling.schedulerOptions);
+        this._decodePrioritizer = decodeScheduling.prioritizer;
+    } else {
+        this._decodeScheduler = new resourceScheduler.LifoScheduler(
+            createDummyResource,
+            this._decodeWorkersLimit,
+            decodeScheduling.schedulerOptions);
+        this._decodePrioritizer = null;
+    }
 
-	var inputRetreiver = this._image.getDecoderWorkersInputRetreiver();
-	this._decodeDependencyWorkers = new dependencyWorkers.SchedulerDependencyWorkers(
-		this._decodeScheduler, inputRetreiver);
+    var inputRetreiver = this._image.getDecoderWorkersInputRetreiver();
+    this._decodeDependencyWorkers = new dependencyWorkers.SchedulerDependencyWorkers(
+        this._decodeScheduler, inputRetreiver);
     
     this._requestsDecodeJobsPool = new DecodeJobsPool(
         this._decodeDependencyWorkers,
-		this._decodePrioritizer,
+        this._decodePrioritizer,
         this._tileWidth,
         this._tileHeight);
         
     this._movablesDecodeJobsPool = new DecodeJobsPool(
         this._decodeDependencyWorkers,
-		this._decodePrioritizer,
+        this._decodePrioritizer,
         this._tileWidth,
         this._tileHeight);
 };

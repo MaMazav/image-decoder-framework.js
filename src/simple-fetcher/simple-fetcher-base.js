@@ -8,7 +8,7 @@ module.exports = SimpleFetcherBase;
 
 function SimpleFetcherBase(options) {
     this._maxActiveFetchesInMovableFetch = (options || {}).maxActiveFetchesInMovableFetch || 2;
-	this._indirectCloseIndication = { isCloseRequested: false };
+    this._indirectCloseIndication = { isCloseRequested: false };
 }
 
 SimpleFetcherBase.prototype.startMovableFetch = function startMovableFetch(fetchContext, imagePartParams) {
@@ -19,9 +19,9 @@ SimpleFetcherBase.prototype.startMovableFetch = function startMovableFetch(fetch
 };
 
 SimpleFetcherBase.prototype.close = function close() {
-	if (this.startMovableFetch !== SimpleFetcherBase.prototype.startMovableFetch) {
-		throw 'imageDecoderFramework error: Must override Fetcher.close() when Fetcher.startMovableFetch() was overriden';
-	}
+    if (this.startMovableFetch !== SimpleFetcherBase.prototype.startMovableFetch) {
+        throw 'imageDecoderFramework error: Must override Fetcher.close() when Fetcher.startMovableFetch() was overriden';
+    }
     this._indirectCloseIndication.isCloseRequested = true;
     return Promise.resolve();
 };

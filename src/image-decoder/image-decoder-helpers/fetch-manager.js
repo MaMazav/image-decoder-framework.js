@@ -14,7 +14,7 @@ FetchManager.fetcherExpectedMethods = ['open', 'on', 'close', 'startFetch', 'sta
 
 function FetchManager(fetcher, options) {
     options = options || {};
-	
+    
     this._fetchesLimit = options.fetchesLimit || 5;
     this._showLog = options.showLog;
     
@@ -22,17 +22,17 @@ function FetchManager(fetcher, options) {
         // Old IE
         throw 'imageDecoderFramework error: showLog is not supported on this browser';
     }
-	
+    
     this._scheduler = null;
-	this._fetchPrioritizer = null;
-	this._prioritizerType = null;
-		
+    this._fetchPrioritizer = null;
+    this._prioritizerType = null;
+        
     this._movableHandleCounter = 0;
     this._movableHandles = [];
     this._requestById = [];
-	this._imageParams = null;
+    this._imageParams = null;
     this._scheduledJobsList = new LinkedList();
-	this._fetcherCloser = new FetcherCloser();
+    this._fetcherCloser = new FetcherCloser();
     
     this._fetcher = imageHelperFunctions.getOrCreateInstance(
         fetcher, 'fetcher', FetchManager.fetcherExpectedMethods);
@@ -46,24 +46,24 @@ FetchManager.prototype.open = function open(url) {
         this._showLog);
     
     this._fetchPrioritizer = fetchScheduler.prioritizer;
-	if (fetchScheduler.prioritizer !== null) {
-		this._scheduler = new resourceScheduler.PriorityScheduler(
-			createDummyResource,
-			this._fetchesLimit,
-			fetchScheduler.prioritizer,
-			fetchScheduler.schedulerOptions);
-	} else {
-		this._scheduler = new resourceScheduler.LifoScheduler(
-			createDummyResource,
-			this._fetchesLimit,
-			fetchScheduler.schedulerOptions);
-	}
+    if (fetchScheduler.prioritizer !== null) {
+        this._scheduler = new resourceScheduler.PriorityScheduler(
+            createDummyResource,
+            this._fetchesLimit,
+            fetchScheduler.prioritizer,
+            fetchScheduler.schedulerOptions);
+    } else {
+        this._scheduler = new resourceScheduler.LifoScheduler(
+            createDummyResource,
+            this._fetchesLimit,
+            fetchScheduler.schedulerOptions);
+    }
 
-	var self = this;
+    var self = this;
     return this._fetcher.open(url).then(function(result) {
-		self._imageParams = result;
-		return result;
-	});
+        self._imageParams = result;
+        return result;
+    });
 };
 
 FetchManager.prototype.on = function on(event, callback, arg) {
@@ -92,14 +92,14 @@ FetchManager.prototype.close = function close() {
 };
 
 FetchManager.prototype.setPrioritizerType = function setPrioritizerType(prioritizerType) {
-	if (this._scheduler !== null) {
-		throw 'imageDecoderFramework error: cannot set prioritizer type after FetchManager.open() called';
-	}
-	this._prioritizerType = prioritizerType;
+    if (this._scheduler !== null) {
+        throw 'imageDecoderFramework error: cannot set prioritizer type after FetchManager.open() called';
+    }
+    this._prioritizerType = prioritizerType;
 };
 
 FetchManager.prototype.getImageParams = function getImageParams() {
-	return this._imageParams;
+    return this._imageParams;
 };
 
 FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveRequest(
@@ -119,7 +119,7 @@ FetchManager.prototype.setIsProgressiveRequest = function setIsProgressiveReques
 };
 
 FetchManager.prototype.createMovableFetch = function createMovableFetch() {
-	var self = this;
+    var self = this;
     return new Promise(function(resolve, reject) {
         var movableHandle = ++self._movableHandleCounter;
         self._movableHandles[movableHandle] = new FetchContext(
@@ -227,5 +227,5 @@ function internalTerminatedCallback(contextVars) {
 }
 
 function createDummyResource() {
-	return {};
+    return {};
 }

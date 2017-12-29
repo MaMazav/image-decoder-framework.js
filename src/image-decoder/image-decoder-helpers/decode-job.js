@@ -57,13 +57,13 @@ DecodeJob.prototype.onTerminated = function onTerminated() {
 };
 
 Object.defineProperty(DecodeJob.prototype, 'imagePartParams', {
-	get: function getImagePartParams() {
-		return this._imagePartParams;
-	}
+    get: function getImagePartParams() {
+        return this._imagePartParams;
+    }
 });
 
 Object.defineProperty(DecodeJob.prototype, 'progressiveStagesDone', {
-	get: function getProgressiveStagesDone() {
-		return this._progressiveStagesDone;
-	}
+    get: function getProgressiveStagesDone() {
+        return this._progressiveStagesDone;
+    }
 });

@@ -48,13 +48,13 @@ function ImageDecoderViewer(imageDecoder, canvasUpdatedCallback, options) {
     }
     
     this._imageDecoder = imageDecoder;
-	imageDecoder.setDecodePrioritizerType('frustumOnly');
-	imageDecoder.setFetchPrioritizerType('frustumOnly');
+    imageDecoder.setDecodePrioritizerType('frustumOnly');
+    imageDecoder.setFetchPrioritizerType('frustumOnly');
 }
 
 ImageDecoderViewer.prototype.setExceptionCallback = function setExceptionCallback(exceptionCallback) {
     // TODO: Support exceptionCallback in every place needed
-	this._exceptionCallback = exceptionCallback;
+    this._exceptionCallback = exceptionCallback;
 };
     
 ImageDecoderViewer.prototype.open = function open(url) {
@@ -69,7 +69,7 @@ ImageDecoderViewer.prototype.close = function close() {
     this._isReady = false;
     this._canShowDynamicRegion = false;
     this._targetCanvas = null;
-	return promise;
+    return promise;
 };
 
 ImageDecoderViewer.prototype.setTargetCanvas = function setTargetCanvas(canvas) {
@@ -269,9 +269,9 @@ ImageDecoderViewer.prototype._fetchTerminatedCallback = function fetchTerminated
     }
     
     region.isDone = !isAborted && this._isReady;
-	if (region.isDone) {
-		region.donePartParams = region.imagePartParams;
-	}
+    if (region.isDone) {
+        region.donePartParams = region.imagePartParams;
+    }
     
     if (startDynamicRegionOnTermination) {
         this._imageDecoder.createMovableFetch().then(this._createdMovableFetchBound);
@@ -341,7 +341,7 @@ ImageDecoderViewer.prototype._checkIfRepositionNeeded = function checkIfRepositi
     region, newPartParams, newPosition) {
     
     var oldPartParams = region.imagePartParams;
-	var oldDonePartParams = region.donePartParams;
+    var oldDonePartParams = region.donePartParams;
     var level = newPartParams.level;
     
     var needReposition =
@@ -358,7 +358,7 @@ ImageDecoderViewer.prototype._checkIfRepositionNeeded = function checkIfRepositi
     
     var copyData;
     var intersection;
-	var newDonePartParams;
+    var newDonePartParams;
     var reuseOldData = false;
     var scaleX;
     var scaleY;
@@ -388,16 +388,16 @@ ImageDecoderViewer.prototype._checkIfRepositionNeeded = function checkIfRepositi
             toWidth : intersection.maxX - intersection.minX,
             toHeight: intersection.maxY - intersection.minY,
         };
-	
-		if (oldDonePartParams && oldPartParams.level === level) {
-			newDonePartParams = {
-				minX: Math.max(oldDonePartParams.minX, newPartParams.minX),
-				minY: Math.max(oldDonePartParams.minY, newPartParams.minY),
-				maxXExclusive: Math.min(oldDonePartParams.maxXExclusive, newPartParams.maxXExclusive),
-				maxYExclusive: Math.min(oldDonePartParams.maxYExclusive, newPartParams.maxYExclusive)
-			};
-		}
-	}
+    
+        if (oldDonePartParams && oldPartParams.level === level) {
+            newDonePartParams = {
+                minX: Math.max(oldDonePartParams.minX, newPartParams.minX),
+                minY: Math.max(oldDonePartParams.minY, newPartParams.minY),
+                maxXExclusive: Math.min(oldDonePartParams.maxXExclusive, newPartParams.maxXExclusive),
+                maxYExclusive: Math.min(oldDonePartParams.maxYExclusive, newPartParams.maxYExclusive)
+            };
+        }
+    }
     
     region.imagePartParams = newPartParams;
     region.isDone = false;
@@ -407,7 +407,7 @@ ImageDecoderViewer.prototype._checkIfRepositionNeeded = function checkIfRepositi
         type: PENDING_CALL_TYPE_REPOSITION,
         region: region,
         position: newPosition,
-		donePartParams: newDonePartParams,
+        donePartParams: newDonePartParams,
         copyData: copyData,
         pixelsWidth: newPartParams.maxXExclusive - newPartParams.minX,
         pixelsHeight: newPartParams.maxYExclusive - newPartParams.minY
@@ -483,7 +483,7 @@ ImageDecoderViewer.prototype._pixelsUpdated = function pixelsUpdated(pixelsUpdat
 ImageDecoderViewer.prototype._repositionCanvas = function repositionCanvas(repositionArgs) {
     var region = repositionArgs.region;
     var position = repositionArgs.position;
-	var donePartParams = repositionArgs.donePartParams;
+    var donePartParams = repositionArgs.donePartParams;
     var copyData = repositionArgs.copyData;
     var pixelsWidth = repositionArgs.pixelsWidth;
     var pixelsHeight = repositionArgs.pixelsHeight;
@@ -526,7 +526,7 @@ ImageDecoderViewer.prototype._repositionCanvas = function repositionCanvas(repos
     }
     
     region.position = position;
-	region.donePartParams = donePartParams;
+    region.donePartParams = donePartParams;
 };
 
 ImageDecoderViewer.prototype._copyOverviewToCanvas = function copyOverviewToCanvas(

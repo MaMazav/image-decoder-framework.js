@@ -6,11 +6,11 @@ var DecodeJob = require('decode-job.js');
 
 function DecodeJobsPool(
     decodeDependencyWorkers,
-	prioritizer,
+    prioritizer,
     tileWidth,
     tileHeight) {
     
-	this._prioritizer = prioritizer;
+    this._prioritizer = prioritizer;
     this._tileWidth = tileWidth;
     this._tileHeight = tileHeight;
     
@@ -73,7 +73,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                 --listenerHandle.remainingDecodeJobs;
                 continue;
             }
-			
+            
             var singleTileImagePartParams = {
                 minX: x,
                 minY: y,
@@ -86,7 +86,7 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
                 requestPriorityData: priorityData
             };
 
-			this._startNewTask(listenerHandle, singleTileImagePartParams);
+            this._startNewTask(listenerHandle, singleTileImagePartParams);
             
         }
     }
@@ -102,19 +102,19 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
 };
 
 DecodeJobsPool.prototype._startNewTask = function startNewTask(listenerHandle, imagePartParams) {
-	var decodeJob = new DecodeJob(listenerHandle, imagePartParams);
-	var taskContext = this._decodeDependencyWorkers.startTask(imagePartParams, decodeJob);
-	listenerHandle.taskContexts.push(taskContext);
-	
-	if (this._prioritizer === null) {
-		return;
-	}
-	
-	var self = this;
-	
-	taskContext.setPriorityCalculator(function() {
-		return self._prioritizer.getPriority(decodeJob);
-	});
+    var decodeJob = new DecodeJob(listenerHandle, imagePartParams);
+    var taskContext = this._decodeDependencyWorkers.startTask(imagePartParams, decodeJob);
+    listenerHandle.taskContexts.push(taskContext);
+    
+    if (this._prioritizer === null) {
+        return;
+    }
+    
+    var self = this;
+    
+    taskContext.setPriorityCalculator(function() {
+        return self._prioritizer.getPriority(decodeJob);
+    });
 };
 
 DecodeJobsPool.prototype.unregisterForkedJobs = function unregisterForkedJobs(

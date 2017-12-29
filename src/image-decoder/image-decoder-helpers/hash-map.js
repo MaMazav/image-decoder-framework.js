@@ -6,7 +6,7 @@ var LinkedList = require('linked-list.js');
 
 function HashMap(hasher) {
     this._hasher = hasher;
-	this.clear();
+    this.clear();
 }
 
 HashMap.prototype.clear = function clear() {

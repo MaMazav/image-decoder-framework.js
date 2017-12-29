@@ -46,32 +46,32 @@ function createPrioritizer(
     resourceLimit, prioritizerType, schedulerName, showLog) {
     
     var prioritizer;
-	var limitResourceByLowQualityPriority = false;
-	
-	if (prioritizerType === 'frustum') {
-		limitResourceByLowQualityPriority = true;
-		prioritizer = new FrustumRequestsPrioritizer();
-	} else if (prioritizerType === 'frustumOnly') {
-		limitResourceByLowQualityPriority = true;
-		prioritizer = new FrustumRequestsPrioritizer(
-			/*isAbortRequestsNotInFrustum=*/true,
-			/*isPrioritizeLowQualityStage=*/true);
-	} else if (!prioritizerType) {
-		prioritizer = null;
-	} else {
-		prioritizer = prioritizerType;
-	}
-	
-	var options = {
-		schedulerName: schedulerName,
-		showLog: showLog
-	};
-	
-	if (limitResourceByLowQualityPriority) {
-		options.resourceGuaranteedForHighPriority = resourceLimit - 2;
-		options.highPriorityToGuaranteeResource =
-			prioritizer.minimalLowQualityPriority;
-	}
+    var limitResourceByLowQualityPriority = false;
+    
+    if (prioritizerType === 'frustum') {
+        limitResourceByLowQualityPriority = true;
+        prioritizer = new FrustumRequestsPrioritizer();
+    } else if (prioritizerType === 'frustumOnly') {
+        limitResourceByLowQualityPriority = true;
+        prioritizer = new FrustumRequestsPrioritizer(
+            /*isAbortRequestsNotInFrustum=*/true,
+            /*isPrioritizeLowQualityStage=*/true);
+    } else if (!prioritizerType) {
+        prioritizer = null;
+    } else {
+        prioritizer = prioritizerType;
+    }
+    
+    var options = {
+        schedulerName: schedulerName,
+        showLog: showLog
+    };
+    
+    if (limitResourceByLowQualityPriority) {
+        options.resourceGuaranteedForHighPriority = resourceLimit - 2;
+        options.highPriorityToGuaranteeResource =
+            prioritizer.minimalLowQualityPriority;
+    }
         
     return {
         prioritizer: prioritizer,

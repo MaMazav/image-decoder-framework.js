@@ -291,8 +291,8 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
     }
     
     this._imageDecoder.open(this._url)
-		.then(this._opened.bind(this))
-		.catch(this._onException.bind(this));
+        .then(this._opened.bind(this))
+        .catch(this._onException.bind(this));
     
     this._cesiumWidget = widgetOrViewer;
     
@@ -515,7 +515,7 @@ ImageDecoderImageryProvider.prototype.pickFeatures = function() {
 
 ImageDecoderImageryProvider.prototype._onException = function onException(reason) {
     if (this._exceptionCallback !== null) {
-		this._exceptionCallback(reason);
+        this._exceptionCallback(reason);
     }
 };
 
@@ -534,7 +534,6 @@ ImageDecoderImageryProvider.prototype._opened = function opened() {
     this._tileWidth = this._imageDecoder.getTileWidth();
     this._tileHeight = this._imageDecoder.getTileHeight();
         
-    var bestLevel = this._imageDecoder.getImageLevel();
     var bestLevelWidth  = this._imageDecoder.getImageWidth ();
     var bestLevelHeight = this._imageDecoder.getImageHeight();
     
