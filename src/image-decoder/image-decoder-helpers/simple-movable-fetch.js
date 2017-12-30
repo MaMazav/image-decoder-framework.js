@@ -108,6 +108,8 @@ SimpleMovableFetch.prototype._singleFetchStopped = function singleFetchStopped(f
     --this._activeFetchesInMovableFetch;
     this._lastFetch = null;
     fetch.state = FETCH_STATE_TERMINATED;
+
+    this._tryStartPendingFetch();
 };
 
 SimpleMovableFetch.prototype._getLastFetchActive = function getLastFetchActive() {
@@ -148,8 +150,6 @@ function onSingleFetchStopped() {
     } else {
         movableFetch._singleFetchStopped(fetch);
     }
-
-    movableFetch._tryStartPendingFetch();
 }
 
 function onSingleFetchDone() {
