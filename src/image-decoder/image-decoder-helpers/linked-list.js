@@ -2,10 +2,11 @@
 
 module.exports = LinkedList;
 
-function LinkedList() {
+function LinkedList(useAutomaticHazardHeuristics) {
     this._first = { _prev: null, _parent: this };
     this._last = { _next: null, _parent: this };
     this._count = 0;
+    this._useAutomaticHazardHeuristics = useAutomaticHazardHeuristics;
     
     this._last._prev = this._first;
     this._first._next = this._last;
@@ -24,6 +25,7 @@ LinkedList.prototype.add = function add(value, addBefore) {
         _value: value,
         _next: addBefore,
         _prev: addBefore._prev,
+        _isIterated: false,
         _parent: this
     };
     
@@ -35,6 +37,9 @@ LinkedList.prototype.add = function add(value, addBefore) {
 
 LinkedList.prototype.remove = function remove(iterator) {
     this._validateIteratorOfThis(iterator);
+    if (this._useAutomaticHazardHeuristics && iterator._isIterated) {
+        throw 'dependency-workers error: Suspect removal while iteration';
+    }
     
     --this._count;
     
@@ -56,26 +61,31 @@ LinkedList.prototype.getFirstIterator = function getFirstIterator() {
 
 LinkedList.prototype.getLastIterator = function getFirstIterator() {
     var iterator = this.getPrevIterator(this._last);
+    iterator._isIterated = true;
     return iterator;
 };
 
 LinkedList.prototype.getNextIterator = function getNextIterator(iterator) {
     this._validateIteratorOfThis(iterator);
 
+    iterator._isIterated = false;
     if (iterator._next === this._last) {
         return null;
     }
     
+    iterator._next._isIterated = true;
     return iterator._next;
 };
 
 LinkedList.prototype.getPrevIterator = function getPrevIterator(iterator) {
     this._validateIteratorOfThis(iterator);
 
+    iterator._isIterated = false;
     if (iterator._prev === this._first) {
         return null;
     }
     
+    iterator._prev._isIterated = true;
     return iterator._prev;
 };
 
@@ -87,6 +97,6 @@ LinkedList.prototype._validateIteratorOfThis =
     function validateIteratorOfThis(iterator) {
     
     if (iterator._parent !== this) {
-        throw 'imageDecoderFramework error: iterator must be of the current LinkedList';
+        throw 'dependency-workers error: iterator must be of the current LinkedList';
     }
 };

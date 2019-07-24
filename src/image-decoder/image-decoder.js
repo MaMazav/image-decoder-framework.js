@@ -223,7 +223,7 @@ ImageDecoder.prototype.requestPixelsProgressive = function requestPixelsProgress
     var listenerHandle = decodeJobsPool.forkDecodeJobs(
         imagePartParams,
         callback,
-        terminatedCallback,
+        terminatedCallback || function() { },
         imagePartParamsNotNeeded);
         
     if (movableHandle !== undefined) {

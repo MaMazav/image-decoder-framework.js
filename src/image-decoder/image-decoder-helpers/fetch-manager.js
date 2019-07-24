@@ -18,10 +18,10 @@ function FetchManager(fetcher, options) {
     this._fetchesLimit = options.fetchesLimit || 5;
     this._showLog = options.showLog;
     
-    if (this._showLog) {
+    /*if (this._showLog) {
         // Old IE
         throw 'imageDecoderFramework error: showLog is not supported on this browser';
-    }
+    }*/
     
     this._scheduler = null;
     this._fetchPrioritizer = null;
