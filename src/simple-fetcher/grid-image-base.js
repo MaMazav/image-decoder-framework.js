@@ -52,7 +52,7 @@ GridImageBase.prototype.dataReadyForDecode = function dataReadyForDecode(task) {
         imagePartParams: task.key,
         tileWidth: this._imageParams.tileWidth,
         tileHeight: this._imageParams.tileHeight
-    }, DECODE_TASK);
+    }, DECODE_TASK, /*canSkip=*/true);
 };
 
 GridImageBase.prototype.getFetcher = function getFetcher() {
