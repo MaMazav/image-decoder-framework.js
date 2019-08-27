@@ -6,7 +6,9 @@ var LinkedList = require('linked-list.js');
 
 var requestIdCounter = 0;
 
-function DecodeJob(listenerHandle, imagePartParams) {
+DecodeJob.WithPriority = DecodeJobWithPriority;
+
+function DecodeJob(listenerHandle, imagePartParams, prioritizer) {
     this._progressiveStagesDone = 0;
     this._listenerHandle = listenerHandle;
     this._imagePartParams = imagePartParams;
@@ -67,3 +69,14 @@ Object.defineProperty(DecodeJob.prototype, 'progressiveStagesDone', {
         return this._progressiveStagesDone;
     }
 });
+
+function DecodeJobWithPriority(listenerHandle, imagePartParams, prioritizer) {
+    DecodeJob.call(this, listenerHandle, imagePartParams);
+    this._prioritizer = prioritizer;
+}
+
+DecodeJobWithPriority.prototype = Object.create(DecodeJob.prototype);
+
+DecodeJobWithPriority.prototype.priorityCalculator = function priorityCalculator() {
+    return this._prioritizer.getPriority(this);
+};

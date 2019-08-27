@@ -102,19 +102,11 @@ DecodeJobsPool.prototype.forkDecodeJobs = function forkDecodeJobs(
 };
 
 DecodeJobsPool.prototype._startNewTask = function startNewTask(listenerHandle, imagePartParams) {
-    var decodeJob = new DecodeJob(listenerHandle, imagePartParams);
+    var decodeJob = this._prioritizer === null ?
+        new DecodeJob(listenerHandle, imagePartParams) :
+        new DecodeJob.WithPriority(listenerHandle, imagePartParams, this._prioritizer);
     var taskContext = this._decodeDependencyWorkers.startTask(imagePartParams, decodeJob);
     listenerHandle.taskContexts.push(taskContext);
-    
-    if (this._prioritizer === null) {
-        return;
-    }
-    
-    var self = this;
-    
-    taskContext.setPriorityCalculator(function() {
-        return self._prioritizer.getPriority(decodeJob);
-    });
 };
 
 DecodeJobsPool.prototype.unregisterForkedJobs = function unregisterForkedJobs(
