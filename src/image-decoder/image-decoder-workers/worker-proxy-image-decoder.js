@@ -37,10 +37,10 @@ asyncProxy.AsyncProxyFactory.addMethods(WorkerProxyImageDecoder, {
     requestPixels: [{isReturnPromise: true}]
 });
 
-WorkerProxyImageDecoder.prototype.open = function open(url) {
+WorkerProxyImageDecoder.prototype.open = function open(openArg) {
     var self = this;
     var workerHelper = asyncProxy.AsyncProxyFactory.getWorkerHelper(this);
-    return workerHelper.callFunction('open', [url], { isReturnPromise: true })
+    return workerHelper.callFunction('open', [openArg], { isReturnPromise: true })
         .then(function(data) {
             self._internalSizesParams = data.sizesParams;
             self._tileWidth = data.applicativeTileWidth;

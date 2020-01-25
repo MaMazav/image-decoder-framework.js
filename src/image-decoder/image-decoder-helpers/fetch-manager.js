@@ -38,7 +38,7 @@ function FetchManager(fetcher, options) {
         fetcher, 'fetcher', FetchManager.fetcherExpectedMethods);
 }
 
-FetchManager.prototype.open = function open(url) {
+FetchManager.prototype.open = function open(openArg) {
     var fetchScheduler = imageHelperFunctions.createPrioritizer(
         this._fetchesLimit,
         this._prioritizerType,
@@ -60,7 +60,7 @@ FetchManager.prototype.open = function open(url) {
     }
 
     var self = this;
-    return this._fetcher.open(url).then(function(result) {
+    return this._fetcher.open(openArg).then(function(result) {
         self._imageParams = result;
         return result;
     });

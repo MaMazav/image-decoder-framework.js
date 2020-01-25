@@ -57,7 +57,7 @@ function createImageDecoderRegionLayerFunctions() {
                     this._imageViewer.setExceptionCallback(this._exceptionCallback);
                 }
                 
-                this._imageViewer.open(this._options.url).catch(this._exceptionCallback);
+                this._imageViewer.open(this._options.openArg).catch(this._exceptionCallback);
             }
         },
 

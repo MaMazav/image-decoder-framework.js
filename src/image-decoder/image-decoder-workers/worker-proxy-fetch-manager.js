@@ -23,11 +23,11 @@ asyncProxy.AsyncProxyFactory.addMethods(WorkerProxyFetchManager, {
     manualAbortRequest: []
 });
 
-WorkerProxyFetchManager.prototype.open = function open(url) {
+WorkerProxyFetchManager.prototype.open = function open(openArg) {
     var self = this;
     var workerHelper = asyncProxy.AsyncProxyFactory.getWorkerHelper(this);
 
-    return workerHelper.callFunction('open', [url], { isReturnPromise: true })
+    return workerHelper.callFunction('open', [openArg], { isReturnPromise: true })
         .then(function(data) {
             self._internalSizesParams = data;
             self.getImageParams();

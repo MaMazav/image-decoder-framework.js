@@ -35,7 +35,7 @@ module.exports = L.Class.extend({
             
             this._image.setStatusCallback(this._statusCallback.bind(this));
             
-            this._image.open(this._options.url);
+            this._image.open(this._options.openArg);
         }
     },
 

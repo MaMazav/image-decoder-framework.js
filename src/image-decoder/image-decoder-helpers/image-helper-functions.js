@@ -9,7 +9,8 @@ module.exports = {
     ensureLevelCalculator: ensureLevelCalculator,
     alignParamsToTilesAndLevel: alignParamsToTilesAndLevel,
     getOrCreateInstance: getOrCreateInstance,
-    isIndirectCreationNeeded: isIndirectCreationNeeded
+    isIndirectCreationNeeded: isIndirectCreationNeeded,
+    renderToCanvas: renderToCanvas
 };
 
 // Avoid jshint error
@@ -283,4 +284,48 @@ function getClassInGlobalObject(globalObject, className) {
     }
     
     return result;
+}
+
+function renderToCanvas(canvas, regionParams, imageDecoder, x, y) {
+    var targetContext = canvas.getContext('2d');
+    var tempCanvas, tempContext, alignedParams, imagePartParams;
+    
+    /* global Promise: false */
+    return new Promise(function(resolve, reject) {
+        alignedParams = alignParamsToTilesAndLevel(regionParams, imageDecoder);
+        imagePartParams = alignedParams.imagePartParams;
+
+        imageDecoder.requestPixelsProgressive(
+            imagePartParams,
+            regionDecodedCallback,
+            function terminatedCallback(isAborted) {
+                if (isAborted) {
+                    reject('Fetch is aborted');
+                } else {
+                    resolve();
+                }
+            });
+    });
+    
+    function regionDecodedCallback(partialDecodeResult) {
+        if (!tempCanvas) {
+            tempCanvas = document.createElement('canvas');
+            tempCanvas.width  = imagePartParams.maxXExclusive - imagePartParams.minX;
+            tempCanvas.height = imagePartParams.maxYExclusive - imagePartParams.minY;
+
+            tempContext = tempCanvas.getContext('2d');
+            tempContext.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+        }
+        
+        tempContext.putImageData(
+            partialDecodeResult.imageData,
+            partialDecodeResult.xInOriginalRequest,
+            partialDecodeResult.yInOriginalRequest);
+        
+        // Crop and scale original request region (before align) into canvas
+        var crop = alignedParams.croppedScreen;
+        targetContext.drawImage(tempCanvas,
+            crop.minX, crop.minY, crop.maxXExclusive - crop.minX, crop.maxYExclusive - crop.minY,
+            x || 0, y || 0, regionParams.screenWidth, regionParams.screenHeight);
+    }
 }

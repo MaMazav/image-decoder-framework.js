@@ -57,8 +57,8 @@ ImageDecoderViewer.prototype.setExceptionCallback = function setExceptionCallbac
     this._exceptionCallback = exceptionCallback;
 };
     
-ImageDecoderViewer.prototype.open = function open(url) {
-    return this._imageDecoder.open(url)
+ImageDecoderViewer.prototype.open = function open(openArg) {
+    return this._imageDecoder.open(openArg)
         .then(this._opened.bind(this))
         .catch(this._exceptionCallback);
 };

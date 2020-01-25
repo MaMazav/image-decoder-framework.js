@@ -14,6 +14,8 @@ var WorkerProxyImageDecoder = require('worker-proxy-image-decoder.js');
 
 ImageDecoder.alignParamsToTilesAndLevel = imageHelperFunctions.alignParamsToTilesAndLevel;
 
+ImageDecoder.renderToCanvas = imageHelperFunctions.renderToCanvas;
+
 ImageDecoder.fromImage = function fromImage(image, options) {
     var isIndirectCreationNeeded = imageHelperFunctions.isIndirectCreationNeeded(
         image, 'image', ImageDecoder._imageExpectedMethods);
@@ -110,11 +112,11 @@ ImageDecoder.prototype.setFetchPrioritizerType = function setPrioritizerType(pri
     this._fetchManager.setPrioritizerType(prioritizerType);
 };
 
-ImageDecoder.prototype.open = function open(url) {
+ImageDecoder.prototype.open = function open(openArg) {
     this._validateFetcher();
 
     var self = this;
-    var promise = this._fetchManager.open(url);
+    var promise = this._fetchManager.open(openArg);
     return promise.then(function (sizesParams) {
         self._internalSizesParams = sizesParams;
         self._image.opened(self);

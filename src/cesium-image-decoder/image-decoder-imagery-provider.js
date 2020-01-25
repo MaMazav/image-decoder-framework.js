@@ -33,6 +33,7 @@ var imageHelperFunctions = require('image-helper-functions.js');
  */
 function ImageDecoderImageryProvider(imageDecoder, options) {
     var url = options.url;
+    this._openArg = options.openArg;
     this._adaptProportions = options.adaptProportions;
     this._rectangle = options.rectangle;
     this._proxy = options.proxy;
@@ -59,12 +60,6 @@ function ImageDecoderImageryProvider(imageDecoder, options) {
         north: this._rectangle.north
     };
     
-    //>>includeStart('debug', pragmas.debug);
-    if (url === undefined) {
-            throw new DeveloperError('url is required.');
-    }
-    //>>includeEnd('debug');
-
     this._url = url;
 
     this._tilingScheme = undefined;
@@ -79,8 +74,10 @@ function ImageDecoderImageryProvider(imageDecoder, options) {
     this._cesiumWidget = null;
     this._updateFrustumIntervalHandle = null;
     
-
     var imageUrl = url;
+    if (!url) {
+        url = 'unknown-url';
+    }
     if (this._proxy !== undefined) {
         // NOTE: Is that the correct logic?
         imageUrl = this._proxy.getURL(imageUrl);
@@ -290,7 +287,7 @@ ImageDecoderImageryProvider.prototype.open = function open(widgetOrViewer) {
             'needed for frustum calculation for the priority mechanism');
     }
     
-    this._imageDecoder.open(this._url)
+    this._imageDecoder.open(this._openArg)
         .then(this._opened.bind(this))
         .catch(this._onException.bind(this));
     
@@ -323,7 +320,7 @@ ImageDecoderImageryProvider.prototype.getMinimumLevel = function getMinimumLevel
 };
 
 ImageDecoderImageryProvider.prototype.getUrl = function getUrl() {
-    return this.url;
+    return this._url;
 };
 
 ImageDecoderImageryProvider.prototype.getProxy = function getProxy() {

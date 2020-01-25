@@ -23,7 +23,7 @@ function CesiumImageDecoderLayerManager(imageDecoder, options) {
     
     this._options.minFunctionCallIntervalMilliseconds =
         options.minFunctionCallIntervalMilliseconds || 100;
-    this._url = options.url;
+    this._openArg = options.openArg;
 
     this._targetCanvas = document.createElement('canvas');
     this._imageryProviders = [
@@ -59,7 +59,7 @@ CesiumImageDecoderLayerManager.prototype.open = function open(widgetOrViewer) {
     this._layers = widgetOrViewer.scene.imageryLayers;
     widgetOrViewer.scene.postRender.addEventListener(this._postRenderBound);
     
-    this._imageViewer.open(this._url);
+    this._imageViewer.open(this._openArg);
     this._layers.add(this._imageryLayerShown);
     
     // NOTE: Is there an event handler to register instead?
